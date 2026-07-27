@@ -119,11 +119,11 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 | --- | --- |
 | `propose_site(box)` | 无选区时的第一个调用;触发玩家确认,确认前写工具锁定 |
 
-不設 `get_constraints`、`report` 等冗余工具——任务约束在 task.json,进度汇报走 stdout 转发。
+不设 `get_constraints`、`report` 等冗余工具——任务约束在 task.json,进度汇报走 stdout 转发。
 
 ## 6. 异步 job 与快照/undo
 
-- **所有写操作都是异步 job**:工具调用立即返回 `job_id`,mod 后台**分帧执行**(每 tick 放 N 块),聊天栏显示进度。10 万方块级操作不会冻结游戏。
+- **所有写操作都是异步 job**:工具调用立即返回 `job_id`,mod 后台**分帧执行**(每 tick 放置默认 4096 块,可配),聊天栏显示进度。10 万方块级操作不会冻结游戏。
 - **快照**:建造前用**原版结构方块机制(StructureTemplate)**对施工范围做快照——调色板 + 索引数组,保存快、恢复带方块实体处理,不手写 BlockChange 列表。
 - **undo**:`/aiundo` 分帧恢复快照,聊天栏显示进度。
 
