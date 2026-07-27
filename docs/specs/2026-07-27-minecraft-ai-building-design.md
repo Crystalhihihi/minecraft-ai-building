@@ -15,6 +15,7 @@
 - 不做多人服务器权限体系(v1 纯单机)
 - 不做生存模式材料校验(创造模式语义,方块凭空放置)
 - 不自己实现 LLM 调用、prompt 工程框架、建筑模板库
+- 不做 schematic 解析/风格蒸馏管线——风格卡片手写,蒸馏留作 V2 可选方向
 
 ## 2. 关键决策汇总
 
@@ -65,6 +66,7 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 - `AGENTS.md`——施工规范:坐标系说明、边界约束、工具用法、"先规划、自下而上、盖完渲染自检"的流程要求(Kimi Code 启动时自动加载)
 - `task.json`——本次任务:玩家描述、选区/确认范围、限制参数
 - `terrain.json` + ASCII 高度图——spawn 前由 mod 生成的周边地形摘要(高度图/水体/坡度/平坦度)
+- `styles/`——风格卡片目录(见 §5.4),mod 首次运行释放 3-5 张 baseline 卡片
 - `prompt.txt` 等中间产物、agent 自己的图纸文件
 
 **prompt 组装原则**:`kimi -p` 的 prompt 永远只有一两句("阅读本目录 AGENTS.md 与 task.json,按任务施工"),所有大内容全是文件,AI 用自己的 Read 工具读。命令行永远几百字符,彻底避开 Windows 命令行长度上限(/cmd 8191、CreateProcess 32767)。
@@ -120,6 +122,17 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 | `propose_site(box)` | 无选区时的第一个调用;触发玩家确认,确认前写工具锁定 |
 
 不设 `get_constraints`、`report` 等冗余工具——任务约束在 task.json,进度汇报走 stdout 转发。
+
+### 5.4 风格系统(约束,不是形容词)
+
+LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**可量化参数**表达,而不是 prompt 形容词。
+
+- **风格卡片**:JSON 文件,含材料白名单(primary/secondary/accent)、高宽比范围、屋顶类型与悬挑、开窗节奏、装饰件(扶壁/垛口/火把间距等);
+- **存放与匹配**:卡片在工作目录 `styles/` 下,AI 用自己的文件工具读取、按任务自行匹配;**mod 不写任何匹配逻辑**;
+- **baseline**:首次运行释放 3-5 张手写卡片(中世纪塔楼/平原木屋/临水码头/山腰吊脚等),由开发者直接编写——不做 schematic 解析蒸馏管线(V2 可选);
+- **风格变更**:AI 想突破卡片约束,用文字提出,玩家 `/aichat` 回复——复用现有通道,不加专用工具;
+- **沉淀新风格**:玩家说"这个风格存起来",AI 用自己的文件工具把当前参数写成新卡片——零 mod 代码;
+- **质量底线**(写进 AGENTS.md 施工规范):比例不畸形(高宽比 1:1~4:1)、屋顶与墙体材质区分、开窗有节奏不随机、材料呼应地形(森林木/沙漠砂岩/雪地云杉)、底部与地形衔接不浮空不半埋。
 
 ## 6. 异步 job 与快照/undo
 
@@ -183,7 +196,7 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 2. **离屏渲染 PNG**——mod 内最大技术风险,早期 spike,失败立刻切 V1 软件回退,不恋战;
 3. **bridge 与 Kimi Code 的实际 MCP 握手**——协议细节(初始化、image content 返回)以实测为准。
 
-建议实施顺序:续聊验证 → HTTP API + curl 联通 → bridge + kimi 端到端盲盖 → 选区杖 + propose_site → 快照/undo → 渲染(spike 提前并行做)→ 打磨。
+建议实施顺序:续聊验证 → HTTP API + curl 联通 → bridge + kimi 端到端盲盖 → 选区杖 + propose_site → 快照/undo → 渲染(spike 提前并行做)→ AGENTS.md 施工规范与 baseline 风格卡片编写 → 打磨。
 
 ## 13. 仓库结构(monorepo)
 
