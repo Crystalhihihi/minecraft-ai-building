@@ -4,17 +4,13 @@
 - 对应规格:[2026-07-27-minecraft-ai-building-design.md](../specs/2026-07-27-minecraft-ai-building-design.md)
 - 原则:按风险排序,每个 Phase 有明确验证出口,不验证不进入下一阶段。
 
-## Phase 0:CLI 行为验证(纯命令行,不写项目代码)
+## Phase 0:CLI 行为验证(纯命令行,不写项目代码)—— ✅ 已完成(2026-07-27,kimi 0.29.2)
 
-目的:把规格里标注"实测为准"的 CLI 行为全部钉死。
-
-- [ ] 0.1 `kimi -p "..." --output-format stream-json` 基本运行;确认 stdout JSONL 的事件类型(assistant/tool)、session id 是否出现在输出中
-- [ ] 0.2 **续聊**:同一 cwd 下先 `kimi -p "记住数字 42"`,再 `kimi -c -p "我刚才让你记的数字是?"`;若失败,改测 `kimi -S <id> -p`,并确定 session id 的可靠获取方式(stream-json / 会话存储目录)
-- [ ] 0.3 **静默可观测性**:在 stream-json 模式下让模型做一次长推理,观察 stdout/stderr 是否完全无字节 → 决定静默超时默认值(20min 是否够)
-- [ ] 0.4 **MCP 握手**:手写 100 行假 stdio server(回显 initialize、固定 tools/list、tools/call 返回固定文本),配 `.kimi-code/mcp.json`,确认 kimi 能列出并调用工具;同时验证 **image content**(base64 PNG)能正常回传
-- [ ] 0.5 确认 agent 命令行的最终形态(prompt 引用文件、cwd、flags),写回规格 §4.1 如有出入
-
-出口:以上 5 项有书面结论(记录在 plan 或 commit message)。
+- [x] 0.1 `kimi -p --output-format stream-json` 正常;assistant 消息为 `{"role":"assistant","content":...}`;**meta 行直接给出 session_id 与续聊命令**;与桌面版共享 `~/.kimi-code` 登录态,开箱即用
+- [x] 0.2 **续聊**:`kimi -c -p` 与 `kimi -r <id> -p` **均实测通过**(都正确答出上轮的 42);首选 `-r <id>`(显式、id 来自 meta 行),`-c` 兜底
+- [x] 0.3 **静默可观测性**:长回复期间 stdout/stderr **全程零字节**(stream-json 只发完整消息,无增量;无工具时 stderr 全空)→ 静默超时口径=双通道无字节,默认 20min 合理,不能依赖 stderr 做活性判断
+- [x] 0.4 **MCP 握手**:项目级 `.kimi-code/mcp.json` 生效;假 stdio server 的 initialize/tools/list/tools/call 全通;**并行工具调用**正常;**base64 PNG image content 真的被模型看到**(正确描述红底蓝斜线)
+- [x] 0.5 最终命令形态:`kimi -p "<短 prompt>" --output-format stream-json`,cwd=工作目录;续聊 `kimi -r <id> -p "<消息>"`;CLI 安装=官方 PowerShell 脚本(`~/.kimi-code/bin/kimi.exe`,自动上 PATH)
 
 ## Phase 1:mc-mcp-bridge(独立 Gradle 模块)
 

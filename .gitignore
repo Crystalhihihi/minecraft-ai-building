@@ -21,3 +21,6 @@ run/
 # OS
 .DS_Store
 Thumbs.db
+
+# 本地实验与 Phase 0 验证产物
+scratch/

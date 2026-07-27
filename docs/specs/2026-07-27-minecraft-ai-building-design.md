@@ -152,15 +152,16 @@ LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**�
 ## 8. 会话续聊
 
 - `/aichat` = 在**同一 agent 会话**上继续,AI 记得之前盖了什么。
-- 首选 `kimi -c -p "<消息>"`(`-c` 续当前目录最近会话,工作目录固定所以天然匹配);文档未明文禁止该组合,但也未定义行为,**实施第一步必须实测**。
-- fallback:`kimi -S <session_id> -p "<消息>"`;session id 从 stream-json 输出或 kimi 会话存储目录取得,写入工作目录 `.session_id`。
-- 注意:`-c` 与 `-S` 互斥,不能组合;不带 `-p` 会进 TUI,不是无头。
+- **已实测通过(kimi 0.29.2)**:stream-json 的 meta 行直接给出 session id 和续聊命令(`{"role":"meta","type":"session.resume_hint","session_id":"...","command":"kimi -r ..."}`)。
+- **首选 `kimi -r <session_id> -p "<消息>"`**:mod 解析 meta 行存下 session id(写工作目录 `.session_id` 兜底),显式续聊,不受"目录最近会话"歧义影响;
+- **fallback `kimi -c -p "<消息>"`**(续当前目录最近会话):同样实测通过,工作目录固定所以天然匹配。
+- 注意:`-c` 与 `-r`/`-S` 互斥,不能组合;不带 `-p` 会进 TUI,不是无头。
 
 ## 9. 超时与错误处理
 
 ### 9.1 agent 进程超时(双阈值)
 
-- **静默超时**:默认 **20 分钟**(可配)。口径 = **stdout+stderr 双通道无任何字节**。注意:stream-json 模式明文不写 thinking 内容,深度推理期间可能真的全程无事件,所以阈值要宽松;实施 spike 需实测"推理期间 stderr 是否有活动",若无则依赖宽松阈值兜底。
+- **静默超时**:默认 **20 分钟**(可配)。口径 = **stdout+stderr 双通道无任何字节**。**已实测**:stream-json 只发完整消息、无增量输出,无工具调用时 stderr 全空——一次数分钟的长回复期间双通道真的全程静默,这是常态不是卡死;阈值宽松是必要的,不能依赖 stderr 做活性判断。
 - **硬上限**:默认 60 分钟(可配),到点杀掉并提示可 `/aichat` 继续。
 
 ### 9.2 其他错误处理
@@ -194,9 +195,9 @@ LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**�
 
 风险排序(决定实施顺序):
 
-1. **续聊验证**(`-c -p` vs `-S <id> -p`;thinking 在 stream-json 下的可观测性)——纯命令行实验,最先做;
+1. ~~**续聊验证**~~ —— ✅ 已排除(Phase 0):`-r <id> -p` 与 `-c -p` 均实测通过;session id 由 stream-json meta 行直接给出;
 2. **离屏渲染 PNG**——调研已把难度从"高"降为"中等"(WorldMesh + 离屏 framebuffer,MIT 模式可移植),仍需早期 spike;失败立刻切 V1 软件回退,不恋战;
-3. **bridge 与 Kimi Code 的实际 MCP 握手**——协议细节(初始化、image content 返回)以实测为准;
+3. ~~**bridge 与 Kimi Code 的 MCP 握手**~~ —— ✅ 已排除(Phase 0):手写 JSON-RPC server 与 kimi 0.29.2 握手、并行工具调用、image content 回传全部实测通过;
 4. **可点击聊天事件 API**——`propose_site` 的 [确认] 按钮依赖聊天栏点击事件,该 API 在 1.21.5 时代有改动(调研未能确认现状),实现时实测,不行就退回"输入 `/aiconfirm` 确认"。
 
 建议实施顺序:续聊验证 → HTTP API + curl 联通 → bridge + kimi 端到端盲盖 → 选区杖 + propose_site → 快照/undo → 渲染(spike 提前并行做)→ AGENTS.md 施工规范与 baseline 风格卡片编写 → 打磨。
@@ -211,6 +212,7 @@ LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**�
 | Fabric API | 0.141.5+1.21.11 |
 | Fabric Loom | 1.17-SNAPSHOT(Gradle 9.5.1,Java 21) |
 | 快照 API(mojmap) | `StructureTemplate#fillFromWorld` / `placeInWorld` + `StructurePlaceSettings` |
+| Agent CLI | Kimi Code CLI ≥ 0.29.2(官方 PowerShell 安装脚本;与 Kimi 桌面版共享 `~/.kimi-code` 登录态;`kimi` 需在 PATH) |
 
 已知版本坑(1.21.1→1.21.11):物品注册必须带 `RegistryKey`(1.21.2+);`Entity#getWorld` → `getEntityWorld`(1.21.9+);聊天 Text 点击事件 API 有改动(见风险 4)。
 
