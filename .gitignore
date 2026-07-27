@@ -1,0 +1,23 @@
+# Java / Gradle
+*.class
+*.jar
+!gradle-wrapper.jar
+.gradle/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Minecraft / Fabric Loom
+run/
+.remapped_mods/
+
+# OS
+.DS_Store
+Thumbs.db
