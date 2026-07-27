@@ -48,12 +48,15 @@ public final class BridgeHttpServer {
     private static final int MAIN_THREAD_TIMEOUT_SECONDS = 30;
 
     private final JobManager jobManager;
+    private final PlayerInbox inbox;
     private HttpServer http;
     private String token;
+    private int port = -1;
     private MinecraftServer server;
 
-    public BridgeHttpServer(JobManager jobManager) {
+    public BridgeHttpServer(JobManager jobManager, PlayerInbox inbox) {
         this.jobManager = jobManager;
+        this.inbox = inbox;
     }
 
     public void start(MinecraftServer server, Path gameDir) throws IOException {
@@ -73,7 +76,7 @@ public final class BridgeHttpServer {
         }));
         http.start();
 
-        int port = http.getAddress().getPort();
+        port = http.getAddress().getPort();
         Path dir = gameDir.resolve("aibuild");
         Files.createDirectories(dir);
         JsonObject info = new JsonObject();
@@ -82,6 +85,14 @@ public final class BridgeHttpServer {
         Path bridgeJson = dir.resolve("bridge.json");
         Files.writeString(bridgeJson, GSON.toJson(info));
         AiBuildMod.LOGGER.info("[aibuild] bridge http server listening on 127.0.0.1:{} (credentials in {})", port, bridgeJson);
+    }
+
+    public int port() {
+        return port;
+    }
+
+    public String token() {
+        return token;
     }
 
     public void stop() {
@@ -150,8 +161,20 @@ public final class BridgeHttpServer {
         }
     }
 
-    private static void send(HttpExchange ex, int status, JsonObject body) {
+    private void send(HttpExchange ex, int status, JsonObject body) {
         try {
+            // Piggyback queued player messages onto every JSON response (except
+            // auth failures, which by definition do not reach the agent).
+            if (status != 403) {
+                List<String> messages = inbox.drain();
+                if (!messages.isEmpty()) {
+                    JsonArray arr = new JsonArray();
+                    for (String m : messages) {
+                        arr.add(m);
+                    }
+                    body.add("player_messages", arr);
+                }
+            }
             byte[] bytes = GSON.toJson(body).getBytes(StandardCharsets.UTF_8);
             ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
             ex.sendResponseHeaders(status, bytes.length);

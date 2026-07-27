@@ -28,11 +28,32 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 }
 
+def bridgeJarFile = file("${rootDir}/../mc-mcp-bridge/build/libs/mc-mcp-bridge-1.0.0-all.jar")
+
+// The mc-mcp-bridge is a sibling Gradle build (not part of this build's settings),
+// so invoke its own wrapper. Only runs when the shadow jar is missing; if it is
+// missing and the build fails, the Exec task fails with the bridge's output.
+tasks.register('buildBridgeJar', Exec) {
+    group = 'build'
+    description = 'Builds the mc-mcp-bridge shadow jar (sibling project) if missing.'
+    workingDir file("${rootDir}/../mc-mcp-bridge")
+    commandLine 'cmd', '/c', 'gradlew.bat', '--console=plain', '-q', 'shadowJar'
+    onlyIf { !bridgeJarFile.isFile() }
+    outputs.file bridgeJarFile
+}
+
 processResources {
     inputs.property "version", project.version
 
     filesMatching("fabric.mod.json") {
         expand "version": inputs.properties.version
+    }
+
+    // Ship the bridge jar inside the mod jar; extracted to the agent work dir at runtime.
+    dependsOn 'buildBridgeJar'
+    from(bridgeJarFile) {
+        into 'assets/aibuild'
+        rename { 'mc-mcp-bridge.jar' }
     }
 }
 
