@@ -1,11 +1,17 @@
 package com.aibuild.mod.agent;
 
+import com.aibuild.mod.bridge.SiteGate;
+import com.aibuild.mod.selection.Selection;
+import com.aibuild.mod.selection.SelectionManager;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.UUID;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
@@ -13,18 +19,28 @@ import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 /**
- * /aibuild <description> — spawn the agent on a new build task.
+ * /aibuild <description> — spawn the agent on a new build task. When the
+ *   command source has a complete wand selection, the build is bound to it;
+ *   otherwise the AI must propose_site and wait for player confirmation.
  * /aichat <message>     — queue mid-build, or resume the session with `kimi -r`.
  * /aicancel             — destroyForcibly the agent process.
+ * /aiselect [clear]     — show or clear your selection (console uses a shared slot).
+ * /aiselect set <from> <to> — set both corners (op tool; also how headless
+ *   servers bind a selection for /aibuild).
+ * /aiconfirm /aireject  — confirm or reject a pending AI site proposal.
  *
  * Usable by players (op level 2+) and by RCON/console; with no player source
  * the anchor falls back to the overworld spawn point and feedback goes to the log.
  */
 public final class AgentCommands {
     private final AgentRunner runner;
+    private final SelectionManager selections;
+    private final SiteGate gate;
 
-    public AgentCommands(AgentRunner runner) {
+    public AgentCommands(AgentRunner runner, SelectionManager selections, SiteGate gate) {
         this.runner = runner;
+        this.selections = selections;
+        this.gate = gate;
     }
 
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -39,6 +55,23 @@ public final class AgentCommands {
         dispatcher.register(literal("aicancel")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .executes(ctx -> aicancel(ctx.getSource())));
+        dispatcher.register(literal("aiselect")
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(ctx -> aiselectShow(ctx.getSource()))
+                .then(literal("clear")
+                        .executes(ctx -> aiselectClear(ctx.getSource())))
+                .then(literal("set")
+                        .then(argument("from", BlockPosArgument.blockPos())
+                                .then(argument("to", BlockPosArgument.blockPos())
+                                        .executes(ctx -> aiselectSet(ctx.getSource(),
+                                                BlockPosArgument.getBlockPos(ctx, "from"),
+                                                BlockPosArgument.getBlockPos(ctx, "to")))))));
+        dispatcher.register(literal("aiconfirm")
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(ctx -> aiconfirm(ctx.getSource())));
+        dispatcher.register(literal("aireject")
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(ctx -> aireject(ctx.getSource())));
     }
 
     private int aibuild(CommandSourceStack src, String description) {
@@ -47,13 +80,18 @@ public final class AgentCommands {
             return 0;
         }
         BlockPos anchor = anchorOf(src);
+        Selection selection = selections.get(ownerOf(src));
+        SiteGate.Bounds bounds = selection.isComplete() ? selection.toBounds() : null;
         try {
-            runner.startBuild(description, anchor);
+            runner.startBuild(description, anchor, bounds);
         } catch (Exception e) {
             src.sendFailure(Component.literal("[aibuild] failed to start agent: " + e.getMessage()));
             return 0;
         }
-        src.sendSuccess(() -> Component.literal("[aibuild] agent started: " + description), false);
+        String note = bounds != null
+                ? " (bounds: " + bounds.describe() + ")"
+                : " (no selection — AI will propose a site and wait for /aiconfirm)";
+        src.sendSuccess(() -> Component.literal("[aibuild] agent started: " + description + note), false);
         return 1;
     }
 
@@ -87,11 +125,65 @@ public final class AgentCommands {
         return 1;
     }
 
+    private int aiselectShow(CommandSourceStack src) {
+        Selection selection = selections.get(ownerOf(src));
+        src.sendSuccess(() -> Component.literal("[aibuild] selection: " + selection.describe()), false);
+        return 1;
+    }
+
+    private int aiselectClear(CommandSourceStack src) {
+        selections.clear(ownerOf(src));
+        src.sendSuccess(() -> Component.literal("[aibuild] selection cleared"), false);
+        return 1;
+    }
+
+    private int aiselectSet(CommandSourceStack src, BlockPos from, BlockPos to) {
+        String error = selections.set(ownerOf(src), from, to);
+        if (error != null) {
+            src.sendFailure(Component.literal("[aibuild] " + error));
+            return 0;
+        }
+        Selection selection = selections.get(ownerOf(src));
+        src.sendSuccess(() -> Component.literal("[aibuild] selection set: " + selection.toBounds().describe()), false);
+        return 1;
+    }
+
+    private int aiconfirm(CommandSourceStack src) {
+        SiteGate.Bounds confirmed = gate.confirm();
+        if (confirmed == null) {
+            src.sendFailure(Component.literal("[aibuild] no pending site proposal"));
+            return 0;
+        }
+        runner.enqueuePlayerMessage("玩家已确认选址 " + confirmed.describe() + ";写工具已解锁,请在该范围内施工");
+        src.sendSuccess(() -> Component.literal("[aibuild] site confirmed: " + confirmed.describe()), true);
+        return 1;
+    }
+
+    private int aireject(CommandSourceStack src) {
+        SiteGate.Bounds rejected = gate.reject();
+        if (rejected == null) {
+            src.sendFailure(Component.literal("[aibuild] no pending site proposal"));
+            return 0;
+        }
+        runner.enqueuePlayerMessage("玩家拒绝了选址 " + rejected.describe() + ";请重新 propose_site 选择其他位置");
+        src.sendSuccess(() -> Component.literal("[aibuild] site rejected: " + rejected.describe()
+                + " — AI has been asked to propose elsewhere"), true);
+        return 1;
+    }
+
     private static BlockPos anchorOf(CommandSourceStack src) {
         if (src.getEntity() instanceof ServerPlayer player) {
             return player.blockPosition();
         }
         // RCON / console: anchor on the overworld spawn point.
         return src.getServer().overworld().getRespawnData().pos();
+    }
+
+    /** Selection owner: the player, or a shared console slot for RCON/console sources. */
+    private static UUID ownerOf(CommandSourceStack src) {
+        if (src.getEntity() instanceof ServerPlayer player) {
+            return player.getUUID();
+        }
+        return SelectionManager.CONSOLE_UUID;
     }
 }

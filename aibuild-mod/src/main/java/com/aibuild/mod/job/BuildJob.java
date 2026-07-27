@@ -1,6 +1,7 @@
 package com.aibuild.mod.job;
 
 import com.aibuild.mod.AiBuildMod;
+import com.aibuild.mod.bridge.SiteGate;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
@@ -30,22 +31,25 @@ public final class BuildJob {
     private final String id = UUID.randomUUID().toString();
     private final int total;
     private final Iterator<Placement> tasks;
+    /** Allowed build range snapshot; null means "no bound" (legacy/direct submissions). */
+    private final SiteGate.Bounds bounds;
     private int placed;
     private int failed;
     private State state = State.RUNNING;
     private final List<String> errors = new ArrayList<>();
     private int nextBroadcastThreshold = 10;
 
-    private BuildJob(int total, Iterator<Placement> tasks) {
+    private BuildJob(int total, Iterator<Placement> tasks, SiteGate.Bounds bounds) {
         this.total = total;
         this.tasks = tasks;
+        this.bounds = bounds;
     }
 
-    public static BuildJob forPlacements(List<Placement> placements) {
-        return new BuildJob(placements.size(), placements.iterator());
+    public static BuildJob forPlacements(List<Placement> placements, SiteGate.Bounds bounds) {
+        return new BuildJob(placements.size(), placements.iterator(), bounds);
     }
 
-    public static BuildJob forFill(BlockPos min, BlockPos max, BlockState state, FillMode mode) {
+    public static BuildJob forFill(BlockPos min, BlockPos max, BlockState state, FillMode mode, SiteGate.Bounds bounds) {
         int dx = max.getX() - min.getX() + 1;
         int dy = max.getY() - min.getY() + 1;
         int dz = max.getZ() - min.getZ() + 1;
@@ -55,7 +59,7 @@ public final class BuildJob {
             long inner = (long) Math.max(dx - 2, 0) * Math.max(dy - 2, 0) * Math.max(dz - 2, 0);
             total = (int) (total - inner);
         }
-        return new BuildJob(total, new FillIterator(min, max, state, mode));
+        return new BuildJob(total, new FillIterator(min, max, state, mode), bounds);
     }
 
     public String id() {
@@ -79,6 +83,10 @@ public final class BuildJob {
         while (processed < budget && tasks.hasNext()) {
             Placement p = tasks.next();
             processed++;
+            if (bounds != null && !bounds.contains(p.pos())) {
+                recordFailure(p, "out_of_bounds");
+                continue;
+            }
             if (level.isOutsideBuildHeight(p.pos())) {
                 recordFailure(p, "outside build height");
                 continue;

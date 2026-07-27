@@ -13,8 +13,13 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -49,14 +54,16 @@ public final class BridgeHttpServer {
 
     private final JobManager jobManager;
     private final PlayerInbox inbox;
+    private final SiteGate gate;
     private HttpServer http;
     private String token;
     private int port = -1;
     private MinecraftServer server;
 
-    public BridgeHttpServer(JobManager jobManager, PlayerInbox inbox) {
+    public BridgeHttpServer(JobManager jobManager, PlayerInbox inbox, SiteGate gate) {
         this.jobManager = jobManager;
         this.inbox = inbox;
+        this.gate = gate;
     }
 
     public void start(MinecraftServer server, Path gameDir) throws IOException {
@@ -69,6 +76,8 @@ public final class BridgeHttpServer {
         http.createContext("/tools/set_block", ex -> handle(ex, "POST", this::setBlock));
         http.createContext("/tools/job_status", ex -> handle(ex, "GET", this::jobStatus));
         http.createContext("/tools/get_block", ex -> handle(ex, "POST", this::getBlock));
+        http.createContext("/tools/propose_site", ex -> handle(ex, "POST", this::proposeSite));
+        http.createContext("/tools/get_terrain_summary", ex -> handle(ex, "POST", this::getTerrainSummary));
         http.setExecutor(Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "aibuild-http");
             t.setDaemon(true);
@@ -231,11 +240,12 @@ public final class BridgeHttpServer {
             throw badRequest("fill volume " + volume + " exceeds limit of " + JobManager.MAX_JOB_BLOCKS + " blocks");
         }
 
+        SiteGate.Bounds bounds = requireBounds();
         BlockPos minPos = new BlockPos(minX, minY, minZ);
         BlockPos maxPos = new BlockPos(maxX, maxY, maxZ);
         BuildJob job = onMainThread(() -> {
             BlockState state = parseBlock(blockSpec);
-            return jobManager.submitFill(minPos, maxPos, state, mode);
+            return jobManager.submitFill(minPos, maxPos, state, mode, bounds);
         });
         return jobId(job);
     }
@@ -257,12 +267,13 @@ public final class BridgeHttpServer {
             JsonObject o = el.getAsJsonObject();
             raw.add(new RawEntry(requiredInt(o, "x"), requiredInt(o, "y"), requiredInt(o, "z"), requiredString(o, "block")));
         }
+        SiteGate.Bounds bounds = requireBounds();
         BuildJob job = onMainThread(() -> {
             List<Placement> placements = new ArrayList<>(raw.size());
             for (RawEntry r : raw) {
                 placements.add(new Placement(new BlockPos(r.x(), r.y(), r.z()), parseBlock(r.spec()), false));
             }
-            return jobManager.submitPlacements(placements);
+            return jobManager.submitPlacements(placements, bounds);
         });
         return jobId(job);
     }
@@ -273,8 +284,9 @@ public final class BridgeHttpServer {
         int y = requiredInt(body, "y");
         int z = requiredInt(body, "z");
         String blockSpec = requiredString(body, "block");
+        SiteGate.Bounds bounds = requireBounds();
         BuildJob job = onMainThread(() -> jobManager.submitPlacements(
-                List.of(new Placement(new BlockPos(x, y, z), parseBlock(blockSpec), false))));
+                List.of(new Placement(new BlockPos(x, y, z), parseBlock(blockSpec), false)), bounds));
         return jobId(job);
     }
 
@@ -302,6 +314,75 @@ public final class BridgeHttpServer {
             res.add("properties", props);
             return res;
         });
+    }
+
+    private JsonObject proposeSite(HttpExchange ex) throws Exception {
+        JsonObject body = readJsonBody(ex);
+        SiteGate.Bounds proposal = SiteGate.Bounds.of(vec3(body, "min"), vec3(body, "max"));
+        if (proposal.volume() > SiteGate.MAX_VOLUME) {
+            throw badRequest("proposed volume " + proposal.volume() + " exceeds limit of " + SiteGate.MAX_VOLUME + " blocks");
+        }
+        return onMainThread(() -> {
+            if (!gate.propose(proposal)) {
+                String why = gate.state() == SiteGate.State.CONFIRMED
+                        ? "site already confirmed for this session: " + gate.currentBounds().describe()
+                        : "another site proposal is already pending confirmation";
+                throw new ApiError(409, error(why));
+            }
+            broadcastProposal(proposal);
+            JsonObject res = new JsonObject();
+            res.addProperty("status", "pending_confirmation");
+            res.addProperty("message", "等待玩家确认(/aiconfirm 或 /aireject);确认前写工具保持锁定");
+            return res;
+        });
+    }
+
+    private JsonObject getTerrainSummary(HttpExchange ex) throws Exception {
+        JsonObject body = readJsonBody(ex);
+        JsonArray center = requiredArray(body, "center");
+        if (center.size() != 2) {
+            throw badRequest("'center' must be [x,z]");
+        }
+        int cx = center.get(0).getAsInt();
+        int cz = center.get(1).getAsInt();
+        int radius = requiredInt(body, "radius");
+        if (radius < 1 || radius > TerrainSummary.MAX_RADIUS) {
+            throw badRequest("radius must be between 1 and " + TerrainSummary.MAX_RADIUS);
+        }
+        String text = onMainThread(() -> TerrainSummary.generate(server.overworld(), cx, cz, radius));
+        JsonObject res = new JsonObject();
+        res.addProperty("text", text);
+        return res;
+    }
+
+    /** Bounds gate for write tools: 409 while the session has no confirmed range. */
+    private SiteGate.Bounds requireBounds() throws ApiError {
+        SiteGate.Bounds bounds = gate.currentBounds();
+        if (bounds == null) {
+            throw new ApiError(409, error("site not confirmed"));
+        }
+        return bounds;
+    }
+
+    /**
+     * Sends the site proposal to every online player with clickable
+     * [确认]/[拒绝] buttons (ClickEvent.RunCommand → /aiconfirm, /aireject;
+     * verified against 1.21.11: ClickEvent is an interface of records, the
+     * client trims the optional leading "/" before sending the command).
+     * With nobody online the message is logged and RCON/console can run the
+     * same commands.
+     */
+    private void broadcastProposal(SiteGate.Bounds b) {
+        MutableComponent msg = Component.literal("[aibuild] AI proposes build site " + b.describe() + "  ");
+        msg.append(Component.literal("[确认]").withStyle(Style.EMPTY
+                .withColor(ChatFormatting.GREEN).withBold(true)
+                .withClickEvent(new ClickEvent.RunCommand("/aiconfirm"))));
+        msg.append(Component.literal("  "));
+        msg.append(Component.literal("[拒绝]").withStyle(Style.EMPTY
+                .withColor(ChatFormatting.RED).withBold(true)
+                .withClickEvent(new ClickEvent.RunCommand("/aireject"))));
+        AiBuildMod.LOGGER.info("[aibuild] site proposed: {}", b.describe());
+        server.getPlayerList().broadcastSystemMessage(msg, false);
     }
 
     // ------------------------------------------------------------------ helpers

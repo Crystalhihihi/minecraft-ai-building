@@ -4,8 +4,12 @@ import com.aibuild.mod.agent.AgentCommands;
 import com.aibuild.mod.agent.AgentRunner;
 import com.aibuild.mod.bridge.BridgeHttpServer;
 import com.aibuild.mod.bridge.PlayerInbox;
+import com.aibuild.mod.bridge.SiteGate;
 import com.aibuild.mod.config.AgentConfig;
 import com.aibuild.mod.job.JobManager;
+import com.aibuild.mod.selection.ModItems;
+import com.aibuild.mod.selection.SelectionEvents;
+import com.aibuild.mod.selection.SelectionManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -22,16 +26,22 @@ public class AiBuildMod implements ModInitializer {
     public void onInitialize() {
         JobManager jobManager = new JobManager();
         PlayerInbox inbox = new PlayerInbox();
-        BridgeHttpServer bridge = new BridgeHttpServer(jobManager, inbox);
+        SiteGate gate = new SiteGate();
+        SelectionManager selectionManager = new SelectionManager();
+        BridgeHttpServer bridge = new BridgeHttpServer(jobManager, inbox, gate);
         AgentConfig config = AgentConfig.load(FabricLoader.getInstance().getGameDir());
-        AgentRunner agentRunner = new AgentRunner(config, inbox, bridge);
+        AgentRunner agentRunner = new AgentRunner(config, inbox, bridge, gate);
+
+        ModItems.register();
+        SelectionEvents.register(selectionManager);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-                new AgentCommands(agentRunner).register(dispatcher));
+                new AgentCommands(agentRunner, selectionManager, gate).register(dispatcher));
 
         ServerTickEvents.END_SERVER_TICK.register(server -> jobManager.tick(server));
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            selectionManager.onServerStarted(server);
             try {
                 bridge.start(server, FabricLoader.getInstance().getGameDir());
                 agentRunner.onServerStarted(server);
@@ -41,6 +51,7 @@ public class AiBuildMod implements ModInitializer {
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             agentRunner.onServerStopping();
+            selectionManager.onServerStopping();
             bridge.stop();
         });
     }

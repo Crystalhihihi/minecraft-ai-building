@@ -1,6 +1,7 @@
 package com.aibuild.mod.job;
 
 import com.aibuild.mod.AiBuildMod;
+import com.aibuild.mod.bridge.SiteGate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -24,14 +25,14 @@ public final class JobManager {
 
     private final Map<String, BuildJob> jobs = new LinkedHashMap<>();
 
-    public BuildJob submitFill(BlockPos min, BlockPos max, BlockState state, FillMode mode) {
-        BuildJob job = BuildJob.forFill(min, max, state, mode);
+    public BuildJob submitFill(BlockPos min, BlockPos max, BlockState state, FillMode mode, SiteGate.Bounds bounds) {
+        BuildJob job = BuildJob.forFill(min, max, state, mode, bounds);
         jobs.put(job.id(), job);
         return job;
     }
 
-    public BuildJob submitPlacements(List<Placement> placements) {
-        BuildJob job = BuildJob.forPlacements(placements);
+    public BuildJob submitPlacements(List<Placement> placements, SiteGate.Bounds bounds) {
+        BuildJob job = BuildJob.forPlacements(placements, bounds);
         jobs.put(job.id(), job);
         return job;
     }

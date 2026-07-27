@@ -3,6 +3,8 @@ package com.aibuild.mod.agent;
 import com.aibuild.mod.AiBuildMod;
 import com.aibuild.mod.bridge.BridgeHttpServer;
 import com.aibuild.mod.bridge.PlayerInbox;
+import com.aibuild.mod.bridge.SiteGate;
+import com.aibuild.mod.bridge.TerrainSummary;
 import com.aibuild.mod.config.AgentConfig;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -38,6 +40,7 @@ public final class AgentRunner {
     private final AgentConfig config;
     private final PlayerInbox inbox;
     private final BridgeHttpServer bridge;
+    private final SiteGate gate;
 
     private MinecraftServer server;
     private String sessionId;
@@ -50,10 +53,11 @@ public final class AgentRunner {
     /** Null while running normally; set before killing so onExit reports the right cause. */
     private String stopReason;
 
-    public AgentRunner(AgentConfig config, PlayerInbox inbox, BridgeHttpServer bridge) {
+    public AgentRunner(AgentConfig config, PlayerInbox inbox, BridgeHttpServer bridge, SiteGate gate) {
         this.config = config;
         this.inbox = inbox;
         this.bridge = bridge;
+        this.gate = gate;
     }
 
     public synchronized void onServerStarted(MinecraftServer server) {
@@ -94,16 +98,32 @@ public final class AgentRunner {
 
     // ------------------------------------------------------------------ spawns
 
-    public synchronized void startBuild(String description, BlockPos anchor) throws IOException {
+    /**
+     * Starts a new build session. When {@code selection} is non-null the write
+     * tools are immediately bound to it; otherwise the session starts
+     * unconfirmed and the AI's first tool call must be propose_site.
+     * Called on the server main thread (from command execution) — the terrain
+     * summary samples the world inline.
+     */
+    public synchronized void startBuild(String description, BlockPos anchor, SiteGate.Bounds selection) throws IOException {
         ensureNotRunning();
+        gate.beginSession(selection);
         Path dir = WorkDir.prepare(server, bridge.port(), bridge.token());
-        WorkDir.writeTask(dir, description, anchor);
+        WorkDir.writeTask(dir, description, anchor, selection);
+        try {
+            String terrain = TerrainSummary.generate(server.overworld(), anchor.getX(), anchor.getZ(), 64);
+            WorkDir.writeTerrain(dir, anchor, 64, terrain);
+        } catch (Exception e) {
+            AiBuildMod.LOGGER.warn("[aibuild] terrain summary generation failed; continuing without terrain.json", e);
+        }
         List<String> args = List.of(
                 config.resolvedAgentCommand(),
                 "-p", "Read AGENTS.md and task.json in the current directory, then carry out the building task described in task.json.",
                 "--output-format", "stream-json");
         spawn(dir, args);
-        broadcast("[aibuild] agent started: " + description);
+        broadcast(selection != null
+                ? "[aibuild] agent started: " + description + " (bounds: " + selection.describe() + ")"
+                : "[aibuild] agent started: " + description + " (no selection — AI will propose a site for confirmation)");
     }
 
     public synchronized void startChat(String message) throws IOException {
