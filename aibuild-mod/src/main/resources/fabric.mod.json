@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "id": "aibuild",
+    "version": "${version}",
+    "name": "AI Build",
+    "description": "Lets a coding agent build in Minecraft through an embedded, token-authenticated HTTP tool API executed on the server thread.",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "com.aibuild.mod.AiBuildMod"
+        ],
+        "client": [
+            "com.aibuild.mod.client.AiBuildClient"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.19.3",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+    }
+}
