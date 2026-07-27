@@ -58,6 +58,8 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 
 独立 Java 程序,打包进 mod jar 的资源里,首次运行自动释放到工作目录。作为 stdio MCP server 被 agent 拉起,把 MCP 工具调用翻译成 mod 的 HTTP 请求,把结果(含 PNG 图片,走 MCP image content)翻译回 MCP 响应。无 MC 依赖,可独立单元测试。用户玩 MC 必有 Java,零额外环境要求。
 
+**实现方式(调研定案)**:**手写换行分隔 JSON-RPC 2.0**(Jackson + stdin/stdout,约 300 行),不用官方 Java SDK(会拖入 Reactor + Jackson 3,shaded 约 5.5MB,为 8 个工具不值得)。协议要点:stdout 只走协议消息(日志一律 stderr/文件)、Windows 显式 UTF-8、每条消息 flush、`ping` 回 `{}`、通知类消息不回复、`id` 原样回显、业务错误返回 `isError:true` 的正常 result(让 AI 能自我纠正)而非 JSON-RPC error、`initialize` 时协议版本回显客户端版本、capabilities 只声明 `{"tools":{}}`。
+
 ### 3.3 产物三:agent 工作目录(每存档一个,自动生成)
 
 位于 `<存档>/aibuild/`,mod 自动维护:
@@ -95,7 +97,7 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 
 ## 5. MCP 工具集
 
-原则:**批量优先、读操作省 token、写操作全异步**。
+原则:**批量优先、读操作省 token、写操作全异步**。写工具的返回(job 完成后经 `get_job_status` 或结果摘要)必须回显**放置/失败计数**——前人项目的经典投诉是"静默部分失败",AI 需要知道自己哪步没成功。
 
 ### 5.1 写工具(返回 `job_id`,后台分帧执行;越界直接拒绝)
 
@@ -142,9 +144,9 @@ LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**�
 
 ## 7. 视觉反馈:渲染
 
-- **主方案**:用游戏自身渲染管线,从任意视点离屏渲染到 framebuffer,读回像素存 PNG——画面与玩家亲眼所见一致(有光照有材质)。
+- **主方案**(调研定案,难度中等):照 [Isometric Renders](https://github.com/gliscowo/isometric-renders)(MIT,可合法借鉴;官方支持到 1.21.4,我们移植其模式而非依赖)的管线——**WorldMesh 把区域烘焙成网格 → `SimpleFramebuffer` 离屏渲染 → 自定义投影矩阵 + 方位角/仰角旋转 → `NativeImage` 读回像素**,PNG 写出用原版 `ScreenshotRecorder`。画面与玩家亲眼所见一致(有光照有材质)。约束:目标区域区块必须已在客户端加载(单机 + 玩家附近天然满足;渲染前可强制加载)。ReplayMod 是 GPL,只能参考思路,不能抄代码。
 - **回退方案**(渲染管线失败时自动切换,保证"看图"永远可用):
-  - **V1 回退:俯视平面图**(XZ 平面 + 高度着色/标注)——一天能写完的复杂度,不挖新坑;
+  - **V1 回退:俯视光栅图**——原版自带方块→颜色表(`BlockState#getMapColor`)+ 地图高度着色逻辑(参考 `FilledMapItem#updateColors`),无需自写投影,复杂度比预想更低;
   - **V2 回退:等轴软件投影**——主链路跑通后再做。
 
 ## 8. 会话续聊
@@ -193,12 +195,26 @@ LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**�
 风险排序(决定实施顺序):
 
 1. **续聊验证**(`-c -p` vs `-S <id> -p`;thinking 在 stream-json 下的可观测性)——纯命令行实验,最先做;
-2. **离屏渲染 PNG**——mod 内最大技术风险,早期 spike,失败立刻切 V1 软件回退,不恋战;
-3. **bridge 与 Kimi Code 的实际 MCP 握手**——协议细节(初始化、image content 返回)以实测为准。
+2. **离屏渲染 PNG**——调研已把难度从"高"降为"中等"(WorldMesh + 离屏 framebuffer,MIT 模式可移植),仍需早期 spike;失败立刻切 V1 软件回退,不恋战;
+3. **bridge 与 Kimi Code 的实际 MCP 握手**——协议细节(初始化、image content 返回)以实测为准;
+4. **可点击聊天事件 API**——`propose_site` 的 [确认] 按钮依赖聊天栏点击事件,该 API 在 1.21.5 时代有改动(调研未能确认现状),实现时实测,不行就退回"输入 `/aiconfirm` 确认"。
 
 建议实施顺序:续聊验证 → HTTP API + curl 联通 → bridge + kimi 端到端盲盖 → 选区杖 + propose_site → 快照/undo → 渲染(spike 提前并行做)→ AGENTS.md 施工规范与 baseline 风格卡片编写 → 打磨。
 
-## 13. 仓库结构(monorepo)
+## 13. 工具链版本(调研定案,2026-07-27 核实)
+
+| 项 | 版本 |
+| --- | --- |
+| Minecraft | 1.21.11 |
+| 映射 | **Mojang 官方映射**(Yarn 止于 1.21.11,26.1+ 官方不混淆;官方模板已默认 mojmap,跟随模板不自行迁移) |
+| Fabric Loader | 0.19.3 |
+| Fabric API | 0.141.5+1.21.11 |
+| Fabric Loom | 1.17-SNAPSHOT(Gradle 9.5.1,Java 21) |
+| 快照 API(mojmap) | `StructureTemplate#fillFromWorld` / `placeInWorld` + `StructurePlaceSettings` |
+
+已知版本坑(1.21.1→1.21.11):物品注册必须带 `RegistryKey`(1.21.2+);`Entity#getWorld` → `getEntityWorld`(1.21.9+);聊天 Text 点击事件 API 有改动(见风险 4)。
+
+## 14. 仓库结构(monorepo)
 
 ```
 minecraft-ai-building/
