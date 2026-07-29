@@ -16,6 +16,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
@@ -34,6 +37,8 @@ import static net.minecraft.commands.Commands.literal;
  *   servers bind a selection for /aibuild).
  * /aiconfirm /aireject  — confirm or reject a pending AI site proposal.
  * /aiundo               — restore the newest pre-build snapshot (frame-sliced).
+ * /aiundo all           — restore ALL snapshots of the newest build session,
+ *   sequentially (newest first), with "k/n" chat progress.
  *
  * Usable by players (op level 2+) and by RCON/console; with no player source
  * the anchor falls back to the overworld spawn point and feedback goes to the log.
@@ -82,7 +87,9 @@ public final class AgentCommands {
                 .executes(ctx -> aireject(ctx.getSource())));
         dispatcher.register(literal("aiundo")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                .executes(ctx -> aiundo(ctx.getSource())));
+                .executes(ctx -> aiundo(ctx.getSource()))
+                .then(literal("all")
+                        .executes(ctx -> aiundoAll(ctx.getSource()))));
     }
 
     private int aibuild(CommandSourceStack src, String description) {
@@ -213,6 +220,41 @@ public final class AgentCommands {
                 meta.description());
         src.sendSuccess(() -> Component.literal("[aibuild] 正在恢复快照 build-" + meta.seq()
                 + " (" + meta.description() + ", " + meta.volume() + " blocks),job " + job.id().substring(0, 8)), true);
+        return 1;
+    }
+
+    /**
+     * Restores every snapshot of the NEWEST build session (snapshots are
+     * stamped with a session tag; untagged ones form the "unknown session"
+     * group, also consumable). Restores sequentially, newest first, as
+     * frame-sliced undo jobs with "k/n" chat progress. Single /aiundo is unchanged.
+     */
+    private int aiundoAll(CommandSourceStack src) {
+        if (runner.isRunning()) {
+            src.sendFailure(Component.literal("[aibuild] agent 运行中,禁止 undo——先 /aicancel 或等其完成"));
+            return 0;
+        }
+        if (jobManager.anyRunning() || jobManager.undoAllActive()) {
+            src.sendFailure(Component.literal("[aibuild] 仍有建造/恢复 job 在运行,等它结束后再 undo"));
+            return 0;
+        }
+        ServerLevel level = src.getServer().overworld();
+        List<SnapshotManager.Meta> all = SnapshotManager.list(level);
+        if (all.isEmpty()) {
+            src.sendFailure(Component.literal("[aibuild] 没有可恢复的快照——还没有建造被记录,或快照已用完"));
+            return 0;
+        }
+        String target = all.get(0).session(); // newest snapshot's session
+        List<SnapshotManager.Meta> group = new ArrayList<>();
+        for (SnapshotManager.Meta m : all) {
+            if (Objects.equals(m.session(), target)) {
+                group.add(m);
+            }
+        }
+        String label = target != null ? "会话 " + target : "未知会话";
+        int n = jobManager.startUndoAll(level, group, label);
+        src.sendSuccess(() -> Component.literal("[aibuild] undo all:回退" + label + "的 " + n
+                + " 份快照(最新优先,逐个分帧恢复)"), true);
         return 1;
     }
 

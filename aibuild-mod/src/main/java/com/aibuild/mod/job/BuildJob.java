@@ -57,6 +57,8 @@ public final class BuildJob implements Job {
     private long openChunk = Long.MIN_VALUE;
     private Runnable onDone;
     private int placed;
+    /** Last placed-count JobManager folded into its lifetime counter (main thread only). */
+    long reportedPlaced;
     private int failed;
     private State state = State.RUNNING;
     private final List<String> errors = new ArrayList<>();
@@ -128,6 +130,11 @@ public final class BuildJob implements Job {
 
     public String description() {
         return description;
+    }
+
+    /** Blocks placed so far (main thread only; packaged for JobManager's lifetime counter). */
+    long placedCount() {
+        return placed;
     }
 
     /** Tight box of this job's placements (min corner), or null when the job is empty. */

@@ -14,6 +14,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +31,7 @@ public class AiBuildMod implements ModInitializer {
         SiteGate gate = new SiteGate();
         SelectionManager selectionManager = new SelectionManager();
         BridgeHttpServer bridge = new BridgeHttpServer(jobManager, inbox, gate);
-        AgentRunner agentRunner = new AgentRunner(config, inbox, bridge, gate);
+        AgentRunner agentRunner = new AgentRunner(config, inbox, bridge, gate, jobManager);
 
         ModItems.register();
         SelectionEvents.register(selectionManager);
@@ -39,6 +40,8 @@ public class AiBuildMod implements ModInitializer {
                 new AgentCommands(agentRunner, selectionManager, gate, jobManager).register(dispatcher));
 
         ServerTickEvents.END_SERVER_TICK.register(server -> jobManager.tick(server));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                agentRunner.onPlayerJoin(handler.getPlayer()));
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             selectionManager.onServerStarted(server);

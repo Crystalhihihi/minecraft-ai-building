@@ -78,6 +78,11 @@ public final class UndoJob implements Job {
         return state == State.RUNNING;
     }
 
+    /** True once the restore completed (and the snapshot was consumed). */
+    public boolean succeeded() {
+        return state == State.DONE;
+    }
+
     @Override
     public void fail(ServerLevel level, String reason) {
         state = State.FAILED;
