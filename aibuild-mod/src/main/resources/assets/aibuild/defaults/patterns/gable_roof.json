@@ -1,0 +1,17 @@
+{
+  "name": "gable_roof",
+  "description": "Gable roof (人字顶) built from stair rows with automatic step-in (收分), ridge slab, and optional solid gable-end triangle fill.",
+  "when_to_use": "Any building whose style card says roof.type = gable. Place walls first, then run this with origin = the wall footprint's north-west corner and y = first layer ABOVE the top wall block.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "world coords of the wall footprint corner the roof sits on; y = roof base layer"},
+    "width": {"type": "int", "range": "3-31", "default": 7, "notes": "wall footprint along x"},
+    "depth": {"type": "int", "range": "3-31", "default": 9, "notes": "wall footprint along z"},
+    "height": {"type": "int", "range": "0-16", "default": 0, "notes": "0 = auto 45-degree rise from span+overhang; set explicitly for shallower/steeper pitches"},
+    "overhang": {"type": "int", "range": "0-2", "default": 1, "notes": "eaves past the wall line"},
+    "axis": {"type": "\"x\"|\"z\"", "default": "x", "notes": "ridge direction; the gable ends face the OTHER axis"},
+    "material": {"type": "block id", "default": "minecraft:spruce_stairs", "notes": "any *_stairs from the style card's roof list"},
+    "ridge_material": {"type": "block id", "default": "minecraft:spruce_slab", "notes": "slab used on the ridge row"},
+    "end_fill": {"type": "block id|\"\"", "default": "", "notes": "wall material to fill the triangular gable ends; empty = open gables"}
+  },
+  "example": "python patterns/gable_roof.py --params '{\"origin\":[100,83,100],\"width\":7,\"depth\":9,\"material\":\"minecraft:dark_oak_stairs\",\"end_fill\":\"minecraft:stone_bricks\"}' --out roof.json"
+}

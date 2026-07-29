@@ -1,0 +1,14 @@
+{
+  "name": "arch_window",
+  "description": "Arched window unit (拱窗): glass panes with an upside-down-stair arch head, optional sill. Sizes 1x2 (arrow slit) or 2x3 (proper arch).",
+  "when_to_use": "Every window the style card describes as 1x2/2x3 with rhythm. Punch the opening in the wall first (fill air), then run this per window with origin = bottom-left cell of the opening as seen from outside.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "bottom-left cell of the opening, seen from outside"},
+    "size": {"type": "\"1x2\"|\"2x3\"", "default": "1x2"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "outward direction of the wall face; south/north = opening runs along x, east/west = along z"},
+    "glass": {"type": "block id", "default": "minecraft:glass_pane"},
+    "frame_material": {"type": "block id", "default": "minecraft:stone_brick_stairs", "notes": "stairs used for the arch head"},
+    "sill_material": {"type": "block id|\"\"", "default": "", "notes": "optional slab row under the window"}
+  },
+  "example": "python patterns/arch_window.py --params '{\"origin\":[100,70,100],\"size\":\"2x3\",\"facing\":\"south\",\"sill_material\":\"minecraft:stone_brick_slab\"}' --out win.json"
+}

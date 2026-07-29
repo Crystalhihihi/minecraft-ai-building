@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Prepares and maintains the per-world agent working directory at
@@ -26,6 +27,36 @@ public final class WorkDir {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String BRIDGE_JAR_RESOURCE = "/assets/aibuild/mc-mcp-bridge.jar";
     private static final String BRIDGE_JAR_NAME = "mc-mcp-bridge.jar";
+    private static final String DEFAULTS_RESOURCE_ROOT = "/assets/aibuild/defaults/";
+    /**
+     * Content assets (style cards, pattern generators + parameter cards, the
+     * block-id cheat sheet) shipped inside the mod jar and released to the
+     * working directory on prepare(). Write-if-absent: files the user or the
+     * agent edited in the work dir are NEVER overwritten.
+     */
+    private static final List<String> DEFAULT_ASSETS = List.of(
+            "styles/medieval_tower.json",
+            "styles/plains_cabin.json",
+            "styles/waterfront_dock.json",
+            "styles/stilt_house.json",
+            "styles/nordic_villa.json",
+            "patterns/gable_roof.py",
+            "patterns/gable_roof.json",
+            "patterns/hip_roof.py",
+            "patterns/hip_roof.json",
+            "patterns/crenellation.py",
+            "patterns/crenellation.json",
+            "patterns/buttress.py",
+            "patterns/buttress.json",
+            "patterns/arch_window.py",
+            "patterns/arch_window.json",
+            "patterns/road_segment.py",
+            "patterns/road_segment.json",
+            "patterns/terraform_pad.py",
+            "patterns/terraform_pad.json",
+            "patterns/quadruped_statue.py",
+            "patterns/quadruped_statue.json",
+            "blocks.md");
 
     private WorkDir() {
     }
@@ -44,6 +75,7 @@ public final class WorkDir {
         Files.createDirectories(dir.resolve(".kimi-code"));
         Files.createDirectories(dir.resolve("logs"));
         extractBridgeJar(dir);
+        extractDefaults(dir);
         writeMcpJson(dir, bridgePort, bridgeToken);
         Files.writeString(dir.resolve("AGENTS.md"), AGENTS_MD);
         return dir;
@@ -94,6 +126,34 @@ public final class WorkDir {
         }
         Files.write(target, bytes);
         AiBuildMod.LOGGER.info("[aibuild] extracted bridge jar to {}", target);
+    }
+
+    /**
+     * Releases the bundled default assets (styles/, patterns/, blocks.md) into
+     * the working directory. Write-if-absent: an existing file is left
+     * untouched so user/agent edits and self-saved style cards survive.
+     */
+    private static void extractDefaults(Path dir) throws IOException {
+        int written = 0;
+        for (String rel : DEFAULT_ASSETS) {
+            Path target = dir.resolve(rel);
+            if (Files.exists(target)) {
+                continue;
+            }
+            byte[] bytes;
+            try (InputStream in = WorkDir.class.getResourceAsStream(DEFAULTS_RESOURCE_ROOT + rel)) {
+                if (in == null) {
+                    throw new IOException("bundled resource " + DEFAULTS_RESOURCE_ROOT + rel + " missing from mod jar");
+                }
+                bytes = in.readAllBytes();
+            }
+            Files.createDirectories(target.getParent());
+            Files.write(target, bytes);
+            written++;
+        }
+        if (written > 0) {
+            AiBuildMod.LOGGER.info("[aibuild] released {} default asset file(s) into {}", written, dir);
+        }
     }
 
     private static void writeMcpJson(Path dir, int port, String token) throws IOException {
@@ -152,6 +212,53 @@ public final class WorkDir {
               choose and orient the build. To scout elsewhere, call
               `get_terrain_summary(center, radius)` (radius <= 128).
 
+            ## Style cards (MANDATORY — pick one BEFORE planning)
+
+            The `styles/` directory holds style cards (JSON): quantified
+            constraints, not adjectives. Before writing plan.md you MUST read
+            the cards and pick the ONE that best matches the task description
+            (e.g. a medieval tower / castle -> medieval_tower.json, a cabin on
+            flat grassland -> plains_cabin.json, anything touching water ->
+            waterfront_dock.json, a house on a slope -> stilt_house.json, a
+            modern minimalist house -> nordic_villa.json). Then:
+
+            - Use ONLY blocks from the card's materials lists (primary /
+              secondary / accent / roof / windows) for the parts they describe.
+              `blocks.md` in this directory is the quick id reference; anything
+              outside both the card and blocks.md needs a reason in plan.md.
+            - Respect the card's proportions (height/width ratio, storey
+              height), roof type, and window rhythm. The style card governs
+              MATERIALS; the pattern library below governs SHAPES — combine
+              them (card materials as pattern params).
+            - If no card fits well, pick the closest one and note the
+              deviation in plan.md. To break a card's constraint on purpose,
+              say so in chat first.
+            - When the player says they like a build, save its parameters as a
+              NEW card file in `styles/` (never overwrite existing cards).
+
+            ## Pattern library (MANDATORY — assemble shapes, don't invent them)
+
+            The `patterns/` directory holds parameterized generator scripts:
+            `<name>.py` (zero-dependency, runs with plain `python`) plus a
+            `<name>.json` parameter card (params, ranges, when_to_use). For
+            these elements you MUST run the matching script instead of
+            free-handing the shape:
+
+            - gable / hip roof          -> gable_roof.py / hip_roof.py
+            - crenellation (castle top) -> crenellation.py
+            - buttress                  -> buttress.py
+            - arched window             -> arch_window.py
+            - road / path segment       -> road_segment.py
+            - building pad / terrace    -> terraform_pad.py
+            - quadruped statue          -> quadruped_statue.py
+
+            Workflow: read the .json card -> choose params (origin = world
+            coords of the element, sizes tuned to your build and the terrain,
+            materials from your style card) -> run
+            `python patterns/<name>.py --params '{...}' --out <element>.json`
+            with your shell tool -> place with `set_blocks_from_file`. Only
+            build free-hand what no pattern covers.
+
             ## Tools (MCP server `aibuild`)
 
             Write tools are ASYNC: they return `job_id` immediately, blocks are
@@ -208,10 +315,13 @@ public final class WorkDir {
                via `set_blocks_from_file`. This costs zero extra tokens and is
                dramatically more accurate.
             3. Block ids are full namespaced ids, e.g. `minecraft:stone_bricks`.
-               Unsure about an id? Call `search_blocks` — don't guess. Invalid ids
-               come back with suggestions — use them.
-            4. Before you start, write a short `plan.md` in this directory: shape,
-               dimensions, materials, layer-by-layer sketch. Keep it brief.
+               `blocks.md` in this directory lists the common building ids —
+               check it FIRST. Still unsure? Call `search_blocks` — don't
+               guess. Invalid ids come back with suggestions — use them.
+            4. Before you start, write a short `plan.md` in this directory: the
+               style card you picked (name it), shape, dimensions, materials
+               from that card, which patterns you will run with which params,
+               layer-by-layer sketch. Keep it brief.
             5. Build BOTTOM-UP: foundations first, then walls, then roof/details.
                Wait for each job's `get_job_status` = done (and failed == 0) before
                depending on its blocks. If failures say `out_of_bounds`, you placed

@@ -1,0 +1,54 @@
+{
+  "style_id": "stilt_house",
+  "name": "Hillside Stilt House (山腰吊脚楼)",
+  "use_for": "houses on slopes, cliffsides, uneven terrain where one side must be propped up",
+  "proportions": {
+    "height_to_width_ratio": "1:1 ~ 1.5:1 (house body only, stilts excluded)",
+    "storey_height": "3-4 (interior clear)",
+    "wall_thickness": 1,
+    "stilt_height": "as terrain demands, 2-8",
+    "door_height": 2
+  },
+  "materials": {
+    "primary": ["minecraft:spruce_planks"],
+    "primary_use": "wall panels",
+    "secondary": [
+      "minecraft:spruce_log",
+      "minecraft:stripped_spruce_log"
+    ],
+    "secondary_use": "stilt legs (vertical log columns) + frame posts; stilt feet on stone pads",
+    "accent": [
+      "minecraft:dark_oak_planks",
+      "minecraft:dark_oak_stairs",
+      "minecraft:spruce_fence"
+    ],
+    "accent_use": "balcony floor/trim band, fence balcony railing",
+    "roof": [
+      "minecraft:dark_oak_stairs",
+      "minecraft:spruce_stairs",
+      "minecraft:spruce_slab"
+    ]
+  },
+  "roof": {
+    "type": "gable (人字顶), ridge PARALLEL to the slope contour",
+    "slope": "45 degrees",
+    "overhang": 1,
+    "material": "dark_oak_stairs or spruce_stairs",
+    "pattern": "patterns/gable_roof.py"
+  },
+  "windows": {
+    "pattern": "valley-facing side: generous 2x2 windows centered per bay; hill-facing side: one small 1x2",
+    "size": "2x2 (valley) / 1x2 (hill)",
+    "material": ["minecraft:glass_pane"],
+    "frame": "stripped_spruce_log lintel"
+  },
+  "details": {
+    "base_transition": "where the house meets the hill, graduate stone into the slope: stone -> tuff -> andesite -> dirt/grass over 2-3 columns",
+    "base_materials": ["minecraft:stone", "minecraft:deepslate", "minecraft:cobbled_deepslate", "minecraft:tuff", "minecraft:andesite"],
+    "stilt_bracing": "cross-brace stilt pairs with spruce_fence X or diagonal spruce_stairs when stilts taller than 4",
+    "stilt_pad": "each stilt foot sits on a stone or cobbled_deepslate pad block",
+    "balcony": "valley side gets a 1-2 deep balcony on stilts: dark_oak_planks floor, spruce_fence railing",
+    "lighting": "minecraft:lantern under balcony corners + by the door",
+    "access": "spruce_stairs or ladder from downhill ground up to the door"
+  }
+}

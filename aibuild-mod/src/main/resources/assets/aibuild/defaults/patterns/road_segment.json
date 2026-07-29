@@ -1,0 +1,19 @@
+{
+  "name": "road_segment",
+  "description": "Straight road segment: cambered crown (路拱), side ditches (边沟), and a center-to-edge material gradient with deterministic per-column noise so the pavement never looks machine-uniform.",
+  "when_to_use": "Any road/path between builds. Chain multiple segments for longer roads; origin = one end of the road centerline at ground level (use the terrain summary to keep y realistic per segment).",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "start end of the road at ground level (min corner)"},
+    "direction": {"type": "\"x\"|\"z\"", "default": "x", "notes": "x = runs east, z = runs south"},
+    "length": {"type": "int", "range": "4-64", "default": 16},
+    "width": {"type": "int", "range": "3-7", "default": 3, "notes": "odd numbers read best"},
+    "camber": {"type": "0|1", "default": 1, "notes": "1 = crowned center, half-block steps"},
+    "ditch": {"type": "0|1", "default": 1, "notes": "1 = 1-deep trenches on both sides"},
+    "surface_materials": {"type": "[block id...]", "default": ["minecraft:gravel", "minecraft:dirt_path", "minecraft:coarse_dirt"], "notes": "noise mix for the mid lanes"},
+    "center_material": {"type": "block id", "default": "minecraft:dirt_path"},
+    "edge_material": {"type": "block id", "default": "minecraft:stone"},
+    "ditch_material": {"type": "block id", "default": "minecraft:gravel"},
+    "fill_material": {"type": "block id", "default": "minecraft:dirt", "notes": "one block under every surface block"}
+  },
+  "example": "python patterns/road_segment.py --params '{\"origin\":[100,64,100],\"direction\":\"z\",\"length\":24,\"width\":3}' --out road.json"
+}

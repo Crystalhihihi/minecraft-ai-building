@@ -1,0 +1,48 @@
+{
+  "style_id": "plains_cabin",
+  "name": "Plains Cabin (平原木屋)",
+  "use_for": "small wooden houses, cabins, farmhouses, starter homes on flat grassland",
+  "proportions": {
+    "height_to_width_ratio": "1:1 ~ 1.5:1 (walls only, roof excluded)",
+    "storey_height": "3 (interior clear)",
+    "wall_thickness": 1,
+    "typical_footprint": "5x7 ~ 9x11",
+    "door_height": 2
+  },
+  "materials": {
+    "primary": ["minecraft:oak_planks"],
+    "primary_use": "wall infill panels",
+    "secondary": ["minecraft:oak_log"],
+    "secondary_use": "vertical corner posts + horizontal frame beams top/bottom of each storey (log frame = the cabin look)",
+    "accent": [
+      "minecraft:spruce_planks",
+      "minecraft:spruce_trapdoor",
+      "minecraft:oak_fence"
+    ],
+    "accent_use": "spruce_planks interior floor, trapdoor window shutters, fence porch railing",
+    "roof": [
+      "minecraft:spruce_stairs",
+      "minecraft:spruce_slab"
+    ]
+  },
+  "roof": {
+    "type": "gable (人字顶)",
+    "slope": "45 degrees",
+    "overhang": 1,
+    "material": "spruce_stairs — distinct from oak walls",
+    "pattern": "patterns/gable_roof.py"
+  },
+  "windows": {
+    "pattern": "one 1x2 or 2x2 window centered on each long wall per storey; gable ends get one small 1x1",
+    "size": "1x2 or 2x2",
+    "material": ["minecraft:glass_pane"],
+    "frame": "spruce_trapdoor shutters on both sides"
+  },
+  "details": {
+    "base": "1 block high cobblestone footing ring under all walls (moisture skirt), ground contact mandatory",
+    "base_materials": ["minecraft:cobblestone", "minecraft:mossy_cobblestone"],
+    "chimney": "optional cobblestone 1x1 chimney rising 2-3 above ridge, campfire on top",
+    "lighting": "minecraft:lantern hanging from porch beam + one per interior corner",
+    "porch": "optional 2-deep porch on the door side: spruce_slab deck, oak_fence posts, spruce_stairs entry"
+  }
+}

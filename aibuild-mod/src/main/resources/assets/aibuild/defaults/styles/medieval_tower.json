@@ -1,0 +1,57 @@
+{
+  "style_id": "medieval_tower",
+  "name": "Medieval Tower (中世纪塔楼)",
+  "use_for": "castle towers, keeps, watchtowers, fortifications, anything 'medieval' or 'castle'",
+  "proportions": {
+    "height_to_width_ratio": "2.5:1 ~ 4:1",
+    "storey_height": "3-4 (interior clear)",
+    "wall_thickness": 1,
+    "typical_footprint": "5x5 ~ 9x9 per tower",
+    "door_height": 2
+  },
+  "materials": {
+    "primary": [
+      "minecraft:stone_bricks",
+      "minecraft:mossy_stone_bricks",
+      "minecraft:cracked_stone_bricks"
+    ],
+    "primary_mix": "80% stone_bricks / 15% mossy_stone_bricks / 5% cracked_stone_bricks, mixed deterministically per-position (never uniform patches)",
+    "secondary": [
+      "minecraft:spruce_planks",
+      "minecraft:stripped_spruce_log"
+    ],
+    "secondary_use": "timber framing, floor slabs between storeys, lintels over doors/windows",
+    "accent": [
+      "minecraft:dark_oak_planks",
+      "minecraft:dark_oak_log",
+      "minecraft:dark_oak_door"
+    ],
+    "accent_use": "door, top-floor trim band, balcony/hoarding details",
+    "roof": [
+      "minecraft:dark_oak_stairs",
+      "minecraft:deepslate_tile_stairs",
+      "minecraft:deepslate_tile_slab"
+    ]
+  },
+  "roof": {
+    "type": "gable (人字顶) or conical point for round towers",
+    "slope": "45 degrees (1 in, 1 up per stair layer)",
+    "overhang": 1,
+    "material": "dark_oak_stairs (wooden spire) or deepslate_tile_stairs (slate look) — ALWAYS distinct from wall material",
+    "pattern": "patterns/gable_roof.py"
+  },
+  "windows": {
+    "pattern": "arrow-slit rhythm: one 1x2 window every 3 blocks of wall length, aligned in vertical columns per storey",
+    "size": "1 wide x 2 high",
+    "material": ["minecraft:glass_pane"],
+    "frame": "stripped_spruce_log lintel above, stone_brick_stairs sill optional",
+    "pattern_script": "patterns/arch_window.py"
+  },
+  "details": {
+    "crenellation": "ALWAYS crown the wall top with merlons — patterns/crenellation.py, stone_brick_wall, spacing 2",
+    "buttress": "corner buttresses on towers wider than 5 — patterns/buttress.py, stone_bricks, stepped 3-2-1",
+    "base": "1-2 block cobblestone/stone footing flare at ground contact, never floating",
+    "lighting": "minecraft:lantern or minecraft:wall_torch every 5-6 blocks interior, one lantern by the door",
+    "interior_floor": "spruce_planks storey slabs; ladder or spiral stair of spruce_stairs between floors"
+  }
+}

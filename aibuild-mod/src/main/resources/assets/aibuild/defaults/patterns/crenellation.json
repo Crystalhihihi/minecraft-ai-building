@@ -1,0 +1,14 @@
+{
+  "name": "crenellation",
+  "description": "Battlement ring (垛口): merlons spaced along the wall-top perimeter of a rectangle, corners always merlons.",
+  "when_to_use": "Towers, castle walls, keeps — any build whose style card calls for crenellation. origin = wall footprint corner, y = first layer above the top wall block.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "north-west corner of the wall footprint; y = layer above wall top"},
+    "width": {"type": "int", "range": "3-64", "default": 7},
+    "depth": {"type": "int", "range": "3-64", "default": 7},
+    "material": {"type": "block id", "default": "minecraft:stone_brick_wall", "notes": "wall-type blocks read best; full blocks also work"},
+    "spacing": {"type": "int", "range": "1-4", "default": 2, "notes": "2 = classic merlon/gap alternation"},
+    "height": {"type": "int", "range": "1-2", "default": 1}
+  },
+  "example": "python patterns/crenellation.py --params '{\"origin\":[100,86,100],\"width\":7,\"depth\":7,\"material\":\"minecraft:stone_brick_wall\"}' --out cren.json"
+}

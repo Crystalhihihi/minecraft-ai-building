@@ -1,0 +1,46 @@
+{
+  "style_id": "waterfront_dock",
+  "name": "Waterfront Dock (临水码头)",
+  "use_for": "docks, piers, jetties, boardwalks, fishing platforms, anything touching water",
+  "proportions": {
+    "deck_width": "3-5 (main pier), 2-3 (side fingers)",
+    "deck_height_above_water": "1-2 blocks",
+    "pile_spacing": "3-4 blocks along deck edges",
+    "rail_height": 1
+  },
+  "materials": {
+    "primary": ["minecraft:spruce_planks"],
+    "primary_use": "decking, always full planks as walking surface",
+    "secondary": [
+      "minecraft:stripped_spruce_log",
+      "minecraft:spruce_log"
+    ],
+    "secondary_use": "piles driven into the water/ seabed at deck edges (stripped below waterline looks weathered)",
+    "accent": [
+      "minecraft:spruce_slab",
+      "minecraft:spruce_fence",
+      "minecraft:spruce_trapdoor"
+    ],
+    "accent_use": "slab edging strips, fence railing (leave gaps at mooring points), trapdoor dock bumpers on pile tops",
+    "roof": []
+  },
+  "roof": {
+    "type": "none (open structure); optional small gable shelter over a bench using spruce_stairs",
+    "slope": "n/a",
+    "overhang": 0,
+    "material": "n/a"
+  },
+  "windows": {
+    "pattern": "n/a",
+    "size": "n/a",
+    "material": []
+  },
+  "details": {
+    "waterline": "piles extend 1-2 blocks BELOW water surface to the seabed — never end piles mid-water",
+    "mooring": "barrel + chain + lantern cluster every 4-6 blocks along one edge",
+    "props": ["minecraft:barrel", "minecraft:chain", "minecraft:lantern", "minecraft:mossy_cobblestone", "minecraft:oak_fence"],
+    "moss": "mossy_cobblestone footing where piles meet water; occasional mossy_cobblestone step down to water",
+    "lighting": "lantern on top of alternating piles, or hanging from chain between two piles",
+    "steps": "spruce_stairs from deck down to a small landing platform at water level"
+  }
+}

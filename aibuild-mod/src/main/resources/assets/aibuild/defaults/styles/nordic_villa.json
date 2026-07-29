@@ -1,0 +1,53 @@
+{
+  "style_id": "nordic_villa",
+  "name": "Nordic Villa (北欧别墅)",
+  "use_for": "modern-looking houses, villas, clean minimalist builds with big windows and flat roofs",
+  "proportions": {
+    "height_to_width_ratio": "0.6:1 ~ 1:1 (low horizontal massing)",
+    "storey_height": "4-5 (generous clear height is the signature)",
+    "wall_thickness": 1,
+    "typical_footprint": "9x11 ~ 15x19, L- or T-shaped massing welcome",
+    "door_height": 2
+  },
+  "materials": {
+    "primary": ["minecraft:white_concrete"],
+    "primary_use": "main wall planes, kept in large clean surfaces",
+    "secondary": [
+      "minecraft:spruce_planks",
+      "minecraft:spruce_log"
+    ],
+    "secondary_use": "one accent wall plane or entrance surround per facade (wood warmth against white)",
+    "accent": [
+      "minecraft:dark_oak_planks",
+      "minecraft:dark_oak_log",
+      "minecraft:smooth_stone"
+    ],
+    "accent_use": "roof coping, window surrounds, base plinth trim",
+    "roof": [
+      "minecraft:smooth_stone_slab",
+      "minecraft:dark_oak_planks",
+      "minecraft:smooth_stone"
+    ]
+  },
+  "roof": {
+    "type": "flat",
+    "slope": "none",
+    "overhang": 1,
+    "material": "smooth_stone_slab walking surface + dark coping band (dark_oak or smooth_stone) around the edge, ALWAYS one shade darker than walls",
+    "coping": "1-block-wide dark band at roof perimeter; optional stepped parapet"
+  },
+  "windows": {
+    "pattern": "large horizontal bands: floor-to-ceiling 2-3 high, 3-6 wide, grouped on the best-view facade; corner windows where two bands meet",
+    "size": "3-6 wide x 2-3 high",
+    "material": ["minecraft:glass_pane"],
+    "frame": "dark_oak_planks or smooth_stone surround, 1 block"
+  },
+  "details": {
+    "base": "smooth_stone or stone 1-block plinth at ground contact; recessed entry",
+    "floor": "birch_planks interior floors (light wood is the nordic signature)",
+    "floor_materials": ["minecraft:birch_planks"],
+    "lighting": "minecraft:lantern or hidden minecraft:glowstone under slab edges; sparse and warm",
+    "terrace": "birch or spruce slab terrace with dark_oak fence-less edge, 1-2 steps of smooth_stone to lawn",
+    "planting": "short grass, flowers, one birch or spruce near the corner — landscaping is part of the style"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "terraform_pad",
+  "description": "Building pad (建筑台地): a flat platform at target height blended into the surrounding ground by a smoothstep transition band (<=16 blocks) with +-1 deterministic noise so the slope stays natural. 3 blocks of fill under every surface column.",
+  "when_to_use": "Before any build on uneven terrain. Read the typical surrounding height from terrain.json / get_terrain_summary and pass it as `ground` — the script cannot read the world. Build on the pad afterwards.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,68,0]", "notes": "min corner of the FLAT pad; y = pad surface height"},
+    "width": {"type": "int", "range": "4-48", "default": 10},
+    "depth": {"type": "int", "range": "4-48", "default": 10},
+    "ground": {"type": "int", "default": 64, "notes": "REQUIRED: typical surrounding surface height from terrain.json"},
+    "transition": {"type": "int", "range": "1-16", "default": 8, "notes": "blend band width; clamped to 16 by spec"},
+    "top_material": {"type": "block id", "default": "minecraft:grass_block"},
+    "slope_material": {"type": "block id", "default": "minecraft:dirt"},
+    "fill_material": {"type": "block id", "default": "minecraft:dirt"},
+    "stone_material": {"type": "block id", "default": "minecraft:stone", "notes": "shows through on noise dips for variety"}
+  },
+  "example": "python patterns/terraform_pad.py --params '{\"origin\":[96,70,96],\"width\":12,\"depth\":10,\"ground\":64,\"transition\":8}' --out pad.json"
+}

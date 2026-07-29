@@ -1,0 +1,13 @@
+{
+  "name": "buttress",
+  "description": "Stepped buttress (扶壁): a 1-wide pier against a wall face, deepest at ground and tapering to 1 block at the top (3-2-1 profile).",
+  "when_to_use": "Corners of towers/keeps/churches, or every 3-4 blocks along tall stone walls. Run once per buttress position. origin = the wall-face column it leans on, at ground level; the buttress grows OUTWARD from the wall.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "wall-face column at ground level (the buttress itself is placed on the OUTER side)"},
+    "side": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "direction the buttress sticks out from the wall"},
+    "height": {"type": "int", "range": "3-32", "default": 10, "notes": "usually wall height or wall height minus 1-2"},
+    "depth": {"type": "int", "range": "2-4", "default": 3, "notes": "base projection"},
+    "material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "usually the wall's primary material"}
+  },
+  "example": "python patterns/buttress.py --params '{\"origin\":[100,64,100],\"side\":\"east\",\"height\":12,\"depth\":3}' --out buttress.json"
+}

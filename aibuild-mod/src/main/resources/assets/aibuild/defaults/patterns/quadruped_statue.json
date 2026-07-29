@@ -1,0 +1,13 @@
+{
+  "name": "quadruped_statue",
+  "description": "Parametric quadruped statue (四足雕像) with locked readable proportions — distinct legs, torso box, raised neck, head with snout, ears and tail. Accent material marks hooves/snout/ears/tail tip. Exists to end the 'abstract cow' failure mode: never freehand an animal, run this.",
+  "when_to_use": "Any four-legged animal statue/figure (horse, cow, dog, deer...). Tune length for size, materials for species (e.g. white_concrete + calcite for a horse). origin = min corner of the bounding box at hoof-bottom level.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]"},
+    "length": {"type": "int", "range": "5-16", "default": 8, "notes": "nose-to-tail torso length; all other proportions derive from it"},
+    "material": {"type": "block id", "default": "minecraft:stone", "notes": "body material"},
+    "accent": {"type": "block id", "default": "minecraft:andesite", "notes": "hooves, snout, ears, tail tip"},
+    "facing": {"type": "\"x+\"|\"x-\"|\"z+\"|\"z-\"", "default": "x+", "notes": "head direction"}
+  },
+  "example": "python patterns/quadruped_statue.py --params '{\"origin\":[100,64,100],\"length\":10,\"material\":\"minecraft:white_concrete\",\"accent\":\"minecraft:calcite\",\"facing\":\"z+\"}' --out statue.json"
+}
