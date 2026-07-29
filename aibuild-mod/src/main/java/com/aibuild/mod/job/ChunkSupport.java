@@ -1,10 +1,15 @@
 package com.aibuild.mod.job;
 
 import com.aibuild.mod.AiBuildMod;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.IronBarsBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.util.List;
@@ -70,5 +75,43 @@ final class ChunkSupport {
         } catch (Exception e) {
             AiBuildMod.LOGGER.warn("[aibuild] failed to finalize chunk {}", new ChunkPos(packedPos), e);
         }
+    }
+
+    // ------------------------------------------------------------------ deferred shape-update replay
+
+    /**
+     * Replay flags for shape fixups: {@code UPDATE_CLIENTS | UPDATE_KNOWN_SHAPE}
+     * (2|16). Mirrors the two shape calls {@code Level.setBlock} runs after a
+     * placement, but with KNOWN_SHAPE set so the nested setBlock inside
+     * neighborShapeChanged does NOT cascade further shape updates, and with
+     * UPDATE_NEIGHBORS (1) clear so no block-update/redstone/physics chains
+     * fire (verified against 1.21.11 bytecode of Level.setBlock).
+     */
+    private static final int SHAPE_REPLAY_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+
+    /**
+     * Shape-sensitive blocks: states whose connection/shape properties are
+     * recomputed from neighbors (stairs straight/inner/outer curves, fence and
+     * wall connections, glass panes, iron bars, fence-gate in_wall). Slabs are
+     * intentionally absent (their type is not shape-updated).
+     */
+    static boolean isShapeSensitive(BlockState state) {
+        return state.is(BlockTags.STAIRS)
+                || state.is(BlockTags.WALLS)
+                || state.is(BlockTags.FENCES)
+                || state.is(BlockTags.FENCE_GATES)
+                || state.getBlock() instanceof IronBarsBlock; // glass panes, stained panes, iron bars
+    }
+
+    /**
+     * Replays the shape updates a flag-1 placement would have run for this
+     * position: the same two calls {@code Level.setBlock} performs for the new
+     * state (updateNeighbourShapes + updateIndirectNeighbourShapes), using the
+     * CURRENT world state. One level deep only — see {@link #SHAPE_REPLAY_FLAGS}.
+     */
+    static void replayShapeUpdates(ServerLevel level, BlockPos pos) {
+        BlockState current = level.getBlockState(pos);
+        current.updateNeighbourShapes(level, pos, SHAPE_REPLAY_FLAGS, Block.UPDATE_LIMIT);
+        current.updateIndirectNeighbourShapes(level, pos, SHAPE_REPLAY_FLAGS, Block.UPDATE_LIMIT);
     }
 }

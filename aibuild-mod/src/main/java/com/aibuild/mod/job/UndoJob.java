@@ -52,6 +52,11 @@ public final class UndoJob implements Job {
     private long placed;
     private State state = State.RUNNING;
     private int nextBroadcastThreshold = 10;
+    // shape-replay scan phase (entered once every slice has been restored):
+    // walks the restored box chunk-major and replays shape updates for
+    // shape-sensitive blocks (stairs/fences/panes/...), within the tick budget
+    private boolean scanning;
+    private int scanCx, scanCz, scanX, scanY, scanZ;
 
     public UndoJob(StructureTemplate template, BlockPos origin, int snapshotSeq, String description) {
         this.template = template;
@@ -99,26 +104,77 @@ public final class UndoJob implements Job {
             ticketsAcquired = true;
         }
         long start = System.nanoTime();
-        StructurePlaceSettings settings = new StructurePlaceSettings();
-        do {
-            int sliceTop = Math.min(maxY, cursorY + SLICE_LAYERS - 1);
-            settings.setBoundingBox(new BoundingBox(
-                    origin.getX(), cursorY, origin.getZ(),
-                    origin.getX() + size.getX() - 1, sliceTop, origin.getZ() + size.getZ() - 1));
-            template.placeInWorld(level, origin, origin, settings, level.getRandom(), 2);
-            placed += (long) (sliceTop - cursorY + 1) * size.getX() * size.getZ();
-            cursorY = sliceTop + 1;
-        } while (cursorY <= maxY && System.nanoTime() - start < budgetNanos);
+        if (!scanning) {
+            StructurePlaceSettings settings = new StructurePlaceSettings();
+            do {
+                int sliceTop = Math.min(maxY, cursorY + SLICE_LAYERS - 1);
+                settings.setBoundingBox(new BoundingBox(
+                        origin.getX(), cursorY, origin.getZ(),
+                        origin.getX() + size.getX() - 1, sliceTop, origin.getZ() + size.getZ() - 1));
+                template.placeInWorld(level, origin, origin, settings, level.getRandom(), 2);
+                placed += (long) (sliceTop - cursorY + 1) * size.getX() * size.getZ();
+                cursorY = sliceTop + 1;
+            } while (cursorY <= maxY && System.nanoTime() - start < budgetNanos);
+            if (cursorY > maxY) {
+                scanning = true;
+                scanCx = minCx;
+                scanCz = minCz;
+                scanX = Math.max(origin.getX(), minCx << 4);
+                scanZ = Math.max(origin.getZ(), minCz << 4);
+                scanY = origin.getY();
+                AiBuildMod.LOGGER.info("[aibuild] undo {} entering shape-update replay", shortId());
+            }
+        } else {
+            boolean scanningBox = true;
+            do {
+                BlockPos pos = new BlockPos(scanX, scanY, scanZ);
+                if (ChunkSupport.isShapeSensitive(level.getBlockState(pos))) {
+                    ChunkSupport.replayShapeUpdates(level, pos);
+                }
+                scanningBox = advanceScan();
+            } while (scanningBox && System.nanoTime() - start < budgetNanos);
+            if (!scanningBox) {
+                state = State.DONE;
+                ChunkSupport.releaseTickets(level, forcedChunks);
+                SnapshotManager.delete(level.getServer(), snapshotSeq);
+            }
+        }
         // refresh every chunk this job covers so clients see the restored slices
         for (long packed : forcedChunks) {
             ChunkSupport.finalizeChunk(level, packed);
         }
-        if (cursorY > maxY) {
-            state = State.DONE;
-            ChunkSupport.releaseTickets(level, forcedChunks);
-            SnapshotManager.delete(level.getServer(), snapshotSeq);
-        }
         broadcastProgress(level.getServer(), state == State.DONE);
+    }
+
+    /** Advances the shape-replay scan cursor chunk-major (y fastest, then z, x, cz, cx). */
+    private boolean advanceScan() {
+        int endX = origin.getX() + size.getX() - 1;
+        int endZ = origin.getZ() + size.getZ() - 1;
+        scanY++;
+        if (scanY <= maxY) {
+            return true;
+        }
+        scanY = origin.getY();
+        scanZ++;
+        if (scanZ <= Math.min(endZ, (scanCz << 4) + 15)) {
+            return true;
+        }
+        scanZ = Math.max(origin.getZ(), scanCz << 4);
+        scanX++;
+        if (scanX <= Math.min(endX, (scanCx << 4) + 15)) {
+            return true;
+        }
+        scanCz++;
+        if (scanCz > maxCz) {
+            scanCz = minCz;
+            scanCx++;
+            if (scanCx > maxCx) {
+                return false;
+            }
+        }
+        scanX = Math.max(origin.getX(), scanCx << 4);
+        scanZ = Math.max(origin.getZ(), scanCz << 4);
+        return true;
     }
 
     private void broadcastProgress(MinecraftServer server, boolean finished) {

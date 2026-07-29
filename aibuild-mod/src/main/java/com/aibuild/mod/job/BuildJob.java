@@ -33,6 +33,9 @@ import java.util.UUID;
  * - placements iterate chunk-bucketed (fill iterates chunk-major; placement
  *   lists are sorted by chunk), and each finished chunk is finalized once:
  *   light flush + full chunk packet + unsaved flag ({@link ChunkSupport});
+ * - deferred shape-update replay: shape-sensitive placements (stairs, fences,
+ *   walls, panes, bars) are queued and replayed within the same budget, so
+ *   flag-2 placement still yields correct connection/curve states;
  * - the job's chunk range is force-loaded on the first step and released on
  *   completion/abort, so "chunk not loaded" failures no longer occur.
  */
@@ -55,6 +58,9 @@ public final class BuildJob implements Job {
     private boolean ticketsAcquired;
     /** Chunk currently being filled; finalized when the cursor moves to the next chunk. */
     private long openChunk = Long.MIN_VALUE;
+    /** Placed positions needing a deferred shape-update replay (append-only), drained within the tick budget. */
+    private final List<BlockPos> shapeReplayQueue = new ArrayList<>();
+    private int shapeReplayCursor;
     private Runnable onDone;
     private int placed;
     /** Last placed-count JobManager folded into its lifetime counter (main thread only). */
@@ -163,7 +169,13 @@ public final class BuildJob implements Job {
         finish(level, State.FAILED);
     }
 
-    /** Places blocks until the wall-clock budget is spent. Called once per tick on the main thread. */
+    /**
+     * Places blocks and drains the shape-update replay queue until the
+     * wall-clock budget is spent. Called once per tick on the main thread.
+     * Replay entries (shape-sensitive placements, e.g. stairs/fences/panes)
+     * take priority so they are fixed up shortly after their chunk finishes;
+     * every queued position is replayed exactly once before the job completes.
+     */
     @Override
     public void step(ServerLevel level, long budgetNanos) {
         if (!ticketsAcquired) {
@@ -171,32 +183,44 @@ public final class BuildJob implements Job {
             ticketsAcquired = true;
         }
         long start = System.nanoTime();
+        boolean hasWork;
         do {
-            Placement p = tasks.next();
-            if (bounds != null && !bounds.contains(p.pos())) {
-                recordFailure(p, "out_of_bounds");
-            } else if (level.isOutsideBuildHeight(p.pos())) {
-                recordFailure(p, "outside build height");
-            } else if (!level.hasChunkAt(p.pos())) {
-                recordFailure(p, "chunk not loaded");
-            } else if (p.keepOnly() && !level.getBlockState(p.pos()).isAir()) {
-                placed++; // processed without error; block intentionally left untouched
-            } else {
-                long chunkKey = ChunkPos.asLong(p.pos().getX() >> 4, p.pos().getZ() >> 4);
-                if (chunkKey != openChunk) {
-                    if (openChunk != Long.MIN_VALUE) {
-                        ChunkSupport.finalizeChunk(level, openChunk);
-                    }
-                    openChunk = chunkKey;
-                }
-                level.setBlock(p.pos(), p.state(), 2);
-                placed++;
+            if (shapeReplayCursor < shapeReplayQueue.size()) {
+                ChunkSupport.replayShapeUpdates(level, shapeReplayQueue.get(shapeReplayCursor++));
+            } else if (tasks.hasNext()) {
+                placeOne(level, tasks.next());
             }
-        } while (tasks.hasNext() && System.nanoTime() - start < budgetNanos);
-        if (!tasks.hasNext()) {
+            hasWork = shapeReplayCursor < shapeReplayQueue.size() || tasks.hasNext();
+        } while (hasWork && System.nanoTime() - start < budgetNanos);
+        if (!tasks.hasNext() && shapeReplayCursor >= shapeReplayQueue.size()) {
             finish(level, State.DONE);
         }
         broadcastProgress(level.getServer(), state != State.RUNNING);
+    }
+
+    private void placeOne(ServerLevel level, Placement p) {
+        if (bounds != null && !bounds.contains(p.pos())) {
+            recordFailure(p, "out_of_bounds");
+        } else if (level.isOutsideBuildHeight(p.pos())) {
+            recordFailure(p, "outside build height");
+        } else if (!level.hasChunkAt(p.pos())) {
+            recordFailure(p, "chunk not loaded");
+        } else if (p.keepOnly() && !level.getBlockState(p.pos()).isAir()) {
+            placed++; // processed without error; block intentionally left untouched
+        } else {
+            long chunkKey = ChunkPos.asLong(p.pos().getX() >> 4, p.pos().getZ() >> 4);
+            if (chunkKey != openChunk) {
+                if (openChunk != Long.MIN_VALUE) {
+                    ChunkSupport.finalizeChunk(level, openChunk);
+                }
+                openChunk = chunkKey;
+            }
+            level.setBlock(p.pos(), p.state(), 2);
+            if (ChunkSupport.isShapeSensitive(p.state())) {
+                shapeReplayQueue.add(p.pos());
+            }
+            placed++;
+        }
     }
 
     private void finish(ServerLevel level, State newState) {
