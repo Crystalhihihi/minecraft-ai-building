@@ -16,6 +16,8 @@
 - 不做生存模式材料校验(创造模式语义,方块凭空放置)
 - 不自己实现 LLM 调用、prompt 工程框架、建筑模板库
 - 不做 schematic 解析/风格蒸馏管线——风格卡片手写,蒸馏留作 V2 可选方向
+- **不在 mod 里内置建筑生成算法**(WFC/形状文法等 GDMC 路线):agent 沙盒里现写生成器脚本就是程序化生成(数据由地形摘要供给,落地走 `set_blocks_from_file`);mod 只提供好数据与快通道
+- **现阶段不引入小模型分工**(如 Qwen3-30B 干杂活):杂活的第一优解是确定性代码(零 token);看图自检必须多模态模型;真到用量大时再利用 Kimi Code 多 provider + sub-agent 分模型,属优化项而非架构项
 
 ## 2. 关键决策汇总
 
@@ -106,6 +108,7 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 | `fill(box, block, mode)` | 主力,语义对齐原版 `/fill`(replace/keep/outline/hollow) |
 | `set_blocks([{x,y,z,block}...])` | 批量精细操作;**单次请求 ≤ 4096 条目**(防 JSON 包过大;一个 job 可由多次请求累积) |
 | `set_block(x,y,z,block)` | 单块修补 |
+| `set_blocks_from_file(path)` | **代码建模通道**(bridge 本地工具,mod 零改动):AI 的沙盒脚本把坐标写成 JSON 文件(同 set_blocks 条目格式),bridge 读文件自动按 4096 条/批分解为多个 set_blocks 调用;**同时支持 `.schem` 文件**(Sponge v2/v3,~120 行只读解析,调色板字符串与 BlockSpecParser 同格式;跳过 BlockEntities;无法解析的调色板条目报 failed)。LLM 不再搬运大批量坐标——复杂几何(球/拱/曲面屋顶)一律写成生成器脚本走此通道 |
 | `get_job_status(job_id)` | 查 job 进度 |
 
 ### 5.2 读工具(同步返回)
@@ -113,6 +116,7 @@ mod ──解析 agent stdout(stream-json)──▶ 进度转发到游戏聊天�
 | 工具 | 说明 |
 | --- | --- |
 | `get_block(x,y,z)` | 点查询 |
+| `search_blocks(query)` | 注册表模糊搜索方块 id(复用建议器逻辑),回答"有哪些颜色的玻璃"这类问题,省 token |
 | `get_region_summary(box)` | 方块统计 + 每层 ASCII 平面图(不给全量坐标流,省 token) |
 | `get_terrain_summary(center, radius)` | 高度图/水体/坡度/平坦度(spawn 前 mod 已自动给了一份周边摘要,此工具用于查看别处) |
 | `render_region(box, {azimuth, elevation})` | 渲染 PNG,走 MCP image content 直接回 AI 上下文;视角参数 AI 自选,默认 45° 等轴 |
@@ -138,9 +142,14 @@ LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**�
 
 ## 6. 异步 job 与快照/undo
 
-- **所有写操作都是异步 job**:工具调用立即返回 `job_id`,mod 后台**分帧执行**(每 tick 放置默认 4096 块,可配),聊天栏显示进度。10 万方块级操作不会冻结游戏。
-- **快照**:建造前用**原版结构方块机制(StructureTemplate)**对施工范围做快照——调色板 + 索引数组,保存快、恢复带方块实体处理,不手写 BlockChange 列表。
-- **undo**:`/aiundo` 分帧恢复快照,聊天栏显示进度。
+- **所有写操作都是异步 job**:工具调用立即返回 `job_id`,mod 后台**分帧执行**,聊天栏显示进度。
+- **放置性能**(FAWE/WorldEdit 调研定案):
+  - **毫秒预算制**:每 tick 放置预算默认 10ms(可配),花多少放多少,自适应 TPS——取代固定块数;
+  - **flag 2 + chunk 分桶**:放置用 `setBlock(pos, state, 2)`(抑制逐块邻居更新/客户端通知),放置按 chunk 分桶,每完成一个 chunk 统一重算该 chunk 光照并发一次 chunk 包——取代逐块 flag 3 的最差路径;
+  - **chunk ticket**:job 开工前给区域所有 chunk 拿 ticket 保证加载,完工释放——不再"未加载记 failed";
+  - 直接 `LevelChunkSection` 写入是进一步优化,现阶段不做(YAGNI,先测毫秒预算够不够)。
+- **快照**:建造前(bounds 确定后、job 开始前)用**原版 StructureTemplate#fillFromWorld** 对施工范围一次性同步快照——调色板 + 索引数组,方块实体 NBT 免费带上,保存快;存 `<世界>/aibuild/snapshots/`,留最近 10 份。API 无 48³ 限制(那只是结构方块 UI 限制)。
+- **undo**:`/aiundo` 恢复最近一次快照;**禁止原子 placeInWorld 26 万块**——按 chunk 或 Y 层切片,在毫秒预算内分帧恢复,聊天栏显示进度。
 
 ## 7. 视觉反馈:渲染
 
@@ -180,7 +189,8 @@ LLM 自由发挥盖出来的建筑大概率是"盒子+尖顶",风格必须以**�
 - **单 job 方块上限**默认 = 选区体积上限(262144),两者同源可配;
 - `set_blocks` 单请求 ≤ 4096 条目(请求体大小限制,与 job 上限是两个层面);
 - `/aiundo` 兜底一切误操作;
-- agent 进程 cwd 限定在工作目录;`kimi -p` 默认 auto 权限,静态 deny 规则仍生效。
+- agent 进程 cwd 限定在工作目录;`kimi -p` 默认 auto 权限,静态 deny 规则仍生效;
+- **schematic 版权红线**:Planet Minecraft 等社区作品默认保留所有权利——`.schem` 只做"用户自行导入",**本项目绝不打包/分发任何社区 schematic 文件**。
 
 ## 11. 测试策略
 

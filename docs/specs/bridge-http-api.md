@@ -40,6 +40,11 @@
 ### POST /tools/get_block
 `{"x":0,"y":64,"z":0}` → `200 {"block":"minecraft:oak_stairs","properties":{"facing":"north","half":"bottom"}}`
 
+### POST /tools/search_blocks
+`{"query":"stained_glass"}` → `200 {"matches":["minecraft:white_stained_glass","..."]}`(子串模糊匹配,≤ 16 条;无命中返回空数组)
+
+> 注:`set_blocks_from_file` 是 **bridge 本地工具**,无对应 HTTP 端点——bridge 读文件(JSON 或 .schem)后自动分解为多个 `/tools/set_blocks` 调用。
+
 ### POST /tools/get_region_summary
 `{"min":[...],"max":[...]}` → `200 {"text":"方块统计 + 每层 ASCII 平面图"}`
 
