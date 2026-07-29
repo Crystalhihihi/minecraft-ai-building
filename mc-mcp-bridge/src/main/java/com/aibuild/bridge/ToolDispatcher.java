@@ -8,7 +8,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.StringJoiner;
 
 /**
@@ -18,10 +20,12 @@ import java.util.StringJoiner;
 public final class ToolDispatcher {
 
     private final McBackendClient backend;
+    private final BlocksFilePlacer filePlacer;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ToolDispatcher(McBackendClient backend) {
         this.backend = backend;
+        this.filePlacer = new BlocksFilePlacer(backend);
     }
 
     /**
@@ -34,10 +38,12 @@ public final class ToolDispatcher {
             return switch (name) {
                 case Tools.FILL -> jsonResult(backend.postJson("/tools/fill", args));
                 case Tools.SET_BLOCKS -> setBlocks(args);
+                case Tools.SET_BLOCKS_FROM_FILE -> filePlacer.call(args);
                 case Tools.SET_BLOCK -> jsonResult(backend.postJson("/tools/set_block", args));
                 case Tools.GET_JOB_STATUS -> jsonResult(backend.get("/tools/job_status?id="
                         + URLEncoder.encode(args.path("job_id").asText(""), StandardCharsets.UTF_8)));
                 case Tools.GET_BLOCK -> jsonResult(backend.postJson("/tools/get_block", args));
+                case Tools.SEARCH_BLOCKS -> searchBlocks(args);
                 case Tools.GET_REGION_SUMMARY -> jsonResult(backend.postJson("/tools/get_region_summary", args));
                 case Tools.GET_TERRAIN_SUMMARY -> jsonResult(backend.postJson("/tools/get_terrain_summary", args));
                 case Tools.RENDER_REGION -> renderResult(backend.postJson("/tools/render_region", args));
@@ -64,6 +70,39 @@ public final class ToolDispatcher {
         return jsonResult(backend.postJson("/tools/set_blocks", args));
     }
 
+    /** search_blocks: POST the query, format the matches array as a readable list. */
+    private ObjectNode searchBlocks(JsonNode args) throws IOException, InterruptedException {
+        String query = args.path("query").asText("").strip();
+        if (query.isEmpty()) {
+            return textResult("search_blocks needs a non-empty \"query\" string.", true);
+        }
+        ObjectNode body = mapper.createObjectNode();
+        body.put("query", query);
+        McBackendClient.Response resp = backend.postJson("/tools/search_blocks", body);
+        if (!resp.isSuccess()) {
+            return errorResult(resp);
+        }
+        JsonNode json = tryParse(new String(resp.body(), StandardCharsets.UTF_8));
+        List<String> matches = new ArrayList<>();
+        if (json != null && json.path("matches").isArray()) {
+            for (JsonNode match : json.path("matches")) {
+                matches.add(match.asText());
+            }
+        }
+        String text;
+        if (matches.isEmpty()) {
+            text = "No blocks match \"" + query + "\".";
+        } else {
+            StringBuilder sb = new StringBuilder(matches.size() + " block(s) match \"" + query + "\":");
+            for (String match : matches) {
+                sb.append('\n').append(match);
+            }
+            text = sb.toString();
+        }
+        return textResult(appendPlayerMessages(text, json == null ? null : json.get("player_messages")),
+                false);
+    }
+
     /** Map a JSON-endpoint response to MCP content. */
     private ObjectNode jsonResult(McBackendClient.Response resp) {
         if (!resp.isSuccess()) {
@@ -88,14 +127,19 @@ public final class ToolDispatcher {
         } else {
             text = bodyText;
         }
+        text = appendPlayerMessages(text, playerMessages);
+        return textResult(text, false);
+    }
+
+    private String appendPlayerMessages(String text, JsonNode playerMessages) {
         if (playerMessages != null && playerMessages.isArray() && !playerMessages.isEmpty()) {
             StringBuilder sb = new StringBuilder(text);
             for (JsonNode msg : playerMessages) {
                 sb.append("\n[玩家消息] ").append(msg.asText());
             }
-            text = sb.toString();
+            return sb.toString();
         }
-        return textResult(text, false);
+        return text;
     }
 
     /** Map a render response: PNG bytes become MCP image content. */

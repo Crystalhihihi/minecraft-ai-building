@@ -37,6 +37,8 @@ public final class MockMcBackend {
         }
         final String expectedToken = token;
         AtomicInteger jobCounter = new AtomicInteger(0);
+        // job_id -> entry count, so job_status can report real placed/failed numbers
+        java.util.Map<String, Integer> jobs = new java.util.concurrent.ConcurrentHashMap<>();
 
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/", exchange -> {
@@ -61,16 +63,23 @@ public final class MockMcBackend {
                             respond(exchange, 400, "application/json",
                                     "{\"error\":\"too many entries: " + entries + " (max 4096)\"}");
                         } else {
-                            respond(exchange, 200, "application/json",
-                                    "{\"job_id\":\"mock-" + jobCounter.incrementAndGet() + "\"}");
+                            String id = "mock-" + jobCounter.incrementAndGet();
+                            jobs.put(id, entries);
+                            respond(exchange, 200, "application/json", "{\"job_id\":\"" + id + "\"}");
                         }
                     }
                     case "/tools/job_status" -> {
                         String id = queryParam(exchange.getRequestURI().getRawQuery(), "id");
+                        int total = jobs.getOrDefault(id, 100);
                         respond(exchange, 200, "application/json",
-                                "{\"job_id\":\"" + id + "\",\"state\":\"done\",\"total\":100,"
-                                        + "\"placed\":100,\"failed\":0,\"errors\":[]}");
+                                "{\"job_id\":\"" + id + "\",\"state\":\"done\",\"total\":" + total
+                                        + ",\"placed\":" + total + ",\"failed\":0,\"errors\":[]}");
                     }
+                    case "/tools/search_blocks" ->
+                            respond(exchange, 200, "application/json",
+                                    "{\"matches\":[\"minecraft:white_stained_glass\","
+                                            + "\"minecraft:black_stained_glass\","
+                                            + "\"minecraft:glass\"]}");
                     case "/tools/get_block" ->
                             respond(exchange, 200, "application/json",
                                     "{\"block\":\"minecraft:oak_stairs\",\"properties\":"

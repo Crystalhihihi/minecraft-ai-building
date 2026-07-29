@@ -17,9 +17,11 @@ public final class Tools {
 
     public static final String FILL = "fill";
     public static final String SET_BLOCKS = "set_blocks";
+    public static final String SET_BLOCKS_FROM_FILE = "set_blocks_from_file";
     public static final String SET_BLOCK = "set_block";
     public static final String GET_JOB_STATUS = "get_job_status";
     public static final String GET_BLOCK = "get_block";
+    public static final String SEARCH_BLOCKS = "search_blocks";
     public static final String GET_REGION_SUMMARY = "get_region_summary";
     public static final String GET_TERRAIN_SUMMARY = "get_terrain_summary";
     public static final String RENDER_REGION = "render_region";
@@ -28,8 +30,8 @@ public final class Tools {
     public static final int SET_BLOCKS_MAX_ENTRIES = 4096;
 
     public static List<String> names() {
-        return List.of(FILL, SET_BLOCKS, SET_BLOCK, GET_JOB_STATUS, GET_BLOCK,
-                GET_REGION_SUMMARY, GET_TERRAIN_SUMMARY, RENDER_REGION, PROPOSE_SITE);
+        return List.of(FILL, SET_BLOCKS, SET_BLOCKS_FROM_FILE, SET_BLOCK, GET_JOB_STATUS, GET_BLOCK,
+                SEARCH_BLOCKS, GET_REGION_SUMMARY, GET_TERRAIN_SUMMARY, RENDER_REGION, PROPOSE_SITE);
     }
 
     public static boolean isKnown(String name) {
@@ -50,8 +52,23 @@ public final class Tools {
         tools.add(tool(mapper, SET_BLOCKS,
                 "Place many individual blocks in one request (fine-grained edits). "
                         + "Asynchronous: returns a job_id; poll get_job_status. "
-                        + "Max " + SET_BLOCKS_MAX_ENTRIES + " entries per request; split larger batches.",
+                        + "Max " + SET_BLOCKS_MAX_ENTRIES + " entries per request; split larger batches. "
+                        + "For more than a few hundred blocks prefer set_blocks_from_file instead.",
                 schema(mapper, new String[][]{{"blocks", "blockList"}}, "blocks")));
+        tools.add(tool(mapper, SET_BLOCKS_FROM_FILE,
+                "Place many blocks from a local file - the recommended channel for large or procedural "
+                        + "builds: write a small generator script (any language) that computes the geometry "
+                        + "and emits the file, then call this tool once instead of many set_blocks calls. "
+                        + "The bridge streams the file to the mod in batches of " + SET_BLOCKS_MAX_ENTRIES
+                        + " set_blocks jobs and blocks until every job finishes, reporting placed/failed totals. "
+                        + "path: a JSON file ({\"blocks\":[{\"x\":..,\"y\":..,\"z\":..,\"block\":\"minecraft:...\"}]}"
+                        + " or a bare array of such entries) or a .schem file (Sponge Schematic v2/v3, "
+                        + "e.g. WorldEdit //schem save). For .schem: air entries are skipped unless "
+                        + "place_air=true; the file's Offset is used as placement origin unless the offset "
+                        + "argument is given (explicit wins); block entities are ignored.",
+                schema(mapper, new String[][]{
+                                {"path", "filePath"}, {"offset", "offsetVec"}, {"place_air", "placeAir"}},
+                        "path")));
         tools.add(tool(mapper, SET_BLOCK,
                 "Place a single block at (x,y,z). Asynchronous: returns a job_id. Use for small fixes.",
                 schema(mapper, new String[][]{
@@ -65,6 +82,11 @@ public final class Tools {
                 "Query the block at a single position. Returns the block id and its block-state properties.",
                 schema(mapper, new String[][]{{"x", "coord"}, {"y", "coord"}, {"z", "coord"}},
                         "x", "y", "z")));
+        tools.add(tool(mapper, SEARCH_BLOCKS,
+                "Search block ids by substring (fuzzy, up to 16 matches). Use it to find the exact "
+                        + "namespaced id before building when unsure - e.g. \"stained_glass\" returns "
+                        + "minecraft:white_stained_glass etc. Empty list means no match.",
+                schema(mapper, new String[][]{{"query", "query"}}, "query")));
         tools.add(tool(mapper, GET_REGION_SUMMARY,
                 "Summarize a closed-interval box: block-type counts plus a per-layer ASCII plan. "
                         + "Cheap on tokens; use instead of many get_block calls.",
@@ -177,6 +199,29 @@ public final class Tools {
             case "angle" -> {
                 node.put("type", "number");
                 node.put("description", "Degrees; optional, defaults to 45.");
+            }
+            case "filePath" -> {
+                node.put("type", "string");
+                node.put("description", "Path to a block file on the machine running the bridge: a JSON "
+                        + "block list or a .schem file (Sponge Schematic v2/v3). Relative paths resolve "
+                        + "against the bridge process working directory.");
+            }
+            case "offsetVec" -> {
+                node.put("type", "array");
+                node.put("description", "Placement origin offset [x,y,z], integers, added to every block "
+                        + "position. Optional; overrides the file's own Offset for .schem files.");
+                node.put("minItems", 3);
+                node.put("maxItems", 3);
+                node.putObject("items").put("type", "integer");
+            }
+            case "placeAir" -> {
+                node.put("type", "boolean");
+                node.put("description", "Also place air blocks from .schem files. Optional, default false "
+                        + "(air entries are skipped).");
+            }
+            case "query" -> {
+                node.put("type", "string");
+                node.put("description", "Substring to match against block ids, e.g. \"stained_glass\".");
             }
             default -> throw new IllegalArgumentException("unknown schema fragment: " + kind);
         }
