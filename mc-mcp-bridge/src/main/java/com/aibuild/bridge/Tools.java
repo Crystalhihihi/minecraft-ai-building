@@ -100,10 +100,13 @@ public final class Tools {
         tools.add(tool(mapper, RENDER_REGION,
                 "Render a closed-interval box to a PNG image (returned as image content) so you can "
                         + "visually inspect your build. azimuth/elevation are degrees, optional, default 45/45. "
-                        + "Call after building to self-check proportions and materials.",
+                        + "mode: auto (default; GL render when a client is available, else top-down), gl, or "
+                        + "topdown (server-side map-style raster, always works). projection: persp (default) or "
+                        + "ortho (GL mode only). Call after building to self-check proportions and materials.",
                 schema(mapper, new String[][]{
                                 {"min", "boxCorner"}, {"max", "boxCorner"},
-                                {"azimuth", "angle"}, {"elevation", "angle"}},
+                                {"azimuth", "angle"}, {"elevation", "angle"},
+                                {"mode", "renderMode"}, {"projection", "renderProjection"}},
                         "min", "max")));
         tools.add(tool(mapper, PROPOSE_SITE,
                 "Propose a build site (closed-interval box) when the player gave no manual selection. "
@@ -199,6 +202,20 @@ public final class Tools {
             case "angle" -> {
                 node.put("type", "number");
                 node.put("description", "Degrees; optional, defaults to 45.");
+            }
+            case "renderMode" -> {
+                node.put("type", "string");
+                node.put("description", "Render path, default \"auto\": GL render when the game client is "
+                        + "available (single player), otherwise the top-down raster; \"gl\" and \"topdown\" "
+                        + "force a path (gl still falls back to topdown when no client is available).");
+                ArrayNode e = node.putArray("enum");
+                e.add("auto").add("gl").add("topdown");
+            }
+            case "renderProjection" -> {
+                node.put("type", "string");
+                node.put("description", "Camera projection for the GL render path, default \"persp\".");
+                ArrayNode e = node.putArray("enum");
+                e.add("persp").add("ortho");
             }
             case "filePath" -> {
                 node.put("type", "string");

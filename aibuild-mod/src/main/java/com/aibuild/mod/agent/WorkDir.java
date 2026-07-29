@@ -170,8 +170,30 @@ public final class WorkDir {
             | `search_blocks(query)` | AVAILABLE. Fuzzy search of block ids (e.g. "stained_glass") — use it instead of guessing ids |
             | `get_terrain_summary(center, radius)` | AVAILABLE. ASCII heightmap + water/flatness stats + flat candidates; radius <= 128 |
             | `propose_site(min, max)` | AVAILABLE. Required FIRST call when task.json has no bounds; then await confirmation |
-            | `get_region_summary(min, max)` | NOT available in this milestone — will error |
-            | `render_region(min, max, azimuth?, elevation?)` | NOT available in this milestone — will error |
+            | `get_region_summary(min, max)` | AVAILABLE. Block-type counts + per-layer ASCII plan of a box (max 64^3). Cheap on tokens; use it to verify structure instead of many get_block calls |
+            | `render_region(min, max, azimuth?, elevation?, mode?, projection?)` | AVAILABLE. Renders the box to a PNG image you can SEE. azimuth/elevation in degrees (default 45/45). mode: auto (default), gl (true 3D render, needs the game client open), topdown (map-style raster, always works). projection: persp (default) / ortho. Volume <= 262144 (64^3) |
+
+            ## Mandatory visual self-check (DO NOT SKIP)
+
+            You have eyes via `render_region` — use them. Before you declare the
+            build finished you MUST:
+
+            1. Call `render_region` on the whole build at least once and actually
+               LOOK at the image. Compare against the quality floor: MC-native
+               proportions (door 2 high, storey 3-4 high, walls 1 thick), height/width
+               ratio 1:1~4:1, roof material distinct from walls, windows placed with
+               rhythm (not random), structure connects to the terrain (not floating,
+               not half-buried).
+            2. Fix every flaw you spot, then render AGAIN to confirm the fix.
+               You need at least 2 render rounds (render -> fix -> render) before
+               completion; more if problems persist. Try a second azimuth (e.g. 45
+               and 225) to see all faces.
+            3. `get_region_summary` complements the renders: use it to check block
+               counts and per-layer shapes match plan.md.
+            4. Every render is also saved to `renders/` in this directory — the
+               player reviews those files, so they must show the build clearly.
+
+            A completion claim without at least 2 inspected renders is invalid.
 
             ## Rules
 
@@ -194,9 +216,9 @@ public final class WorkDir {
                Wait for each job's `get_job_status` = done (and failed == 0) before
                depending on its blocks. If failures say `out_of_bounds`, you placed
                outside the confirmed range — redo those parts inside it.
-            6. Self-check when finished: `get_region_summary` if it works, otherwise
-               sample key points with `get_block` (corners, center, top) and confirm
-               they match the plan. Fix any mismatches.
+            6. Self-check when finished: follow the "Mandatory visual self-check"
+               section above — at least 2 render_region rounds plus a
+               get_region_summary cross-check. Fix any mismatches.
             7. A tool response may end with `[玩家消息] ...` lines — these are live
                messages from the player. Treat them as instructions and adapt.
             8. Creative-mode semantics: blocks appear out of nowhere, no physics

@@ -74,13 +74,13 @@
 
 出口:✅ dev server 实测:AI 自写 gen_sphere.py → set_blocks_from_file 690 块球壳 + 自清 1419 块内脏成真空心 + 自采样验证,零坐标搬运。
 
-## Phase 6:渲染与数据读工具
+## Phase 6:渲染与数据读工具 —— ✅ 已完成(E2E 双路径验证,PNG 证据 scratch/phase6/)
 
-- [ ] 6.1 **spike(提前并行)**:WorldMesh 烘焙区域 → `SimpleFramebuffer` → 自定义投影 + azimuth/elevation → `NativeImage` 读回 → `ScreenshotRecorder` 存 PNG(移植 Isometric Renders 的 MIT 模式,不依赖该 mod)
-- [ ] 6.2 `render_region` 端点(渲染前确认区块已加载);bridge 侧 image content 联调
-- [ ] 6.3 **V1 回退**:`BlockState#getMapColor` + `FilledMapItem` 高度着色的俯视光栅图;主方案失败自动切换
-- [ ] 6.4 `get_region_summary`(方块统计 + 分层 ASCII 平面图)
-- [ ] 6.5 AGENTS.md 加入"盖完必渲染自检"流程
+- [x] 6.1 **GL 渲染**:按 Isometric Renders 的 MIT 模式**直接对 1.21.11 原版 API 自实现烘焙**(worldmesher 停在 1.21.4 不兼容 RenderPipeline 大重构);透视/ortho、azimuth/elevation、水面半透明正确;6 条 1.21.11 渲染 API 实测要点记录在案
+- [x] 6.2 `render_region` 端点(渲染前 chunk ticket 加载;PNG 落盘 `renders/`;`X-Aibuild-Render-Mode` 头;mode=auto|gl|topdown);bridge 侧 mode/projection 参数透传,契约文档同步
+- [x] 6.3 **V1 回退**:MapColor + FilledMapItem 高度着色俯视光栅(服务器端,无客户端自动回退;mode=gl 不可用时优雅降级不崩)
+- [x] 6.4 `get_region_summary`(top 12 方块统计 + ≤8 采样层 ASCII 平面图,大区自动降采样)
+- [x] 6.5 AGENTS.md 强制渲染自检(完工前 ≥2 轮 render→挑刺→修复→再 render,对照质量底线)
 
 出口:AI 能在一次 `/aibuild` 中自主调用 render 并据图修改。
 

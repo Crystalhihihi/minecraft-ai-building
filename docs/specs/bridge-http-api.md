@@ -47,12 +47,18 @@
 
 ### POST /tools/get_region_summary
 `{"min":[...],"max":[...]}` → `200 {"text":"方块统计 + 每层 ASCII 平面图"}`
+体积 ≤ 262144(64³);输出 ~200 行内(top 12 方块计数 + 至多 8 个采样层的 ASCII 平面图,大区自动降采样)
 
 ### POST /tools/get_terrain_summary
 `{"center":[x,z],"radius":64}` → `200 {"text":"高度图/水体/坡度/平坦度摘要(含 ASCII 高度图)"}`
 
 ### POST /tools/render_region
-`{"min":[...],"max":[...],"azimuth":45,"elevation":45}` → `200` body 为 **PNG 二进制**(`Content-Type: image/png`);主渲染失败时返回回退渲染的 PNG(对调用方透明)
+`{"min":[...],"max":[...],"azimuth":45,"elevation":45,"mode":"auto","projection":"persp"}` → `200` body 为 **PNG 二进制**(`Content-Type: image/png`)
+- `azimuth`/`elevation`:度,可省,默认 45/45;`mode`/`projection` 可省
+- `mode` ∈ `auto|gl|topdown`,默认 `auto`:有客户端(单人游戏)走 GL 真渲染,否则走服务器端俯视光栅;`gl`/`topdown` 强制指定,但 GL 不可用或失败时仍优雅回退 topdown(对调用方透明)
+- `projection` ∈ `persp|ortho`,默认 `persp`,仅 GL 路径有效
+- 实际使用的渲染路径经响应头 `X-Aibuild-Render-Mode: gl|topdown` 返回
+- 区域体积 ≤ 262144(64³);PNG 同时落盘一份到 `<世界>/aibuild/renders/` 供玩家查看
 
 ## 流程工具
 

@@ -1,6 +1,7 @@
 package com.aibuild.mod.bridge;
 
 import com.aibuild.mod.AiBuildMod;
+import com.aibuild.mod.agent.WorkDir;
 import com.aibuild.mod.job.BuildJob;
 import com.aibuild.mod.job.FillMode;
 import com.aibuild.mod.job.Job;
@@ -31,6 +32,8 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -52,6 +55,9 @@ import java.util.concurrent.TimeUnit;
 public final class BridgeHttpServer {
     private static final Gson GSON = new Gson();
     private static final int MAIN_THREAD_TIMEOUT_SECONDS = 30;
+    /** GL render wait must stay below the bridge's default HTTP timeout (30 s). */
+    private static final int GL_RENDER_TIMEOUT_SECONDS = 25;
+    private static final DateTimeFormatter RENDER_FILE_STAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
 
     private final JobManager jobManager;
     private final PlayerInbox inbox;
@@ -80,6 +86,8 @@ public final class BridgeHttpServer {
         http.createContext("/tools/search_blocks", ex -> handle(ex, "POST", this::searchBlocks));
         http.createContext("/tools/propose_site", ex -> handle(ex, "POST", this::proposeSite));
         http.createContext("/tools/get_terrain_summary", ex -> handle(ex, "POST", this::getTerrainSummary));
+        http.createContext("/tools/get_region_summary", ex -> handle(ex, "POST", this::getRegionSummary));
+        http.createContext("/tools/render_region", ex -> handleBinary(ex, "POST", this::renderRegion));
         http.setExecutor(Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "aibuild-http");
             t.setDaemon(true);
@@ -169,6 +177,44 @@ public final class BridgeHttpServer {
                 throw cause;
             }
             throw e;
+        }
+    }
+
+    // ------------------------------------------------------------------ binary plumbing (render_region)
+
+    @FunctionalInterface
+    private interface BinaryEndpoint {
+        PngReply handle(HttpExchange exchange) throws Exception;
+    }
+
+    /** PNG body plus the render path actually used ("gl" or "topdown"), sent as a header. */
+    private record PngReply(byte[] pngBytes, String renderMode) {
+    }
+
+    private void handleBinary(HttpExchange ex, String method, BinaryEndpoint endpoint) throws IOException {
+        try {
+            if (!token.equals(ex.getRequestHeaders().getFirst("X-Aibuild-Token"))) {
+                send(ex, 403, error("forbidden"));
+                return;
+            }
+            if (!method.equalsIgnoreCase(ex.getRequestMethod())) {
+                send(ex, 405, error("method not allowed"));
+                return;
+            }
+            PngReply reply = endpoint.handle(ex);
+            ex.getResponseHeaders().set("Content-Type", "image/png");
+            ex.getResponseHeaders().set("X-Aibuild-Render-Mode", reply.renderMode());
+            ex.sendResponseHeaders(200, reply.pngBytes().length);
+            try (OutputStream os = ex.getResponseBody()) {
+                os.write(reply.pngBytes());
+            }
+        } catch (ApiError e) {
+            send(ex, e.status, e.body);
+        } catch (Exception e) {
+            AiBuildMod.LOGGER.error("[aibuild] error handling {} {}", ex.getRequestMethod(), ex.getRequestURI(), e);
+            send(ex, 500, error("internal error: " + e.getMessage()));
+        } finally {
+            ex.close();
         }
     }
 
@@ -372,6 +418,91 @@ public final class BridgeHttpServer {
         return res;
     }
 
+    private JsonObject getRegionSummary(HttpExchange ex) throws Exception {
+        JsonObject body = readJsonBody(ex);
+        BlockPos[] box = regionBox(body);
+        String text = onMainThread(() -> RegionSummary.generate(server.overworld(), box[0], box[1]));
+        JsonObject res = new JsonObject();
+        res.addProperty("text", text);
+        return res;
+    }
+
+    /**
+     * render_region: PNG of the region. mode=auto|gl|topdown (default auto);
+     * projection=persp|ortho (default persp, GL path only). GL rendering is
+     * only possible in a client environment (single player: integrated server
+     * shares the JVM with the client); when it is unavailable or fails, the
+     * server-side top-down raster is returned instead, transparently to the
+     * caller (the actual path is reported via the X-Aibuild-Render-Mode
+     * response header). The PNG is also written to {@code <world>/aibuild/renders/}
+     * so the player can look at what the AI saw.
+     */
+    private PngReply renderRegion(HttpExchange ex) throws Exception {
+        JsonObject body = readJsonBody(ex);
+        BlockPos[] box = regionBox(body);
+        BlockPos minPos = box[0];
+        BlockPos maxPos = box[1];
+        float azimuth = (float) optDouble(body, "azimuth", 45.0);
+        float elevation = (float) optDouble(body, "elevation", 45.0);
+        String mode = optString(body, "mode", "auto");
+        if (!mode.equals("auto") && !mode.equals("gl") && !mode.equals("topdown")) {
+            throw badRequest("'mode' must be one of: auto, gl, topdown");
+        }
+        String projection = optString(body, "projection", "persp");
+        if (!projection.equals("persp") && !projection.equals("ortho")) {
+            throw badRequest("'projection' must be one of: persp, ortho");
+        }
+
+        byte[] png = null;
+        String usedMode = null;
+        if (!mode.equals("topdown")) {
+            RenderHooks.GlRegionRenderer gl = RenderHooks.glRenderer();
+            if (gl != null) {
+                try {
+                    png = gl.renderPng(minPos, maxPos, azimuth, elevation, projection.equals("ortho"))
+                            .get(GL_RENDER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    usedMode = "gl";
+                } catch (Exception e) {
+                    AiBuildMod.LOGGER.warn("[aibuild] GL render failed, falling back to topdown", e);
+                }
+            } else if (mode.equals("gl")) {
+                AiBuildMod.LOGGER.info("[aibuild] render_region mode=gl but no client renderer "
+                        + "(dedicated server?) — falling back to topdown");
+            }
+        }
+        if (png == null) {
+            png = onMainThread(() -> TopDownRenderer.renderPng(server.overworld(), minPos, maxPos));
+            usedMode = "topdown";
+        }
+
+        try {
+            Path rendersDir = WorkDir.dirOf(server).resolve("renders");
+            Files.createDirectories(rendersDir);
+            String stamp = RENDER_FILE_STAMP.format(LocalDateTime.now());
+            Files.write(rendersDir.resolve("render_" + stamp + "_" + usedMode + ".png"), png);
+        } catch (IOException e) {
+            AiBuildMod.LOGGER.warn("[aibuild] failed to save render to renders/ dir", e);
+        }
+        return new PngReply(png, usedMode);
+    }
+
+    /** Parses and normalizes (per-axis sorted) min/max from the request body; enforces the volume cap. */
+    private BlockPos[] regionBox(JsonObject body) throws ApiError {
+        int[] min = vec3(body, "min");
+        int[] max = vec3(body, "max");
+        int minX = Math.min(min[0], max[0]);
+        int minY = Math.min(min[1], max[1]);
+        int minZ = Math.min(min[2], max[2]);
+        int maxX = Math.max(min[0], max[0]);
+        int maxY = Math.max(min[1], max[1]);
+        int maxZ = Math.max(min[2], max[2]);
+        long volume = (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+        if (volume > SiteGate.MAX_VOLUME) {
+            throw badRequest("region volume " + volume + " exceeds limit of " + SiteGate.MAX_VOLUME + " blocks");
+        }
+        return new BlockPos[]{new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ)};
+    }
+
     /** Bounds gate for write tools: 409 while the session has no confirmed range. */
     private SiteGate.Bounds requireBounds() throws ApiError {
         SiteGate.Bounds bounds = gate.currentBounds();
@@ -488,6 +619,17 @@ public final class BridgeHttpServer {
             return fallback;
         }
         return requiredString(body, name);
+    }
+
+    private static double optDouble(JsonObject body, String name, double fallback) throws ApiError {
+        if (!body.has(name) || body.get(name).isJsonNull()) {
+            return fallback;
+        }
+        JsonElement el = body.get(name);
+        if (!el.isJsonPrimitive() || !el.getAsJsonPrimitive().isNumber()) {
+            throw badRequest("'" + name + "' must be a number");
+        }
+        return el.getAsDouble();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
