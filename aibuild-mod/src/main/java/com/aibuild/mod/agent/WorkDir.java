@@ -56,6 +56,14 @@ public final class WorkDir {
             "patterns/terraform_pad.json",
             "patterns/quadruped_statue.py",
             "patterns/quadruped_statue.json",
+            "patterns/mirror_build.py",
+            "patterns/mirror_build.json",
+            "patterns/pilaster.py",
+            "patterns/pilaster.json",
+            "patterns/window_trim.py",
+            "patterns/window_trim.json",
+            "patterns/validators/symmetry_check.py",
+            "patterns/validators/collision_check.py",
             "blocks.md");
 
     private WorkDir() {
@@ -251,13 +259,47 @@ public final class WorkDir {
             - road / path segment       -> road_segment.py
             - building pad / terrace    -> terraform_pad.py
             - quadruped statue          -> quadruped_statue.py
+            - pilaster / window trim    -> pilaster.py / window_trim.py
+            - mirroring a symmetric half-> mirror_build.py
 
             Workflow: read the .json card -> choose params (origin = world
             coords of the element, sizes tuned to your build and the terrain,
             materials from your style card) -> run
             `python patterns/<name>.py --params '{...}' --out <element>.json`
             with your shell tool -> place with `set_blocks_from_file`. Only
-            build free-hand what no pattern covers.
+            build free-hand what no pattern covers. Direction states in the
+            output (stair facing/half/shape) are DERIVED by the scripts —
+            never hand-edit them; fix params and re-run instead.
+
+            ## Symmetry, interiors, facade depth (MANDATORY)
+
+            - SYMMETRIC BUILDS: never compute both sides of a symmetric
+              structure by hand — hand-built bilateral coordinates drift and
+              produce lopsided builds. Generate ONE half (a small generator
+              script or a set_blocks batch saved to a file), then complete it:
+              `python patterns/mirror_build.py --params '{"input":"half.json","axis":"x","axis_coord":<c>}' --out full.json`.
+              The axis plane may sit at a half-integer (between block rows);
+              on-axis blocks are kept once; facing/shape states are remapped
+              automatically. When symmetry is the point of the build, verify
+              after placing with `patterns/validators/symmetry_check.py`.
+            - INTERIORS LAST: furniture and interior detail go in ONLY after
+              the walls are fully placed (all wall jobs done, failed == 0).
+              Keep >= 1 air block between interior pieces and wall blocks.
+              Record the wall positions in plan.md before decorating. Before
+              placing interiors, optionally run
+              `python patterns/validators/collision_check.py --params '{"a":"walls.json","b":"furniture.json"}'`
+              — it must exit 0 (no overlap); place only then.
+            - FACADE DEPTH: a flat unbroken wall is the #1 "AI look" giveaway.
+              Cornices / string courses / window surrounds / pilasters are
+              pattern work too: use pilaster.py and window_trim.py with the
+              `details.depth` values from your style card instead of
+              freehanding (or skipping) them.
+            - VALIDATORS: `patterns/validators/` holds deterministic
+              self-check scripts (symmetry_check.py, collision_check.py).
+              They read the same JSON block files as the generators, print a
+              JSON diff report, and exit 0 = pass / 1 = differences found.
+              Run them in your shell BEFORE placing — they catch coordinate
+              drift for zero AI tokens.
 
             ## Tools (MCP server `aibuild`)
 

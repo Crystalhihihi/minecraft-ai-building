@@ -49,6 +49,11 @@
     "stilt_pad": "each stilt foot sits on a stone or cobbled_deepslate pad block",
     "balcony": "valley side gets a 1-2 deep balcony on stilts: dark_oak_planks floor, spruce_fence railing",
     "lighting": "minecraft:lantern under balcony corners + by the door",
-    "access": "spruce_stairs or ladder from downhill ground up to the door"
+    "access": "spruce_stairs or ladder from downhill ground up to the door",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 4, "projection": 1, "material": "minecraft:spruce_log", "base_material": "minecraft:stone", "capital_material": "minecraft:dark_oak_planks", "note": "frame posts on the valley facade, aligned with the stilt rhythm"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_stairs", "corner_material": "minecraft:stripped_spruce_log", "sill_material": "minecraft:spruce_slab"},
+      "string_course": {"enabled": true, "material": "minecraft:dark_oak_planks", "note": "the accent trim band at floor/slab level"}
+    }
   }
 }

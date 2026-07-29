@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-"""gable_roof.py — parametric gable roof (人字顶) generator.
+"""gable_roof.py — parametric gable roof (人字顶) generator, V2.
 
 Outputs a set_blocks_from_file-compatible JSON: {"blocks":[{x,y,z,block}...]}.
+V2: every stair carries a geometrically DERIVED block state — each slope
+row's facing points uphill toward the ridge (north slope rows face south,
+south slope rows face north), half=bottom everywhere, ridge sealed with a
+slab row, eaves on one slope share one facing. Do NOT hand-edit facings in
+the output: the script derives them; fix params instead.
 Stairs only (roof skin) + ridge slab; optional solid gable-end triangle fill.
+A gable roof has no hip corners by geometry — for corner curve intents see
+hip_roof.py.
 
 Usage:
   python gable_roof.py --params '{"origin":[100,80,100],"width":7,"depth":9}' [--out roof.json]

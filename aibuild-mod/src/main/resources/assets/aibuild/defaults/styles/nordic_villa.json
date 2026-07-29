@@ -48,6 +48,11 @@
     "floor_materials": ["minecraft:birch_planks"],
     "lighting": "minecraft:lantern or hidden minecraft:glowstone under slab edges; sparse and warm",
     "terrace": "birch or spruce slab terrace with dark_oak fence-less edge, 1-2 steps of smooth_stone to lawn",
-    "planting": "short grass, flowers, one birch or spruce near the corner — landscaping is part of the style"
+    "planting": "short grass, flowers, one birch or spruce near the corner — landscaping is part of the style",
+    "depth": {
+      "pilaster": {"enabled": false, "spacing": 5, "projection": 1, "material": "minecraft:smooth_stone", "note": "clean planes are the point — depth comes from the wood accent wall and window bands, not piers"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_planks", "corner_material": "minecraft:smooth_stone", "sill_material": "minecraft:smooth_stone_slab"},
+      "string_course": {"enabled": false, "material": "minecraft:smooth_stone", "note": "the dark roof coping band is the only horizontal accent"}
+    }
   }
 }

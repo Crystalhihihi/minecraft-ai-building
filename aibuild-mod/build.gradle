@@ -45,6 +45,9 @@ tasks.register('buildBridgeJar', Exec) {
 processResources {
     inputs.property "version", project.version
 
+    // Pattern scripts are python assets; never ship interpreter caches in the jar.
+    exclude '**/__pycache__/**'
+
     filesMatching("fabric.mod.json") {
         expand "version": inputs.properties.version
     }

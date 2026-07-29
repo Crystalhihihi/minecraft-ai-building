@@ -1,0 +1,16 @@
+{
+  "name": "window_trim",
+  "description": "Window surround (窗套): a decorative ring around a window opening — side jambs, header, sill. projection=0 sits in the wall plane (replaces flanking wall blocks), projection=1 hangs one block out of the face. The four ring corners can use a distinct corner_material (角件).",
+  "when_to_use": "Around every window the style card wants a surround for (see details.depth.window_trim). Run AFTER arch_window.py: origin = bottom-left cell of the OPENING as seen from outside (same convention as arch_window).",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "bottom-left cell of the window opening, seen from outside"},
+    "width": {"type": "int", "range": "1-8", "default": 2, "notes": "opening width"},
+    "height": {"type": "int", "range": "1-8", "default": 3, "notes": "opening height"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "outward direction of the wall face"},
+    "projection": {"type": "0|1", "default": 1, "notes": "0 = flush in the wall plane, 1 = sticks out of the face"},
+    "material": {"type": "block id", "default": "minecraft:dark_oak_planks", "notes": "ring material from the style card"},
+    "corner_material": {"type": "block id|\"\"", "default": "", "notes": "the 4 ring corners (角件); empty = same as ring"},
+    "sill_material": {"type": "block id|\"\"", "default": "", "notes": "bottom row becomes this (slabs get type=bottom)"}
+  },
+  "example": "python patterns/window_trim.py --params '{\"origin\":[100,70,100],\"width\":2,\"height\":3,\"facing\":\"south\",\"projection\":1,\"material\":\"minecraft:stone_brick_stairs\",\"corner_material\":\"minecraft:chiseled_stone_bricks\"}' --out trim.json"
+}

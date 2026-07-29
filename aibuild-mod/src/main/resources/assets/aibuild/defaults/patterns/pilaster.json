@@ -1,0 +1,17 @@
+{
+  "name": "pilaster",
+  "description": "Rhythmic pilasters (壁柱): 1-wide piers projecting 1-2 blocks out of a flat wall face at a fixed spacing, both wall ends always covered. Optional base/capital material segmentation; projection=2 steps from a deep base to a shallow shaft.",
+  "when_to_use": "Any flat wall longer than ~7 blocks that reads as a blank plane — the #1 'AI look' giveaway. Use the style card's details.depth.pilaster values. origin = one END of the wall face at ground level; pilasters project OUTWARD, so the wall itself must already stand.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "one end of the wall face at ground level"},
+    "side": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "outward direction of the wall face; north/south = wall runs along x, east/west = along z"},
+    "wall_length": {"type": "int", "range": "3-64", "default": 15},
+    "spacing": {"type": "int", "range": "2-8", "default": 4, "notes": "3-6 reads best; from the style card's details.depth.pilaster.spacing"},
+    "projection": {"type": "int", "range": "1-2", "default": 1, "notes": "2 = deep stepped base (lower third), shaft 1"},
+    "height": {"type": "int", "range": "2-32", "default": 12, "notes": "usually the wall height"},
+    "material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "shaft; usually the wall primary or secondary"},
+    "base_material": {"type": "block id|\"\"", "default": "", "notes": "optional bottom block"},
+    "capital_material": {"type": "block id|\"\"", "default": "", "notes": "optional top block (capital)"}
+  },
+  "example": "python patterns/pilaster.py --params '{\"origin\":[100,64,100],\"side\":\"south\",\"wall_length\":15,\"spacing\":4,\"height\":12,\"capital_material\":\"minecraft:stripped_spruce_log\"}' --out pilasters.json"
+}

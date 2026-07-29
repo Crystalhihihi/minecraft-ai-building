@@ -1,7 +1,7 @@
 {
   "name": "gable_roof",
-  "description": "Gable roof (人字顶) built from stair rows with automatic step-in (收分), ridge slab, and optional solid gable-end triangle fill.",
-  "when_to_use": "Any building whose style card says roof.type = gable. Place walls first, then run this with origin = the wall footprint's north-west corner and y = first layer ABOVE the top wall block.",
+  "description": "Gable roof (人字顶) built from stair rows with automatic step-in (收分), ridge slab, and optional solid gable-end triangle fill. V2: stair facing is geometrically derived per slope (north rows face south, south rows face north, half=bottom, ridge sealed).",
+  "when_to_use": "Any building whose style card says roof.type = gable. Place walls first, then run this with origin = the wall footprint's north-west corner and y = first layer ABOVE the top wall block. DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit facing/half in the output JSON; change params and re-run instead (禁止手改方向状态).",
   "params": {
     "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "world coords of the wall footprint corner the roof sits on; y = roof base layer"},
     "width": {"type": "int", "range": "3-31", "default": 7, "notes": "wall footprint along x"},

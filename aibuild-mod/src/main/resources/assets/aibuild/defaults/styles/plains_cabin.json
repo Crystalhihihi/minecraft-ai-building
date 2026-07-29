@@ -43,6 +43,11 @@
     "base_materials": ["minecraft:cobblestone", "minecraft:mossy_cobblestone"],
     "chimney": "optional cobblestone 1x1 chimney rising 2-3 above ridge, campfire on top",
     "lighting": "minecraft:lantern hanging from porch beam + one per interior corner",
-    "porch": "optional 2-deep porch on the door side: spruce_slab deck, oak_fence posts, spruce_stairs entry"
+    "porch": "optional 2-deep porch on the door side: spruce_slab deck, oak_fence posts, spruce_stairs entry",
+    "depth": {
+      "pilaster": {"enabled": false, "spacing": 4, "projection": 1, "material": "minecraft:oak_log", "note": "log corner posts + frame beams already give the cabin its depth; pilasters only on blank walls longer than 9"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:spruce_stairs", "corner_material": "minecraft:spruce_log", "sill_material": "minecraft:spruce_slab"},
+      "string_course": {"enabled": false, "material": "minecraft:oak_log", "note": "the horizontal oak_log frame beams ARE the string course"}
+    }
   }
 }

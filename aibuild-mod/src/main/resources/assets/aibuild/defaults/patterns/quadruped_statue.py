@@ -3,13 +3,19 @@
 
 Born to fix the "abstract cow" failure: proportions are locked to readable
 ratios — distinct legs, a torso box, a raised neck, a head with snout, ears
-and a tail. Size scales from `length`; accent material marks hooves, snout,
-ears and tail tip. Output: {"blocks":[...]}.
+and a tail. The body is axis-symmetric, so the script builds ONE side and
+completes it through the same logic as mirror_build.py (imported).
+Accent material marks hooves, snout, ears and tail tip.
+Output: {"blocks":[...]}.
 
 Usage:
   python quadruped_statue.py --params '{"origin":[100,64,100],"length":10,"facing":"x+"}' [--out s.json]
 """
 import argparse, json, sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mirror_build  # same directory: shared mirror logic
 
 DEFAULTS = {
     "origin": [0, 64, 0],   # [x,y,z] min corner of the statue bounding box at hoof-bottom level
@@ -28,62 +34,65 @@ def build(p):
     body_len = L
     head_s = max(2, round(body_w * 0.9))
     neck_h = max(1, round(L * 0.15))
-    local = []  # (x,y,z,block) local coords: x = nose->tail axis, head at HIGH x
+    # mirror plane across the body width (integer for odd widths, .5 for even)
+    plane = (body_w - 1) / 2.0
+    zc = int(plane)             # center row of the near half (axis row if odd)
+    half = []                   # near half only: z <= plane
 
     def put(x, y, z, b):
-        local.append((x, y, z, b))
+        if z <= plane + 1e-9:
+            half.append({"x": x, "y": y, "z": z, "block": b})
 
-    # legs: inset 1 from body corners; hooves in accent
-    lx = [1, body_len - 2]
-    lz = [0, body_w - 1]
-    for x in lx:
-        for z in lz:
-            for y in range(leg_h):
-                put(x, y, z, acc if y == 0 else mat)
-    # torso box
+    # legs: near-side pair only; mirror creates the far pair
+    for x in (1, body_len - 2):
+        for y in range(leg_h):
+            put(x, y, 0, acc if y == 0 else mat)
+    # torso box (near half incl. center row)
     for x in range(body_len):
         for y in range(leg_h, leg_h + body_h):
-            for z in range(body_w):
+            for z in range(0, zc + 1):
                 put(x, y, z, mat)
-    # neck: rising column at the front (high x)
+    # neck: rising column at the front (high x), on the center row(s)
     nx = body_len - 1
     nz0 = (body_w - head_s) // 2
     for y in range(leg_h + body_h, leg_h + body_h + neck_h):
-        for z in range(nz0 + 1, nz0 + head_s - 1):
-            put(nx, y, z, mat)
+        put(nx, y, zc, mat)
     # head: box on top of neck, sticking one block forward (snout direction +x)
     hy = leg_h + body_h + neck_h
     for x in range(nx, nx + head_s):
         for y in range(hy, hy + head_s):
             for z in range(nz0, nz0 + head_s):
                 put(x, y, z, mat)
-    # snout: one block forward, accent
-    put(nx + head_s, hy, nz0 + head_s // 2, acc)
-    # ears: two accent blocks on head top rear
+    # snout: one block forward on the center row, accent
+    put(nx + head_s, hy, zc, acc)
+    # ear: one accent block on head top rear (near side); mirror makes the pair
     put(nx, hy + head_s, nz0, acc)
-    put(nx, hy + head_s, nz0 + head_s - 1, acc)
-    # tail: two blocks sloping down at the rear, accent tip
-    put(-1, leg_h + body_h - 1, body_w // 2, mat)
-    put(-2, leg_h + body_h - 2, body_w // 2, acc)
+    # tail: two blocks sloping down at the rear on the center row, accent tip
+    put(-1, leg_h + body_h - 1, zc, mat)
+    put(-2, leg_h + body_h - 2, zc, acc)
+
+    # complete the symmetric body through the shared mirror logic
+    local = mirror_build.mirror_blocks(half, "z", plane)
 
     # normalize to min corner (0,0,0)
-    minx = min(b[0] for b in local)
-    minz = min(b[2] for b in local)
-    local = [(x - minx, y, z - minz, b) for x, y, z, b in local]
-    W = max(b[0] for b in local) + 1
-    D = max(b[2] for b in local) + 1
+    minx = min(b["x"] for b in local)
+    minz = min(b["z"] for b in local)
+    local = [{"x": b["x"] - minx, "y": b["y"], "z": b["z"] - minz, "block": b["block"]} for b in local]
+    W = max(b["x"] for b in local) + 1
+    D = max(b["z"] for b in local) + 1
 
     ox, oy, oz = p["origin"]
     facing = p["facing"]
     blocks = []
-    for x, y, z, b in local:
+    for b in local:
+        x, y, z = b["x"], b["y"], b["z"]
         if facing == "x-":
             x, z = W - 1 - x, D - 1 - z
         elif facing == "z+":
             x, z = z, x
         elif facing == "z-":
             x, z = D - 1 - z, W - 1 - x
-        blocks.append({"x": ox + x, "y": oy + y, "z": oz + z, "block": b})
+        blocks.append({"x": ox + x, "y": oy + y, "z": oz + z, "block": b["block"]})
     return blocks
 
 def main():

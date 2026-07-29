@@ -19,8 +19,22 @@ DEFAULTS = {
     "ridge_material": "minecraft:deepslate_tile_slab"
 }
 
-def stair(base, facing):
-    return "%s[facing=%s,half=bottom]" % (base, facing)
+def stair(base, facing, shape=None):
+    s = "%s[facing=%s,half=bottom" % (base, facing)
+    if shape:
+        s += ",shape=" + shape
+    return s + "]"
+
+# Corner shape intents for a hip ring (derived from vanilla stair bending:
+# front stair perpendicular -> outer corner; left/right by counter-clockwise).
+# The mod may re-derive `shape` at placement time — these are intents; what
+# matters here is that facing/half are geometrically correct.
+CORNER_SHAPE = {
+    "nw": "outer_left",   # x0,z0 row facing south
+    "ne": "outer_right",  # x1,z0 row facing south
+    "sw": "outer_right",  # x0,z1 row facing north
+    "se": "outer_left",   # x1,z1 row facing north
+}
 
 def top_slab(base):
     return "%s[type=top]" % base if base.endswith("_slab") else base
@@ -56,8 +70,20 @@ def build(p):
                 blocks.append({"x": ox + x0, "y": y, "z": oz + z, "block": top_slab(ridge)})
         else:
             for x in range(x0, x1 + 1):
-                blocks.append({"x": ox + x, "y": y, "z": oz + z0, "block": stair(mat, "south")})
-                blocks.append({"x": ox + x, "y": y, "z": oz + z1, "block": stair(mat, "north")})
+                # north row (facing south): corners get outer-curve intent
+                if x == x0:
+                    blocks.append({"x": ox + x, "y": y, "z": oz + z0, "block": stair(mat, "south", CORNER_SHAPE["nw"])})
+                elif x == x1:
+                    blocks.append({"x": ox + x, "y": y, "z": oz + z0, "block": stair(mat, "south", CORNER_SHAPE["ne"])})
+                else:
+                    blocks.append({"x": ox + x, "y": y, "z": oz + z0, "block": stair(mat, "south")})
+                # south row (facing north)
+                if x == x0:
+                    blocks.append({"x": ox + x, "y": y, "z": oz + z1, "block": stair(mat, "north", CORNER_SHAPE["sw"])})
+                elif x == x1:
+                    blocks.append({"x": ox + x, "y": y, "z": oz + z1, "block": stair(mat, "north", CORNER_SHAPE["se"])})
+                else:
+                    blocks.append({"x": ox + x, "y": y, "z": oz + z1, "block": stair(mat, "north")})
             for z in range(z0 + 1, z1):
                 blocks.append({"x": ox + x0, "y": y, "z": oz + z, "block": stair(mat, "east")})
                 blocks.append({"x": ox + x1, "y": y, "z": oz + z, "block": stair(mat, "west")})

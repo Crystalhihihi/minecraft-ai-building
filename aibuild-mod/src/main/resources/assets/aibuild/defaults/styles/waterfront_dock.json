@@ -41,6 +41,11 @@
     "props": ["minecraft:barrel", "minecraft:chain", "minecraft:lantern", "minecraft:mossy_cobblestone", "minecraft:oak_fence"],
     "moss": "mossy_cobblestone footing where piles meet water; occasional mossy_cobblestone step down to water",
     "lighting": "lantern on top of alternating piles, or hanging from chain between two piles",
-    "steps": "spruce_stairs from deck down to a small landing platform at water level"
+    "steps": "spruce_stairs from deck down to a small landing platform at water level",
+    "depth": {
+      "pilaster": {"enabled": false, "spacing": 3, "projection": 1, "material": "minecraft:spruce_log", "note": "no walls on a dock — depth comes from piles, trapdoor bumpers and slab edging"},
+      "window_trim": {"enabled": false, "projection": 0, "material": "minecraft:spruce_trapdoor", "corner_material": "", "sill_material": ""},
+      "string_course": {"enabled": false, "material": "minecraft:spruce_slab", "note": "slab edging strip along the deck rim plays this role"}
+    }
   }
 }

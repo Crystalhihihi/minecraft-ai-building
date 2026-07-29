@@ -52,6 +52,11 @@
     "buttress": "corner buttresses on towers wider than 5 — patterns/buttress.py, stone_bricks, stepped 3-2-1",
     "base": "1-2 block cobblestone/stone footing flare at ground contact, never floating",
     "lighting": "minecraft:lantern or minecraft:wall_torch every 5-6 blocks interior, one lantern by the door",
-    "interior_floor": "spruce_planks storey slabs; ladder or spiral stair of spruce_stairs between floors"
+    "interior_floor": "spruce_planks storey slabs; ladder or spiral stair of spruce_stairs between floors",
+    "depth": {
+      "pilaster": {"enabled": false, "spacing": 4, "projection": 1, "material": "minecraft:stone_bricks", "note": "towers use corner buttresses instead of pilasters; enable only on wall runs wider than 7 without buttresses"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:stone_brick_stairs", "corner_material": "minecraft:chiseled_stone_bricks", "sill_material": "minecraft:stone_brick_slab"},
+      "string_course": {"enabled": true, "material": "minecraft:stripped_spruce_log", "note": "1-block band at each storey slab line, plus the dark_oak trim band below the crenellation"}
+    }
   }
 }

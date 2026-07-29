@@ -1,0 +1,11 @@
+{
+  "name": "mirror_build",
+  "description": "Mirror-completes a symmetric build (对称镜像): feed it a JSON block list of ONE half (plus any on-axis blocks) and the mirror plane; get the full list back. On-axis blocks are kept once; facing/shape states are remapped on the mirrored side.",
+  "when_to_use": "ANY symmetric structure (对称建筑): palaces, halls, temples, symmetrical facades, animal figures. NEVER compute both sides by hand — generate one half, mirror it with this, then place the result. This is the standing fix for lopsided builds (偏殿).",
+  "params": {
+    "input": {"type": "file path", "default": "half.json", "notes": "JSON file with the half build: {\"blocks\":[{x,y,z,block}...]} (a bare list also works)"},
+    "axis": {"type": "\"x\"|\"z\"", "default": "x", "notes": "mirror plane normal: x mirrors east-west, z mirrors north-south"},
+    "axis_coord": {"type": "number", "default": 0, "notes": "block coordinate of the mirror plane; may be a half-integer (e.g. 99.5) for a plane between two block rows"}
+  },
+  "example": "python patterns/mirror_build.py --params '{\"input\":\"hall_left.json\",\"axis\":\"x\",\"axis_coord\":104.5}' --out hall_full.json"
+}
