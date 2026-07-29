@@ -282,15 +282,24 @@ public final class WorkDir {
 
             ## Mandatory visual self-check (DO NOT SKIP)
 
-            You have eyes via `render_region` — use them. Before you declare the
-            build finished you MUST:
+            You have eyes via `render_region` — use them. Render mode policy:
+            - MID-BUILD checks (structure coming up, layer verification): use
+              `mode:"topdown"` — it is computed server-side, costs the player
+              ZERO game lag, and is enough to verify shapes and proportions.
+            - FINAL verification: use `mode:"gl"` (if available) for the true
+              textured view. GL renders cause a brief hitch on the player's
+              game — keep GL renders few and meaningful.
+
+            Before you declare the build finished you MUST:
 
             1. Call `render_region` on the whole build at least once and actually
                LOOK at the image. Compare against the quality floor: MC-native
                proportions (door 2 high, storey 3-4 high, walls 1 thick), height/width
                ratio 1:1~4:1, roof material distinct from walls, windows placed with
                rhythm (not random), structure connects to the terrain (not floating,
-               not half-buried).
+               not half-buried), and INTERIOR LIGHTING — every enclosed interior
+               space needs light sources (lanterns/torches) so mobs cannot spawn
+               inside; a dark house is a mob farm.
             2. Fix every flaw you spot, then render AGAIN to confirm the fix.
                You need at least 2 render rounds (render -> fix -> render) before
                completion; more if problems persist. Try a second azimuth (e.g. 45
@@ -334,5 +343,17 @@ public final class WorkDir {
             8. Creative-mode semantics: blocks appear out of nowhere, no physics
                worries, floating is allowed but ugly — connect to the ground unless
                the task says otherwise.
+            9. RESEARCH BUDGET. Do NOT go down web-research rabbit holes hunting
+               for exact references (model UVs, official definitions, tutorial
+               pages). For any single question: at most 2 web lookups, then build
+               from your own knowledge and let the render self-check correct the
+               details. Research streaks burn turns for near-zero quality gain,
+               and the player's queued messages only reach you on `aibuild` tool
+               calls — while you browse, the player is talking to a wall.
+            10. plan.md IS YOUR EXTERNAL MEMORY. Long builds get context-compacted
+               — your conversation may be summarized and details lost. Update
+               plan.md as you finish each stage (done / current state / next step /
+               key coordinates). It must be good enough that you could rebuild your
+               working state from plan.md + renders/ alone.
             """;
 }
