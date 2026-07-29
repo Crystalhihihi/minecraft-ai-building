@@ -163,9 +163,11 @@ public final class WorkDir {
             | --- | --- |
             | `fill(min, max, block, mode?)` | main workhorse. mode: replace (default) / keep / outline / hollow |
             | `set_blocks([{x,y,z,block}...])` | batch detail work, <= 4096 entries per call |
+            | `set_blocks_from_file(path, offset?, place_air?)` | AVAILABLE. Places blocks listed in a file: JSON (`{"blocks":[{x,y,z,block}...]}`) or a `.schem` file. The bridge reads the file and batches automatically. THE channel for large generated shapes — never paste thousands of coordinates into tool args |
             | `set_block(x, y, z, block)` | single-block fixes |
             | `get_job_status(job_id)` | poll until state=done; check placed/failed counts |
             | `get_block(x, y, z)` | point query, returns block id + properties |
+            | `search_blocks(query)` | AVAILABLE. Fuzzy search of block ids (e.g. "stained_glass") — use it instead of guessing ids |
             | `get_terrain_summary(center, radius)` | AVAILABLE. ASCII heightmap + water/flatness stats + flat candidates; radius <= 128 |
             | `propose_site(min, max)` | AVAILABLE. Required FIRST call when task.json has no bounds; then await confirmation |
             | `get_region_summary(min, max)` | NOT available in this milestone — will error |
@@ -175,20 +177,29 @@ public final class WorkDir {
 
             1. BATCH FIRST. One `fill` beats 100 `set_block` calls. One `set_blocks`
                batch beats 100 singles. Plan the whole shape, then issue few large calls.
-            2. Block ids are full namespaced ids, e.g. `minecraft:stone_bricks`.
-               Invalid ids come back with suggestions — use them, don't guess wildly.
-            3. Before you start, write a short `plan.md` in this directory: shape,
+            2. CODE MODELING. For any curved, organic, or repetitive geometry
+               (spheres, domes, arches, sloped roofs, statues, roads, walls with
+               rhythm): do NOT compute coordinates in your head — you are bad at
+               mental coordinate math and great at writing code. Write a small
+               generator script (Python) in this directory that computes the block
+               list and writes it as JSON, run it with your shell tool, then place
+               via `set_blocks_from_file`. This costs zero extra tokens and is
+               dramatically more accurate.
+            3. Block ids are full namespaced ids, e.g. `minecraft:stone_bricks`.
+               Unsure about an id? Call `search_blocks` — don't guess. Invalid ids
+               come back with suggestions — use them.
+            4. Before you start, write a short `plan.md` in this directory: shape,
                dimensions, materials, layer-by-layer sketch. Keep it brief.
-            4. Build BOTTOM-UP: foundations first, then walls, then roof/details.
+            5. Build BOTTOM-UP: foundations first, then walls, then roof/details.
                Wait for each job's `get_job_status` = done (and failed == 0) before
                depending on its blocks. If failures say `out_of_bounds`, you placed
                outside the confirmed range — redo those parts inside it.
-            5. Self-check when finished: `get_region_summary` if it works, otherwise
+            6. Self-check when finished: `get_region_summary` if it works, otherwise
                sample key points with `get_block` (corners, center, top) and confirm
                they match the plan. Fix any mismatches.
-            6. A tool response may end with `[玩家消息] ...` lines — these are live
+            7. A tool response may end with `[玩家消息] ...` lines — these are live
                messages from the player. Treat them as instructions and adapt.
-            7. Creative-mode semantics: blocks appear out of nowhere, no physics
+            8. Creative-mode semantics: blocks appear out of nowhere, no physics
                worries, floating is allowed but ugly — connect to the ground unless
                the task says otherwise.
             """;

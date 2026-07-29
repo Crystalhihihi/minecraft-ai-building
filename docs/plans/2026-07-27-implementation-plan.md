@@ -54,25 +54,25 @@
 
 出口:E2E 场景②(不圈地,AI 选址 + 玩家确认)通过。
 
-## Phase 5:快照与 undo + 放置性能升级(FAWE/WE 调研已并入)
+## Phase 5:快照与 undo + 放置性能升级(FAWE/WE 调研已并入)—— ✅ 已完成(commit `e6d09ad`,E2E 七项全过)
 
-- [ ] 5.1 `Snapshot`:建造前(bounds 确定、job 开始前)`StructureTemplate#fillFromWorld` 一次性同步快照施工范围(含方块实体 NBT),存 `<世界>/aibuild/snapshots/`,留最近 10 份
-- [ ] 5.2 `/aiundo`:恢复最近一次;**按 chunk 或 Y 层切片分帧恢复**(禁止原子 placeInWorld),聊天栏进度;连续 undo 无快照时友好提示;agent 运行中禁 undo
-- [ ] 5.3 放置性能:毫秒预算制(默认 10ms/tick,可配)取代固定 4096 块;`setBlock` flag 3→2;按 chunk 分桶、每 chunk 完成后统一重算光照+发 chunk 包
-- [ ] 5.4 chunk ticket:job 开工前给区域 chunk 拿 ticket,完工释放,不再"未加载记 failed"
-- [ ] 5.5 `search_blocks(query)` mod 端点(复用建议器逻辑,供 bridge 同名工具调用)
+- [x] 5.1 `Snapshot`:每个写 job 提交时 `fillFromWorld` 一次性同步快照(含方块实体 NBT),存 `<世界>/aibuild/snapshots/`,留最近 10 份
+- [x] 5.2 `/aiundo`:恢复最近一次;**Y 层切片(4 层/片)多次 placeInWorld + setBoundingBox** 分帧恢复;无快照友好提示;agent/job 运行中禁 undo
+- [x] 5.3 放置性能:毫秒预算制(`tick_budget_ms` 默认 10);flag 3→2;chunk-major 迭代 + 每 chunk 完成发 chunk 包 + markUnsaved(显式光照 flush 会崩服务器线程,降级为引擎自排队,真机目测待验证)
+- [x] 5.4 chunk ticket:`setChunkForced` 开工前加载、完工释放,未加载不再 failed
+- [x] 5.5 `search_blocks(query)` mod 端点(≤16 条子串匹配)
 
-出口:E2E 场景③(`/aichat` 修改 + `/aiundo`)通过;32³ 建造/undo 无明显卡顿。
+出口:E2E 场景③(`/aichat` 修改 + `/aiundo`)通过;32³ 建造/undo 无明显卡顿。✅(另修 2 个真 bug:runLightUpdates 线程崩溃、不可变 List 排序 500)
 
-## Phase 5.5:代码建模通道(纯 bridge 为主)
+## Phase 5.5:代码建模通道(纯 bridge 为主)—— ✅ 已完成(commit `f255fa3` + AGENTS.md 集成,63/63 测试绿 + 真机联测满分)
 
-- [ ] 5.5.1 `set_blocks_from_file(path)` bridge 工具:读 JSON 条目文件(格式同 set_blocks),自动按 4096 条/批分解为多个 set_blocks 调用,汇总报告 placed/failed
-- [ ] 5.5.2 `.schem` 支持:同工具接受 Sponge Schematic v2/v3(gzip NBT,~120 行只读解析;跳过 BlockEntities;DataVersion 过旧导致无法解析的调色板条目报 failed);**绝不打包任何社区 schematic(版权)**
-- [ ] 5.5.3 `search_blocks(query)` bridge 工具(调 mod 新端点)
-- [ ] 5.5.4 AGENTS.md 更新:生成器脚本模式(复杂几何一律写脚本 + set_blocks_from_file)、search_blocks 用法
-- [ ] 5.5.5 bridge 单测全覆盖(含 .schem 解析 fixture:用 Java 代码现场生成一个合法 v2/v3 .schem 字节流)
+- [x] 5.5.1 `set_blocks_from_file(path)` bridge 工具:JSON 双遍流式、4096/批、批间轮询 job_status、汇总 placed/failed
+- [x] 5.5.2 `.schem` 支持:v2/v3(手写 NBT 只读解析 + LEB128 varint;air 三变体跳过;BlockEntities 跳过;坏调色板条目计 failed)
+- [x] 5.5.3 `search_blocks(query)` bridge 工具
+- [x] 5.5.4 AGENTS.md 更新:CODE MODELING 规则(复杂几何一律写脚本 + set_blocks_from_file)、search_blocks 用法
+- [x] 5.5.5 bridge 单测 37→63(含 .schem fixture 现场生成)
 
-出口:bridge 测试全绿;dev server 上 AI 用脚本+文件通道盖一个球体(如 radius=8 石砖球),零坐标搬运。
+出口:✅ dev server 实测:AI 自写 gen_sphere.py → set_blocks_from_file 690 块球壳 + 自清 1419 块内脏成真空心 + 自采样验证,零坐标搬运。
 
 ## Phase 6:渲染与数据读工具
 
