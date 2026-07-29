@@ -24,19 +24,19 @@ public class AiBuildMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        JobManager jobManager = new JobManager();
+        AgentConfig config = AgentConfig.load(FabricLoader.getInstance().getGameDir());
+        JobManager jobManager = new JobManager(config);
         PlayerInbox inbox = new PlayerInbox();
         SiteGate gate = new SiteGate();
         SelectionManager selectionManager = new SelectionManager();
         BridgeHttpServer bridge = new BridgeHttpServer(jobManager, inbox, gate);
-        AgentConfig config = AgentConfig.load(FabricLoader.getInstance().getGameDir());
         AgentRunner agentRunner = new AgentRunner(config, inbox, bridge, gate);
 
         ModItems.register();
         SelectionEvents.register(selectionManager);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-                new AgentCommands(agentRunner, selectionManager, gate).register(dispatcher));
+                new AgentCommands(agentRunner, selectionManager, gate, jobManager).register(dispatcher));
 
         ServerTickEvents.END_SERVER_TICK.register(server -> jobManager.tick(server));
 

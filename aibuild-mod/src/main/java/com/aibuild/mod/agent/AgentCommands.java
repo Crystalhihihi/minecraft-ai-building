@@ -1,6 +1,9 @@
 package com.aibuild.mod.agent;
 
 import com.aibuild.mod.bridge.SiteGate;
+import com.aibuild.mod.job.JobManager;
+import com.aibuild.mod.job.SnapshotManager;
+import com.aibuild.mod.job.UndoJob;
 import com.aibuild.mod.selection.Selection;
 import com.aibuild.mod.selection.SelectionManager;
 import com.mojang.brigadier.CommandDispatcher;
@@ -9,8 +12,10 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.io.IOException;
 import java.util.UUID;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
@@ -28,6 +33,7 @@ import static net.minecraft.commands.Commands.literal;
  * /aiselect set <from> <to> — set both corners (op tool; also how headless
  *   servers bind a selection for /aibuild).
  * /aiconfirm /aireject  — confirm or reject a pending AI site proposal.
+ * /aiundo               — restore the newest pre-build snapshot (frame-sliced).
  *
  * Usable by players (op level 2+) and by RCON/console; with no player source
  * the anchor falls back to the overworld spawn point and feedback goes to the log.
@@ -36,11 +42,13 @@ public final class AgentCommands {
     private final AgentRunner runner;
     private final SelectionManager selections;
     private final SiteGate gate;
+    private final JobManager jobManager;
 
-    public AgentCommands(AgentRunner runner, SelectionManager selections, SiteGate gate) {
+    public AgentCommands(AgentRunner runner, SelectionManager selections, SiteGate gate, JobManager jobManager) {
         this.runner = runner;
         this.selections = selections;
         this.gate = gate;
+        this.jobManager = jobManager;
     }
 
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -72,6 +80,9 @@ public final class AgentCommands {
         dispatcher.register(literal("aireject")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .executes(ctx -> aireject(ctx.getSource())));
+        dispatcher.register(literal("aiundo")
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(ctx -> aiundo(ctx.getSource())));
     }
 
     private int aibuild(CommandSourceStack src, String description) {
@@ -168,6 +179,40 @@ public final class AgentCommands {
         runner.enqueuePlayerMessage("玩家拒绝了选址 " + rejected.describe() + ";请重新 propose_site 选择其他位置");
         src.sendSuccess(() -> Component.literal("[aibuild] site rejected: " + rejected.describe()
                 + " — AI has been asked to propose elsewhere"), true);
+        return 1;
+    }
+
+    /**
+     * Restores the newest snapshot as a frame-sliced undo job (progress in
+     * chat; the snapshot is consumed on success). Refused while an agent or a
+     * build job is still running.
+     */
+    private int aiundo(CommandSourceStack src) {
+        if (runner.isRunning()) {
+            src.sendFailure(Component.literal("[aibuild] agent 运行中,禁止 undo——先 /aicancel 或等其完成"));
+            return 0;
+        }
+        if (jobManager.anyRunning()) {
+            src.sendFailure(Component.literal("[aibuild] 仍有建造 job 在运行,等它结束后再 undo"));
+            return 0;
+        }
+        ServerLevel level = src.getServer().overworld();
+        SnapshotManager.Loaded snapshot;
+        try {
+            snapshot = SnapshotManager.latest(level);
+        } catch (IOException | RuntimeException e) {
+            src.sendFailure(Component.literal("[aibuild] 快照读取失败(可能已损坏): " + e.getMessage()));
+            return 0;
+        }
+        if (snapshot == null) {
+            src.sendFailure(Component.literal("[aibuild] 没有可恢复的快照——还没有建造被记录,或快照已用完"));
+            return 0;
+        }
+        SnapshotManager.Meta meta = snapshot.meta();
+        UndoJob job = jobManager.submitUndo(level, snapshot.template(), meta.min(), meta.seq(),
+                meta.description());
+        src.sendSuccess(() -> Component.literal("[aibuild] 正在恢复快照 build-" + meta.seq()
+                + " (" + meta.description() + ", " + meta.volume() + " blocks),job " + job.id().substring(0, 8)), true);
         return 1;
     }
 

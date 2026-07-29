@@ -3,6 +3,7 @@ package com.aibuild.mod.bridge;
 import com.aibuild.mod.AiBuildMod;
 import com.aibuild.mod.job.BuildJob;
 import com.aibuild.mod.job.FillMode;
+import com.aibuild.mod.job.Job;
 import com.aibuild.mod.job.JobManager;
 import com.aibuild.mod.job.Placement;
 import com.google.gson.Gson;
@@ -76,6 +77,7 @@ public final class BridgeHttpServer {
         http.createContext("/tools/set_block", ex -> handle(ex, "POST", this::setBlock));
         http.createContext("/tools/job_status", ex -> handle(ex, "GET", this::jobStatus));
         http.createContext("/tools/get_block", ex -> handle(ex, "POST", this::getBlock));
+        http.createContext("/tools/search_blocks", ex -> handle(ex, "POST", this::searchBlocks));
         http.createContext("/tools/propose_site", ex -> handle(ex, "POST", this::proposeSite));
         http.createContext("/tools/get_terrain_summary", ex -> handle(ex, "POST", this::getTerrainSummary));
         http.setExecutor(Executors.newCachedThreadPool(r -> {
@@ -245,7 +247,8 @@ public final class BridgeHttpServer {
         BlockPos maxPos = new BlockPos(maxX, maxY, maxZ);
         BuildJob job = onMainThread(() -> {
             BlockState state = parseBlock(blockSpec);
-            return jobManager.submitFill(minPos, maxPos, state, mode, bounds);
+            return jobManager.submitFill(server.overworld(), minPos, maxPos, state, mode, bounds,
+                    "fill " + blockSpec + " " + minPos.toShortString() + " ~ " + maxPos.toShortString());
         });
         return jobId(job);
     }
@@ -273,7 +276,8 @@ public final class BridgeHttpServer {
             for (RawEntry r : raw) {
                 placements.add(new Placement(new BlockPos(r.x(), r.y(), r.z()), parseBlock(r.spec()), false));
             }
-            return jobManager.submitPlacements(placements, bounds);
+            return jobManager.submitPlacements(server.overworld(), placements, bounds,
+                    "set_blocks " + raw.size() + " blocks");
         });
         return jobId(job);
     }
@@ -285,9 +289,22 @@ public final class BridgeHttpServer {
         int z = requiredInt(body, "z");
         String blockSpec = requiredString(body, "block");
         SiteGate.Bounds bounds = requireBounds();
-        BuildJob job = onMainThread(() -> jobManager.submitPlacements(
-                List.of(new Placement(new BlockPos(x, y, z), parseBlock(blockSpec), false)), bounds));
+        BuildJob job = onMainThread(() -> jobManager.submitPlacements(server.overworld(),
+                List.of(new Placement(new BlockPos(x, y, z), parseBlock(blockSpec), false)), bounds,
+                "set_block " + blockSpec + " @ " + x + " " + y + " " + z));
         return jobId(job);
+    }
+
+    private JsonObject searchBlocks(HttpExchange ex) throws Exception {
+        JsonObject body = readJsonBody(ex);
+        String query = requiredString(body, "query");
+        JsonArray matches = new JsonArray();
+        for (String match : BlockSpecParser.search(query, 16)) {
+            matches.add(match);
+        }
+        JsonObject res = new JsonObject();
+        res.add("matches", matches);
+        return res;
     }
 
     private JsonObject jobStatus(HttpExchange ex) throws Exception {
@@ -295,7 +312,7 @@ public final class BridgeHttpServer {
         if (id == null || id.isEmpty()) {
             throw badRequest("missing query parameter 'id'");
         }
-        BuildJob job = onMainThread(() -> jobManager.get(id));
+        Job job = onMainThread(() -> jobManager.get(id));
         if (job == null) {
             throw new ApiError(404, error("unknown job_id: " + id));
         }
