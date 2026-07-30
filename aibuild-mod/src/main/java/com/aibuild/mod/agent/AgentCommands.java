@@ -7,6 +7,7 @@ import com.aibuild.mod.job.UndoJob;
 import com.aibuild.mod.selection.Selection;
 import com.aibuild.mod.selection.SelectionManager;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
@@ -27,15 +28,19 @@ import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 /**
- * /aibuild <description> — spawn the agent on a new build task. When the
- *   command source has a complete wand selection, the build is bound to it;
- *   otherwise the AI must propose_site and wait for player confirmation.
- * /aichat <message>     — queue mid-build, or resume the session with `kimi -r`.
- * /aicancel             — destroyForcibly the agent process.
+ * /aibuild <description> — start a NEW build session (E3: up to
+ *   max_concurrent_agents sessions run in parallel; rejected only at the cap,
+ *   or when the wand selection overlaps a running session's bounds). With a
+ *   complete wand selection the build is bound to it; otherwise the AI must
+ *   propose_site and wait for player confirmation.
+ * /aichat <message>     — queue into the newest running session's inbox, or
+ *   resume the newest resumable session with `kimi -r`.
+ * /aicancel [n]         — cancel session n (default: the newest running one).
+ * /aistatus             — list all sessions (status / bounds / stats / kimi id).
  * /aiselect [clear]     — show or clear your selection (console uses a shared slot).
  * /aiselect set <from> <to> — set both corners (op tool; also how headless
  *   servers bind a selection for /aibuild).
- * /aiconfirm /aireject  — confirm or reject a pending AI site proposal.
+ * /aiconfirm /aireject  — confirm or reject the NEWEST pending site proposal.
  * /aiundo               — restore the newest pre-build snapshot (frame-sliced).
  * /aiundo all           — restore ALL snapshots of the newest build session,
  *   sequentially (newest first), with "k/n" chat progress.
@@ -44,15 +49,13 @@ import static net.minecraft.commands.Commands.literal;
  * the anchor falls back to the overworld spawn point and feedback goes to the log.
  */
 public final class AgentCommands {
-    private final AgentRunner runner;
+    private final AgentSessionManager sessions;
     private final SelectionManager selections;
-    private final SiteGate gate;
     private final JobManager jobManager;
 
-    public AgentCommands(AgentRunner runner, SelectionManager selections, SiteGate gate, JobManager jobManager) {
-        this.runner = runner;
+    public AgentCommands(AgentSessionManager sessions, SelectionManager selections, JobManager jobManager) {
+        this.sessions = sessions;
         this.selections = selections;
-        this.gate = gate;
         this.jobManager = jobManager;
     }
 
@@ -67,7 +70,12 @@ public final class AgentCommands {
                         .executes(ctx -> aichat(ctx.getSource(), getString(ctx, "message")))));
         dispatcher.register(literal("aicancel")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                .executes(ctx -> aicancel(ctx.getSource())));
+                .executes(ctx -> aicancel(ctx.getSource(), null))
+                .then(argument("n", IntegerArgumentType.integer(1))
+                        .executes(ctx -> aicancel(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "n")))));
+        dispatcher.register(literal("aistatus")
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .executes(ctx -> aistatus(ctx.getSource())));
         dispatcher.register(literal("aiselect")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .executes(ctx -> aiselectShow(ctx.getSource()))
@@ -93,53 +101,51 @@ public final class AgentCommands {
     }
 
     private int aibuild(CommandSourceStack src, String description) {
-        if (runner.isRunning()) {
-            src.sendFailure(Component.literal("[aibuild] an agent is already running — wait for it or /aicancel first"));
-            return 0;
-        }
         BlockPos anchor = anchorOf(src);
         Selection selection = selections.get(ownerOf(src));
         SiteGate.Bounds bounds = selection.isComplete() ? selection.toBounds() : null;
+        String note;
         try {
-            runner.startBuild(description, anchor, bounds);
+            note = sessions.startBuild(description, anchor, bounds);
         } catch (Exception e) {
-            src.sendFailure(Component.literal("[aibuild] failed to start agent: " + e.getMessage()));
+            src.sendFailure(Component.literal("[aibuild] " + e.getMessage()));
             return 0;
         }
-        String note = bounds != null
-                ? " (bounds: " + bounds.describe() + ")"
-                : " (no selection — AI will propose a site and wait for /aiconfirm)";
-        src.sendSuccess(() -> Component.literal("[aibuild] agent started: " + description + note), false);
+        String finalNote = note;
+        src.sendSuccess(() -> Component.literal("[aibuild] " + finalNote), false);
         return 1;
     }
 
     private int aichat(CommandSourceStack src, String message) {
-        if (runner.isRunning()) {
-            runner.enqueuePlayerMessage(message);
-            src.sendSuccess(() -> Component.literal("[已排队,AI 下次行动时送达] " + message), false);
-            return 1;
-        }
-        if (!runner.hasSession()) {
-            src.sendFailure(Component.literal("[aibuild] no agent session to continue — start one with /aibuild"));
-            return 0;
-        }
+        String note;
         try {
-            runner.startChat(message);
+            note = sessions.chat(message);
         } catch (Exception e) {
-            src.sendFailure(Component.literal("[aibuild] failed to resume session: " + e.getMessage()));
+            src.sendFailure(Component.literal("[aibuild] " + e.getMessage()));
             return 0;
         }
-        src.sendSuccess(() -> Component.literal("[aibuild] resuming session with your message"), false);
+        String finalNote = note;
+        src.sendSuccess(() -> Component.literal("[aibuild] " + finalNote), false);
         return 1;
     }
 
-    private int aicancel(CommandSourceStack src) {
-        if (!runner.isRunning()) {
-            src.sendFailure(Component.literal("[aibuild] no agent is running"));
+    private int aicancel(CommandSourceStack src, Integer no) {
+        String note;
+        try {
+            note = sessions.cancel(no);
+        } catch (Exception e) {
+            src.sendFailure(Component.literal("[aibuild] " + e.getMessage()));
             return 0;
         }
-        runner.cancel();
-        src.sendSuccess(() -> Component.literal("[aibuild] agent cancelled"), false);
+        String finalNote = note;
+        src.sendSuccess(() -> Component.literal("[aibuild] " + finalNote), false);
+        return 1;
+    }
+
+    private int aistatus(CommandSourceStack src) {
+        for (String line : sessions.statusLines()) {
+            src.sendSuccess(() -> Component.literal("[aibuild] " + line), false);
+        }
         return 1;
     }
 
@@ -167,25 +173,28 @@ public final class AgentCommands {
     }
 
     private int aiconfirm(CommandSourceStack src) {
-        SiteGate.Bounds confirmed = gate.confirm();
-        if (confirmed == null) {
-            src.sendFailure(Component.literal("[aibuild] no pending site proposal"));
+        String note;
+        try {
+            note = sessions.confirm();
+        } catch (Exception e) {
+            src.sendFailure(Component.literal("[aibuild] " + e.getMessage()));
             return 0;
         }
-        runner.enqueuePlayerMessage("玩家已确认选址 " + confirmed.describe() + ";写工具已解锁,请在该范围内施工");
-        src.sendSuccess(() -> Component.literal("[aibuild] site confirmed: " + confirmed.describe()), true);
+        String finalNote = note;
+        src.sendSuccess(() -> Component.literal("[aibuild] " + finalNote), true);
         return 1;
     }
 
     private int aireject(CommandSourceStack src) {
-        SiteGate.Bounds rejected = gate.reject();
-        if (rejected == null) {
-            src.sendFailure(Component.literal("[aibuild] no pending site proposal"));
+        String note;
+        try {
+            note = sessions.reject();
+        } catch (Exception e) {
+            src.sendFailure(Component.literal("[aibuild] " + e.getMessage()));
             return 0;
         }
-        runner.enqueuePlayerMessage("玩家拒绝了选址 " + rejected.describe() + ";请重新 propose_site 选择其他位置");
-        src.sendSuccess(() -> Component.literal("[aibuild] site rejected: " + rejected.describe()
-                + " — AI has been asked to propose elsewhere"), true);
+        String finalNote = note;
+        src.sendSuccess(() -> Component.literal("[aibuild] " + finalNote), true);
         return 1;
     }
 
@@ -195,7 +204,7 @@ public final class AgentCommands {
      * build job is still running.
      */
     private int aiundo(CommandSourceStack src) {
-        if (runner.isRunning()) {
+        if (sessions.anyRunning()) {
             src.sendFailure(Component.literal("[aibuild] agent 运行中,禁止 undo——先 /aicancel 或等其完成"));
             return 0;
         }
@@ -230,7 +239,7 @@ public final class AgentCommands {
      * frame-sliced undo jobs with "k/n" chat progress. Single /aiundo is unchanged.
      */
     private int aiundoAll(CommandSourceStack src) {
-        if (runner.isRunning()) {
+        if (sessions.anyRunning()) {
             src.sendFailure(Component.literal("[aibuild] agent 运行中,禁止 undo——先 /aicancel 或等其完成"));
             return 0;
         }

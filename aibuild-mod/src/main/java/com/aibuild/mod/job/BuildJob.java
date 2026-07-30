@@ -50,6 +50,12 @@ public final class BuildJob implements Job {
     /** Allowed build range (SiteGate); null means "no bound" (legacy/direct submissions). */
     private final SiteGate.Bounds bounds;
     private final String description;
+    /**
+     * Build-session tag of the owning agent session (E3); stamps the snapshot
+     * for {@code /aiundo all} grouping and attributes placed blocks to the
+     * session's consumption report. Null for direct/legacy submissions.
+     */
+    private final String sessionTag;
     /** Tight block box of this job's own placements (snapshot/ticket range); null when empty. */
     private final BlockPos boxMin;
     private final BlockPos boxMax;
@@ -71,11 +77,12 @@ public final class BuildJob implements Job {
     private int nextBroadcastThreshold = 10;
 
     private BuildJob(int total, Iterator<Placement> tasks, SiteGate.Bounds bounds,
-                     String description, BlockPos boxMin, BlockPos boxMax) {
+                     String description, String sessionTag, BlockPos boxMin, BlockPos boxMax) {
         this.total = total;
         this.tasks = tasks;
         this.bounds = bounds;
         this.description = description;
+        this.sessionTag = sessionTag;
         this.boxMin = boxMin;
         this.boxMax = boxMax;
         if (boxMin != null) {
@@ -91,7 +98,8 @@ public final class BuildJob implements Job {
         }
     }
 
-    public static BuildJob forPlacements(List<Placement> placements, SiteGate.Bounds bounds, String description) {
+    public static BuildJob forPlacements(List<Placement> placements, SiteGate.Bounds bounds,
+                                         String description, String sessionTag) {
         List<Placement> sorted = new ArrayList<>(placements); // copy: callers may pass immutable lists
         sorted.sort(Comparator
                 .comparingLong((Placement p) -> ChunkPos.asLong(p.pos().getX() >> 4, p.pos().getZ() >> 4))
@@ -112,11 +120,11 @@ public final class BuildJob implements Job {
             boxMin = new BlockPos(minX, minY, minZ);
             boxMax = new BlockPos(maxX, maxY, maxZ);
         }
-        return new BuildJob(sorted.size(), sorted.iterator(), bounds, description, boxMin, boxMax);
+        return new BuildJob(sorted.size(), sorted.iterator(), bounds, description, sessionTag, boxMin, boxMax);
     }
 
     public static BuildJob forFill(BlockPos min, BlockPos max, BlockState state, FillMode mode,
-                                   SiteGate.Bounds bounds, String description) {
+                                   SiteGate.Bounds bounds, String description, String sessionTag) {
         int dx = max.getX() - min.getX() + 1;
         int dy = max.getY() - min.getY() + 1;
         int dz = max.getZ() - min.getZ() + 1;
@@ -126,7 +134,7 @@ public final class BuildJob implements Job {
             long inner = (long) Math.max(dx - 2, 0) * Math.max(dy - 2, 0) * Math.max(dz - 2, 0);
             total = (int) (total - inner);
         }
-        return new BuildJob(total, new FillIterator(min, max, state, mode), bounds, description, min, max);
+        return new BuildJob(total, new FillIterator(min, max, state, mode), bounds, description, sessionTag, min, max);
     }
 
     @Override
@@ -136,6 +144,11 @@ public final class BuildJob implements Job {
 
     public String description() {
         return description;
+    }
+
+    /** Owning session's tag, or null (read by JobManager on the main thread). */
+    String sessionTag() {
+        return sessionTag;
     }
 
     /** Blocks placed so far (main thread only; packaged for JobManager's lifetime counter). */

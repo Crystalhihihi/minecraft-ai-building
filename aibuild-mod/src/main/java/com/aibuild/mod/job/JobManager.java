@@ -26,10 +26,14 @@ import java.util.Map;
  * {@code tick_budget_ms} (default 10ms per job per tick).
  *
  * Additionally:
- * - folds every BuildJob's placed-count into a lifetime counter (read by
- *   AgentRunner for the per-build consumption report);
- * - carries the current build-session tag (set by AgentRunner) that stamps
- *   snapshot metadata for {@code /aiundo all} grouping;
+ * - folds every BuildJob's placed-count into a lifetime counter and into a
+ *   per-session-tag counter (read by AgentRunner for the per-session
+ *   consumption report — with concurrent sessions a global delta would mix
+ *   sessions up);
+ * - stamps each job's snapshot with the session tag passed at submit time
+ *   (E3: the bridge resolves the session from the request token, so jobs of
+ *   concurrent sessions are tagged individually) for {@code /aiundo all}
+ *   grouping;
  * - runs the undo-all queue: restores a group of snapshots one at a time,
  *   newest first, advancing from tick() after the step loop (submitting a job
  *   mutates {@link #jobs}, so it must not happen during iteration).
@@ -45,8 +49,8 @@ public final class JobManager {
 
     /** Total blocks ever placed by BuildJobs (main-thread writes, volatile reads). */
     private volatile long lifetimePlaced;
-    /** Snapshot session tag for jobs submitted while an agent build session is open; null otherwise. */
-    private String currentBuildSession;
+    /** Placed-block counts per build-session tag (main thread only). */
+    private final Map<String, Long> placedByTag = new LinkedHashMap<>();
 
     // undo-all queue state
     private final Deque<Integer> undoAllQueue = new ArrayDeque<>();
@@ -59,18 +63,18 @@ public final class JobManager {
     }
 
     public BuildJob submitFill(ServerLevel level, BlockPos min, BlockPos max, BlockState state,
-                               FillMode mode, SiteGate.Bounds bounds, String description) {
-        BuildJob job = BuildJob.forFill(min, max, state, mode, bounds, description);
-        SnapshotManager.capture(level, min, max, description, currentBuildSession);
+                               FillMode mode, SiteGate.Bounds bounds, String description, String sessionTag) {
+        BuildJob job = BuildJob.forFill(min, max, state, mode, bounds, description, sessionTag);
+        SnapshotManager.capture(level, min, max, description, sessionTag);
         jobs.put(job.id(), job);
         return job;
     }
 
     public BuildJob submitPlacements(ServerLevel level, List<Placement> placements,
-                                     SiteGate.Bounds bounds, String description) {
-        BuildJob job = BuildJob.forPlacements(placements, bounds, description);
+                                     SiteGate.Bounds bounds, String description, String sessionTag) {
+        BuildJob job = BuildJob.forPlacements(placements, bounds, description, sessionTag);
         if (job.boxMin() != null) {
-            SnapshotManager.capture(level, job.boxMin(), job.boxMax(), description, currentBuildSession);
+            SnapshotManager.capture(level, job.boxMin(), job.boxMax(), description, sessionTag);
         } else {
             AiBuildMod.LOGGER.warn("[aibuild] job submitted with no blocks ({}); skipping snapshot", description);
         }
@@ -104,14 +108,9 @@ public final class JobManager {
         return lifetimePlaced;
     }
 
-    /** Opens a build session: subsequently submitted jobs' snapshots are stamped with {@code tag}. */
-    public void beginBuildSession(String tag) {
-        currentBuildSession = tag;
-    }
-
-    /** Closes the build session; later jobs fall back to the "unknown session" group. */
-    public void endBuildSession() {
-        currentBuildSession = null;
+    /** Blocks placed by build jobs of one build-session tag (main thread only; 0 after a restart). */
+    public long placedForTag(String tag) {
+        return placedByTag.getOrDefault(tag, 0L);
     }
 
     public boolean undoAllActive() {
@@ -150,8 +149,12 @@ public final class JobManager {
                 AiBuildMod.LOGGER.error("[aibuild] job {} aborted", job.id(), e);
             }
             if (job instanceof BuildJob bj) {
-                lifetimePlaced += bj.placedCount() - bj.reportedPlaced;
+                long delta = bj.placedCount() - bj.reportedPlaced;
+                lifetimePlaced += delta;
                 bj.reportedPlaced = bj.placedCount();
+                if (bj.sessionTag() != null && delta > 0) {
+                    placedByTag.merge(bj.sessionTag(), delta, Long::sum);
+                }
             }
         }
         advanceUndoAll(level);

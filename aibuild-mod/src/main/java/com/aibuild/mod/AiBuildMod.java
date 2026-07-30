@@ -1,10 +1,8 @@
 package com.aibuild.mod;
 
 import com.aibuild.mod.agent.AgentCommands;
-import com.aibuild.mod.agent.AgentRunner;
+import com.aibuild.mod.agent.AgentSessionManager;
 import com.aibuild.mod.bridge.BridgeHttpServer;
-import com.aibuild.mod.bridge.PlayerInbox;
-import com.aibuild.mod.bridge.SiteGate;
 import com.aibuild.mod.config.AgentConfig;
 import com.aibuild.mod.job.JobManager;
 import com.aibuild.mod.selection.ModItems;
@@ -27,33 +25,32 @@ public class AiBuildMod implements ModInitializer {
     public void onInitialize() {
         AgentConfig config = AgentConfig.load(FabricLoader.getInstance().getGameDir());
         JobManager jobManager = new JobManager(config);
-        PlayerInbox inbox = new PlayerInbox();
-        SiteGate gate = new SiteGate();
+        AgentSessionManager sessionManager = new AgentSessionManager(config, jobManager);
+        BridgeHttpServer bridge = new BridgeHttpServer(jobManager, sessionManager);
+        sessionManager.attachBridge(bridge);
         SelectionManager selectionManager = new SelectionManager();
-        BridgeHttpServer bridge = new BridgeHttpServer(jobManager, inbox, gate);
-        AgentRunner agentRunner = new AgentRunner(config, inbox, bridge, gate, jobManager);
 
         ModItems.register();
         SelectionEvents.register(selectionManager);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-                new AgentCommands(agentRunner, selectionManager, gate, jobManager).register(dispatcher));
+                new AgentCommands(sessionManager, selectionManager, jobManager).register(dispatcher));
 
         ServerTickEvents.END_SERVER_TICK.register(server -> jobManager.tick(server));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                agentRunner.onPlayerJoin(handler.getPlayer()));
+                sessionManager.onPlayerJoin(handler.getPlayer()));
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             selectionManager.onServerStarted(server);
             try {
                 bridge.start(server, FabricLoader.getInstance().getGameDir());
-                agentRunner.onServerStarted(server);
+                sessionManager.onServerStarted(server);
             } catch (Exception e) {
                 LOGGER.error("[aibuild] failed to start bridge http server", e);
             }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            agentRunner.onServerStopping();
+            sessionManager.onServerStopping();
             selectionManager.onServerStopping();
             bridge.stop();
         });

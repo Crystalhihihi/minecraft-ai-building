@@ -75,13 +75,26 @@ public final class WorkDir {
         return server.getWorldPath(LevelResource.ROOT).resolve("aibuild");
     }
 
+    /** Per-session working directory (E3): {@code <world>/aibuild/sessions/s<no>/}. */
+    public static Path sessionDir(MinecraftServer server, int sessionNo) {
+        return dirOf(server).resolve("sessions").resolve("s" + sessionNo);
+    }
+
     /**
      * Ensures the working directory is fully set up for the current server
      * session (mcp.json is rewritten every call because the bridge port/token
      * change on every server start). Returns the directory.
      */
     public static Path prepare(MinecraftServer server, int bridgePort, String bridgeToken) throws IOException {
-        Path dir = dirOf(server);
+        return prepare(dirOf(server), bridgePort, bridgeToken);
+    }
+
+    /**
+     * Ensures an arbitrary agent working directory is fully set up (each build
+     * session gets its own directory with its own bridge token in mcp.json).
+     * Returns the directory.
+     */
+    public static Path prepare(Path dir, int bridgePort, String bridgeToken) throws IOException {
         Files.createDirectories(dir.resolve(".kimi-code"));
         Files.createDirectories(dir.resolve("logs"));
         extractBridgeJar(dir);

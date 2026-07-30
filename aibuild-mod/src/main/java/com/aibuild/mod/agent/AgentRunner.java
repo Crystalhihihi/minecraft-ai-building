@@ -1,20 +1,11 @@
 package com.aibuild.mod.agent;
 
 import com.aibuild.mod.AiBuildMod;
-import com.aibuild.mod.bridge.BridgeHttpServer;
-import com.aibuild.mod.bridge.PlayerInbox;
-import com.aibuild.mod.bridge.SiteGate;
-import com.aibuild.mod.bridge.TerrainSummary;
 import com.aibuild.mod.config.AgentConfig;
 import com.aibuild.mod.job.JobManager;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -23,238 +14,147 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Spawns the headless agent CLI (kimi) in the per-world working directory,
+ * Process engine for ONE build session (E3: the old global single-agent lock
+ * is gone — AgentSessionManager owns one runner per session and enforces the
+ * max_concurrent_agents cap instead).
+ *
+ * Spawns the headless agent CLI (kimi) in the session's own working directory,
  * parses its stream-json stdout line by line (assistant text -> game chat,
  * tool_calls -> one merged chat line per assistant message, meta lines ->
- * session id), enforces the two timeouts (dual-channel silence + hard cap),
- * and supports /aicancel via destroyForcibly.
+ * kimi session id), enforces the two timeouts (dual-channel silence + hard
+ * cap), and supports /aicancel via destroyForcibly.
  *
- * Lifecycle: one agent at a time. The "already running" check and the spawn
- * are atomic via {@link #launchGuard} CAS (a guard held from spawn until
- * onExit), closing the double-start race where a fast-dying first process let
- * a second /aibuild through.
+ * Self-heal (the 429 fix): when the process dies ABNORMALLY (non-zero exit
+ * without the mod killing it — rate limits, crashes), the runner automatically
+ * re-spawns {@code kimi -c -p "<continue the task>"} in the same working
+ * directory after 30 s, up to {@value #MAX_SELF_HEAL_ATTEMPTS} consecutive
+ * times. Deliberate kills (/aicancel, idle/hard timeouts, server stopping)
+ * never self-heal. Every attempt is logged and broadcast; after the third
+ * consecutive failure the session is FAILED with its work dir kept intact.
  *
- * Per build session it also: writes {@code <world>/aibuild/state.json}
- * (running/finished/cancelled + description + snapshot session tag) for
- * crash/shutdown resume hints, stamps snapshots with a build-session tag via
- * {@link JobManager#beginBuildSession}, and broadcasts a consumption report
- * (turns / tool calls / blocks placed / wall time) on agent exit.
+ * Consumption stats (turns / tool calls / blocks / wall time) accumulate into
+ * the {@link AgentSession} across processes (resumes and self-heals) and are
+ * reported on the session's terminal exit.
  */
 public final class AgentRunner {
     private static final DateTimeFormatter LOG_STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-    private static final Gson GSON = new Gson();
     /** stream-json MCP tool prefix, stripped for chat display and stats. */
     private static final String MCP_PREFIX = "mcp__aibuild__";
+    /** Consecutive abnormal exits tolerated before the session is declared failed. */
+    private static final int MAX_SELF_HEAL_ATTEMPTS = 3;
+    /** Delay before each automatic {@code kimi -c} resume. */
+    private static final long SELF_HEAL_DELAY_MS = 30_000L;
+    /** Prompt used for automatic resumes (the session's conversation is continued with -c). */
+    private static final String SELF_HEAL_PROMPT =
+            "The previous run was interrupted (rate limit or crash). Read plan.md and task.json "
+                    + "in the current directory to reconstruct your working state, then continue "
+                    + "the building task until it is done.";
 
     private final AgentConfig config;
-    private final PlayerInbox inbox;
-    private final BridgeHttpServer bridge;
-    private final SiteGate gate;
+    private final AgentSession session;
     private final JobManager jobManager;
-
-    private MinecraftServer server;
-    private String sessionId;
+    private final AgentSessionManager manager;
 
     private Process process;
-    private Path workDir;
     private BufferedWriter logWriter;
     private volatile long lastIoMillis;
     private long startedMillis;
     /** Null while running normally; set before killing so onExit reports the right cause. */
     private String stopReason;
-    /** Held from a successful CAS in startBuild/startChat until onExit (or spawn failure). */
-    private final AtomicBoolean launchGuard = new AtomicBoolean(false);
+    /** Bumped on every spawn/cancel; stale self-heal threads check it before re-spawning. */
+    private int spawnGeneration;
 
-    // per-build consumption counters (reset in startBuild, accumulate across /aichat resumes)
-    private int buildTurns;
-    private int buildToolCalls;
-    private final Map<String, Integer> buildToolCounts = new LinkedHashMap<>();
-    private long buildPlacedStart;
-    private long buildWallStartMillis;
-    private String buildDescription;
-    /** Snapshot session tag ("b<timestamp>"); restored from state.json for resumes. */
-    private String buildSessionTag;
-    /** Description of an unfinished build detected at server start; shown to joining players. */
-    private String pendingResumeHint;
-
-    public AgentRunner(AgentConfig config, PlayerInbox inbox, BridgeHttpServer bridge, SiteGate gate, JobManager jobManager) {
+    AgentRunner(AgentConfig config, AgentSession session, JobManager jobManager, AgentSessionManager manager) {
         this.config = config;
-        this.inbox = inbox;
-        this.bridge = bridge;
-        this.gate = gate;
+        this.session = session;
         this.jobManager = jobManager;
+        this.manager = manager;
     }
 
-    public synchronized void onServerStarted(MinecraftServer server) {
-        this.server = server;
-        this.sessionId = null;
-        this.pendingResumeHint = null;
-        Path sessionFile = WorkDir.dirOf(server).resolve(".session_id");
-        try {
-            if (Files.isRegularFile(sessionFile)) {
-                String id = Files.readString(sessionFile).trim();
-                if (!id.isEmpty()) {
-                    this.sessionId = id;
-                    AiBuildMod.LOGGER.info("[aibuild] restored agent session id {} from {}", id, sessionFile);
-                }
-            }
-        } catch (IOException e) {
-            AiBuildMod.LOGGER.warn("[aibuild] could not read {}", sessionFile, e);
-        }
-        // crash/shutdown detection: a state.json still saying "running" means
-        // the previous server died (or stopped) mid-build without an onExit.
-        JsonObject state = readState();
-        if (state != null && "running".equals(optString(state, "status"))) {
-            buildDescription = optString(state, "description");
-            buildSessionTag = optString(state, "session");
-            if (sessionId != null) {
-                pendingResumeHint = buildDescription != null ? buildDescription : "(无描述)";
-                broadcast("[aibuild] 上次建造未完成:" + pendingResumeHint + ",输入 /aichat 继续");
-            } else {
-                AiBuildMod.LOGGER.warn("[aibuild] previous build died mid-run ({}) but no .session_id to resume with",
-                        buildDescription);
-            }
-        }
+    private String tag() {
+        return "#" + session.no();
     }
 
-    public synchronized void onServerStopping() {
-        if (process != null) {
-            stopReason = "server stopping";
-            process.destroyForcibly();
-        }
-    }
-
-    public synchronized boolean isRunning() {
-        return launchGuard.get();
-    }
-
-    public synchronized boolean hasSession() {
-        return sessionId != null;
-    }
-
-    public void enqueuePlayerMessage(String message) {
-        inbox.add(message);
-    }
-
-    /** Sends the unfinished-build hint to a joining player (registered on ServerPlayConnectionEvents.JOIN). */
-    public void onPlayerJoin(ServerPlayer player) {
-        String hint;
-        synchronized (this) {
-            hint = pendingResumeHint;
-        }
-        if (hint != null) {
-            player.sendSystemMessage(Component.literal("[aibuild] 上次建造未完成:" + hint + ",输入 /aichat 继续"));
-        }
+    public synchronized boolean isProcessAlive() {
+        return process != null && process.isAlive();
     }
 
     // ------------------------------------------------------------------ spawns
 
-    /**
-     * Starts a new build session. When {@code selection} is non-null the write
-     * tools are immediately bound to it; otherwise the session starts
-     * unconfirmed and the AI's first tool call must be propose_site.
-     * Called on the server main thread (from command execution) — the terrain
-     * summary samples the world inline.
-     *
-     * The running-check + spawn is atomic via {@link #launchGuard}: a second
-     * /aibuild issued while the first agent is starting (or a first process
-     * that died instantly) is always rejected.
-     */
-    public synchronized void startBuild(String description, BlockPos anchor, SiteGate.Bounds selection) throws IOException {
-        if (!launchGuard.compareAndSet(false, true)) {
-            throw new IllegalStateException("an agent is already running");
+    /** First spawn of the session: fresh task (task.json was written by the manager). */
+    public synchronized void startNew() throws IOException {
+        List<String> args = List.of(
+                config.resolvedAgentCommand(),
+                "-p", "Read AGENTS.md and task.json in the current directory, then carry out the building task described in task.json.",
+                "--output-format", "stream-json");
+        spawn(args);
+        manager.broadcast("[aibuild] " + tag() + " agent started: " + session.description());
+    }
+
+    /** Manual resume via /aichat: continues the session's kimi conversation. */
+    public synchronized void resume(String message) throws IOException {
+        if (session.kimiSessionId() == null) {
+            throw new IOException("no session to resume");
         }
-        try {
-            gate.beginSession(selection);
-            Path dir = WorkDir.prepare(server, bridge.port(), bridge.token());
-            WorkDir.writeTask(dir, description, anchor, selection);
-            try {
-                String terrain = TerrainSummary.generate(server.overworld(), anchor.getX(), anchor.getZ(), 64);
-                WorkDir.writeTerrain(dir, anchor, 64, terrain);
-            } catch (Exception e) {
-                AiBuildMod.LOGGER.warn("[aibuild] terrain summary generation failed; continuing without terrain.json", e);
-            }
-            // consumption counters start fresh for the new build
-            buildTurns = 0;
-            buildToolCalls = 0;
-            buildToolCounts.clear();
-            buildPlacedStart = jobManager.lifetimePlaced();
-            buildWallStartMillis = System.currentTimeMillis();
-            buildDescription = description;
-            buildSessionTag = "b" + LOG_STAMP.format(LocalDateTime.now());
-            jobManager.beginBuildSession(buildSessionTag);
-            pendingResumeHint = null;
-            writeState("running");
-            List<String> args = List.of(
-                    config.resolvedAgentCommand(),
-                    "-p", "Read AGENTS.md and task.json in the current directory, then carry out the building task described in task.json.",
-                    "--output-format", "stream-json");
-            spawn(dir, args);
-            broadcast(selection != null
-                    ? "[aibuild] agent started: " + description + " (bounds: " + selection.describe() + ")"
-                    : "[aibuild] agent started: " + description + " (no selection — AI will propose a site for confirmation)");
-        } catch (IOException | RuntimeException e) {
-            jobManager.endBuildSession();
-            launchGuard.set(false);
-            throw e;
+        List<String> args = List.of(
+                config.resolvedAgentCommand(),
+                "-r", session.kimiSessionId(),
+                "-p", message,
+                "--output-format", "stream-json");
+        spawn(args);
+        manager.broadcast("[aibuild] " + tag() + " agent resumed (session " + session.kimiSessionId() + "): " + message);
+    }
+
+    /** /aicancel (or manager-initiated stop): kills the process or aborts a pending self-heal. */
+    public synchronized void cancel(String reason) {
+        spawnGeneration++; // stale self-heal threads give up
+        Process p = process;
+        if (p != null && p.isAlive()) {
+            stopReason = reason;
+            p.destroyForcibly();
+            AiBuildMod.LOGGER.info("[aibuild] {} agent process killed: {}", tag(), reason);
+        } else if (session.status() == AgentSession.Status.RUNNING) {
+            // between self-heal retries (process already dead): finalize as cancelled now
+            session.status = AgentSession.Status.CANCELLED;
+            session.endedAtMillis = System.currentTimeMillis();
+            manager.broadcast("[aibuild] " + tag() + " agent stopped: " + reason
+                    + ". Blocks placed so far remain; /aichat can continue the session.");
+            broadcastConsumption();
+            manager.persist();
         }
     }
 
-    public synchronized void startChat(String message) throws IOException {
-        if (!launchGuard.compareAndSet(false, true)) {
-            throw new IllegalStateException("an agent is already running");
-        }
-        try {
-            if (sessionId == null) {
-                throw new IOException("no session to resume");
-            }
-            Path dir = WorkDir.prepare(server, bridge.port(), bridge.token());
-            // continue the same snapshot session if we know it (from state.json); otherwise the
-            // resume predates session tagging and snapshots join the "unknown session" group
-            jobManager.beginBuildSession(buildSessionTag);
-            pendingResumeHint = null;
-            writeState("running");
-            List<String> args = List.of(
-                    config.resolvedAgentCommand(),
-                    "-r", sessionId,
-                    "-p", message,
-                    "--output-format", "stream-json");
-            spawn(dir, args);
-            broadcast("[aibuild] agent resumed (session " + sessionId + "): " + message);
-        } catch (IOException | RuntimeException e) {
-            jobManager.endBuildSession();
-            launchGuard.set(false);
-            throw e;
+    public synchronized void onServerStopping() {
+        spawnGeneration++; // no self-heal across a restart
+        Process p = process;
+        if (p != null && p.isAlive()) {
+            stopReason = "server stopping";
+            p.destroyForcibly();
         }
     }
 
-    public synchronized void cancel() {
-        if (process != null && process.isAlive()) {
-            stopReason = "cancelled by /aicancel";
-            process.destroyForcibly();
-            AiBuildMod.LOGGER.info("[aibuild] agent process killed by /aicancel");
-        }
-    }
-
-    private void spawn(Path dir, List<String> args) throws IOException {
-        this.workDir = dir;
+    private void spawn(List<String> args) throws IOException {
+        Path dir = session.workDir(manager.aibuildRoot());
         this.stopReason = null;
         this.startedMillis = System.currentTimeMillis();
         this.lastIoMillis = startedMillis;
+        this.spawnGeneration++;
+        synchronized (session) {
+            session.placedBaseline = session.sessionTag() != null ? jobManager.placedForTag(session.sessionTag()) : 0L;
+            session.wallStartMillis = startedMillis;
+        }
 
         Path logFile = dir.resolve("logs").resolve("agent-" + LOG_STAMP.format(LocalDateTime.now()) + ".log");
         this.logWriter = Files.newBufferedWriter(logFile, StandardCharsets.UTF_8);
-        AiBuildMod.LOGGER.info("[aibuild] spawning agent: {} (cwd={}, log={})", String.join(" ", args), dir, logFile);
+        AiBuildMod.LOGGER.info("[aibuild] {} spawning agent: {} (cwd={}, log={})", tag(), String.join(" ", args), dir, logFile);
 
         ProcessBuilder pb = new ProcessBuilder(new ArrayList<>(args));
         pb.directory(dir.toFile());
@@ -267,9 +167,9 @@ public final class AgentRunner {
         }
         this.process = p;
 
-        Thread stdout = pump(p.inputReader(StandardCharsets.UTF_8), "stdout", this::handleStdoutLine);
-        Thread stderr = pump(p.errorReader(StandardCharsets.UTF_8), "stderr", line -> log("stderr | " + line));
-        Thread waiter = daemon("aibuild-agent-wait", () -> {
+        Thread stdout = pump(p.inputReader(StandardCharsets.UTF_8), "s" + session.no() + "-stdout", this::handleStdoutLine);
+        Thread stderr = pump(p.errorReader(StandardCharsets.UTF_8), "s" + session.no() + "-stderr", line -> log("stderr | " + line));
+        Thread waiter = daemon("aibuild-agent-s" + session.no() + "-wait", () -> {
             int code;
             try {
                 code = p.waitFor();
@@ -285,7 +185,7 @@ public final class AgentRunner {
             }
             onExit(code);
         });
-        Thread watchdog = daemon("aibuild-agent-watchdog", this::watchLoop);
+        Thread watchdog = daemon("aibuild-agent-s" + session.no() + "-watchdog", this::watchLoop);
         stdout.start();
         stderr.start();
         waiter.start();
@@ -303,11 +203,11 @@ public final class AgentRunner {
                     try {
                         handler.accept(line);
                     } catch (Exception e) {
-                        AiBuildMod.LOGGER.warn("[aibuild] error handling agent {} line", name, e);
+                        AiBuildMod.LOGGER.warn("[aibuild] {} error handling agent {} line", tag(), name, e);
                     }
                 }
             } catch (IOException e) {
-                AiBuildMod.LOGGER.debug("[aibuild] agent {} stream closed: {}", name, e.toString());
+                AiBuildMod.LOGGER.debug("[aibuild] {} agent {} stream closed: {}", tag(), name, e.toString());
             }
         });
     }
@@ -327,12 +227,12 @@ public final class AgentRunner {
         String role = o.has("role") && o.get("role").isJsonPrimitive() ? o.get("role").getAsString() : "";
         switch (role) {
             case "assistant" -> {
-                synchronized (this) {
-                    buildTurns++;
+                synchronized (session) {
+                    session.turns++;
                 }
                 String text = extractText(o.get("content"));
                 if (!text.isBlank()) {
-                    broadcast("[AI] " + text);
+                    manager.broadcast("[AI" + tag() + "] " + text);
                 }
                 forwardToolCalls(o);
             }
@@ -340,15 +240,15 @@ public final class AgentRunner {
                 String type = o.has("type") && o.get("type").isJsonPrimitive() ? o.get("type").getAsString() : "";
                 if ("session.resume_hint".equals(type) && o.has("session_id")) {
                     String id = o.get("session_id").getAsString();
-                    synchronized (this) {
-                        this.sessionId = id;
-                    }
+                    session.kimiSessionId = id;
                     try {
-                        Files.writeString(workDir.resolve(".session_id"), id + System.lineSeparator());
+                        Files.writeString(session.workDir(manager.aibuildRoot()).resolve(".session_id"),
+                                id + System.lineSeparator());
                     } catch (IOException e) {
-                        AiBuildMod.LOGGER.warn("[aibuild] failed to persist session id", e);
+                        AiBuildMod.LOGGER.warn("[aibuild] {} failed to persist session id", tag(), e);
                     }
-                    AiBuildMod.LOGGER.info("[aibuild] agent session id: {}", id);
+                    manager.persist();
+                    AiBuildMod.LOGGER.info("[aibuild] {} agent session id: {}", tag(), id);
                 }
             }
             default -> {
@@ -360,8 +260,8 @@ public final class AgentRunner {
     /**
      * Forwards an assistant message's tool_calls to the chat bar, throttled to
      * ONE merged line per assistant message: consecutive calls of the same
-     * tool collapse into a count ("[AI] 调用 fill ×3、render_region ×1").
-     * Also folds the calls into the per-build consumption stats.
+     * tool collapse into a count ("[AI#2] 调用 fill ×3、render_region ×1").
+     * Also folds the calls into the session's consumption stats.
      * stream-json shape (verified against agent logs):
      * {@code {"role":"assistant","tool_calls":[{"type":"function","function":{"name":"mcp__aibuild__fill","arguments":"..."}}]}}.
      */
@@ -380,11 +280,11 @@ public final class AgentRunner {
             return;
         }
         int total = perMessage.values().stream().mapToInt(Integer::intValue).sum();
-        synchronized (this) {
-            buildToolCalls += total;
-            perMessage.forEach((name, count) -> buildToolCounts.merge(name, count, Integer::sum));
+        synchronized (session) {
+            session.toolCalls += total;
+            perMessage.forEach((name, count) -> session.toolCounts.merge(name, count, Integer::sum));
         }
-        StringBuilder sb = new StringBuilder("[AI] 调用 ");
+        StringBuilder sb = new StringBuilder("[AI").append(tag()).append("] 调用 ");
         boolean first = true;
         for (Map.Entry<String, Integer> e : perMessage.entrySet()) {
             if (!first) {
@@ -396,7 +296,7 @@ public final class AgentRunner {
             }
             first = false;
         }
-        broadcast(sb.toString());
+        manager.broadcast(sb.toString());
     }
 
     /** Extracts and shortens a tool name from a tool_calls entry ("mcp__aibuild__fill" -> "fill"). */
@@ -459,7 +359,7 @@ public final class AgentRunner {
                 synchronized (this) {
                     stopReason = reason;
                 }
-                AiBuildMod.LOGGER.warn("[aibuild] killing agent: {}", reason);
+                AiBuildMod.LOGGER.warn("[aibuild] {} killing agent: {}", tag(), reason);
                 p.destroyForcibly();
                 return;
             }
@@ -474,46 +374,140 @@ public final class AgentRunner {
 
     private void onExit(int code) {
         String reason;
-        int turns, toolCalls;
-        Map<String, Integer> toolCounts;
-        long placed, wallMillis;
         synchronized (this) {
             if (process == null) {
                 return;
             }
             process = null;
             reason = stopReason;
-            turns = buildTurns;
-            toolCalls = buildToolCalls;
-            toolCounts = new LinkedHashMap<>(buildToolCounts);
-            placed = jobManager.lifetimePlaced() - buildPlacedStart;
-            wallMillis = System.currentTimeMillis() - buildWallStartMillis;
-            launchGuard.set(false);
         }
         closeLog();
-        if (reason != null) {
-            broadcast("[aibuild] agent stopped: " + reason + ". Blocks placed so far remain; /aichat can continue the session.");
-        } else if (code == 0) {
-            broadcast("[aibuild] agent finished (exit 0).");
+        foldStats();
+
+        if ("server stopping".equals(reason)) {
+            // Keep status RUNNING on disk so the next server start detects the
+            // interruption and offers the resume hint (old state.json semantics).
+            manager.broadcast("[aibuild] " + tag() + " agent stopped: server stopping."
+                    + " Blocks placed so far remain; /aichat can continue the session after restart.");
+            manager.persist();
+            return;
+        }
+        if (reason != null && reason.startsWith("cancelled")) {
+            terminate(AgentSession.Status.CANCELLED, null,
+                    "[aibuild] " + tag() + " agent stopped: " + reason
+                            + ". Blocks placed so far remain; /aichat can continue the session.");
+            return;
+        }
+        if (reason != null) { // idle/hard timeout — a deliberate kill, no self-heal
+            terminate(AgentSession.Status.FAILED, reason,
+                    "[aibuild] " + tag() + " agent stopped: " + reason + ". /aichat can continue the session.");
+            return;
+        }
+        if (code == 0) {
+            synchronized (session) {
+                session.resumeAttempts = 0;
+            }
+            terminate(AgentSession.Status.DONE, null, "[aibuild] " + tag() + " agent finished (exit 0).");
+            return;
+        }
+        // abnormal exit (429 rate limit, crash, …): self-heal with `kimi -c`
+        int attempt;
+        synchronized (session) {
+            session.resumeAttempts++;
+            attempt = session.resumeAttempts;
+        }
+        if (attempt <= MAX_SELF_HEAL_ATTEMPTS) {
+            session.lastError = "exit code " + code + " — auto-resume " + attempt + "/" + MAX_SELF_HEAL_ATTEMPTS + " in 30s";
+            AiBuildMod.LOGGER.warn("[aibuild] {} agent exited abnormally (code {}); self-heal {}/{} in {}s",
+                    tag(), code, attempt, MAX_SELF_HEAL_ATTEMPTS, SELF_HEAL_DELAY_MS / 1000);
+            manager.broadcast("[aibuild] " + tag() + " agent 异常退出 (code " + code + ") — 30s 后自动续跑 (自愈 "
+                    + attempt + "/" + MAX_SELF_HEAL_ATTEMPTS + ")");
+            manager.persist();
+            scheduleSelfHeal();
         } else {
-            broadcast("[aibuild] agent exited with code " + code + " — see work dir logs; /aichat can continue the session.");
+            terminate(AgentSession.Status.FAILED,
+                    "exit code " + code + " after " + MAX_SELF_HEAL_ATTEMPTS
+                            + " self-heal attempts — work dir kept; /aichat 可续",
+                    "[aibuild] " + tag() + " agent 连续 " + MAX_SELF_HEAL_ATTEMPTS
+                            + " 次自愈失败 (last exit code " + code + ") — 宣告失败,现场保留在 "
+                            + session.workDir(manager.aibuildRoot()) + ";/aichat 可手动续跑");
         }
-        // state.json: a graceful server stop mid-build keeps "running" so the
-        // next start offers the resume hint; /aicancel and timeouts are final.
-        String status = reason == null ? "finished"
-                : "server stopping".equals(reason) ? "running" : "cancelled";
-        synchronized (this) {
-            writeState(status);
-        }
-        jobManager.endBuildSession();
-        broadcast(consumptionReport(turns, toolCalls, toolCounts, placed, wallMillis));
     }
 
-    /** "本次建造:N 轮 / M 次工具调用 / X 块 / T 分 T 秒 (top: fill ×12, ...)" */
-    private static String consumptionReport(int turns, int toolCalls, Map<String, Integer> toolCounts,
-                                            long placed, long wallMillis) {
+    /** Terminal transition: status + error + broadcast + consumption report + persist. */
+    private void terminate(AgentSession.Status status, String error, String chatMessage) {
+        session.status = status;
+        // Always overwrite: a DONE/CANCELLED session must not keep a stale
+        // error from an earlier self-heal attempt.
+        session.lastError = error;
+        session.endedAtMillis = System.currentTimeMillis();
+        manager.broadcast(chatMessage);
+        broadcastConsumption();
+        manager.persist();
+    }
+
+    /** Folds this process's placed-blocks delta and wall time into the session totals. */
+    private void foldStats() {
+        synchronized (session) {
+            if (session.sessionTag() != null) {
+                session.blocksPlaced += Math.max(0, jobManager.placedForTag(session.sessionTag()) - session.placedBaseline);
+            }
+            session.wallMillis += Math.max(0, System.currentTimeMillis() - session.wallStartMillis);
+        }
+    }
+
+    private void scheduleSelfHeal() {
+        final int generation;
+        synchronized (this) {
+            generation = spawnGeneration;
+        }
+        Thread t = daemon("aibuild-agent-s" + session.no() + "-selfheal", () -> {
+            try {
+                Thread.sleep(SELF_HEAL_DELAY_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            synchronized (this) {
+                if (generation != spawnGeneration || process != null || manager.isServerStopping()
+                        || session.status() != AgentSession.Status.RUNNING) {
+                    AiBuildMod.LOGGER.info("[aibuild] {} self-heal aborted (superseded/cancelled/stopping)", tag());
+                    return;
+                }
+            }
+            try {
+                manager.prepareWorkDir(session); // refresh mcp.json (port/token) before the resume
+                List<String> args = List.of(
+                        config.resolvedAgentCommand(),
+                        "-c", "-p", SELF_HEAL_PROMPT,
+                        "--output-format", "stream-json");
+                spawn(args);
+                AiBuildMod.LOGGER.info("[aibuild] {} self-heal resume spawned (kimi -c)", tag());
+                manager.broadcast("[aibuild] " + tag() + " 自愈续跑已启动 (kimi -c)");
+            } catch (IOException e) {
+                AiBuildMod.LOGGER.error("[aibuild] {} self-heal spawn failed", tag(), e);
+                terminate(AgentSession.Status.FAILED,
+                        "self-heal spawn failed: " + e.getMessage() + " — work dir kept; /aichat 可续",
+                        "[aibuild] " + tag() + " 自愈续跑启动失败: " + e.getMessage() + ";/aichat 可手动续跑");
+            }
+        });
+        t.start();
+    }
+
+    /** "[aibuild] #2 本次建造:N 轮 / M 次工具调用 / X 块 / T 分 T 秒 (top: fill ×12, ...)" */
+    private void broadcastConsumption() {
+        int turns, toolCalls;
+        Map<String, Integer> toolCounts;
+        long placed, wallMillis;
+        synchronized (session) {
+            turns = session.turns;
+            toolCalls = session.toolCalls;
+            toolCounts = new LinkedHashMap<>(session.toolCounts);
+            placed = session.blocksPlaced;
+            wallMillis = session.wallMillis;
+        }
         long secs = Math.max(0, wallMillis / 1000);
-        StringBuilder sb = new StringBuilder("[aibuild] 本次建造:")
+        StringBuilder sb = new StringBuilder("[aibuild] ").append(tag()).append(" 本次建造:")
                 .append(turns).append(" 轮 / ")
                 .append(toolCalls).append(" 次工具调用 / ")
                 .append(placed).append(" 块 / ")
@@ -530,60 +524,10 @@ public final class AgentRunner {
             }
             sb.append(")");
         }
-        return sb.toString();
+        manager.broadcast(sb.toString());
     }
 
-    // ------------------------------------------------------------------ state.json
-
-    private Path stateFile() {
-        return WorkDir.dirOf(server).resolve("state.json");
-    }
-
-    /** Writes the build state (status/description/session tag) for crash resume hints. Best-effort. */
-    private void writeState(String status) {
-        try {
-            JsonObject o = new JsonObject();
-            o.addProperty("status", status);
-            if (buildDescription != null) {
-                o.addProperty("description", buildDescription);
-            }
-            if (buildSessionTag != null) {
-                o.addProperty("session", buildSessionTag);
-            }
-            o.addProperty("updated", Instant.now().toString());
-            Files.writeString(stateFile(), GSON.toJson(o) + System.lineSeparator());
-        } catch (Exception e) {
-            AiBuildMod.LOGGER.warn("[aibuild] failed to write state.json ({})", status, e);
-        }
-    }
-
-    private JsonObject readState() {
-        try {
-            Path file = stateFile();
-            if (!Files.isRegularFile(file)) {
-                return null;
-            }
-            return JsonParser.parseString(Files.readString(file)).getAsJsonObject();
-        } catch (Exception e) {
-            AiBuildMod.LOGGER.warn("[aibuild] failed to read state.json", e);
-            return null;
-        }
-    }
-
-    private static String optString(JsonObject o, String key) {
-        return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : null;
-    }
-
-    private void broadcast(String message) {
-        AiBuildMod.LOGGER.info("[aibuild-chat] {}", message);
-        MinecraftServer s;
-        synchronized (this) {
-            s = server;
-        }
-        if (s != null) {
-            s.execute(() -> s.getPlayerList().broadcastSystemMessage(Component.literal(message), false));
-        }
-    }
+    // ------------------------------------------------------------------ logging
 
     private synchronized void log(String line) {
         if (logWriter == null) {
@@ -594,7 +538,7 @@ public final class AgentRunner {
             logWriter.newLine();
             logWriter.flush();
         } catch (IOException e) {
-            AiBuildMod.LOGGER.debug("[aibuild] agent log write failed: {}", e.toString());
+            AiBuildMod.LOGGER.debug("[aibuild] {} agent log write failed: {}", tag(), e.toString());
         }
     }
 

@@ -14,18 +14,21 @@ import java.nio.file.Path;
  * Mod configuration in {@code <gameDir>/aibuild/config.json}. Written with
  * defaults on first run; missing keys fall back to defaults.
  */
-public record AgentConfig(String agentCommand, long idleTimeoutMinutes, long hardTimeoutMinutes, long tickBudgetMs) {
+public record AgentConfig(String agentCommand, long idleTimeoutMinutes, long hardTimeoutMinutes, long tickBudgetMs,
+                          int maxConcurrentAgents) {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final long DEFAULT_IDLE_TIMEOUT_MINUTES = 20;
     private static final long DEFAULT_HARD_TIMEOUT_MINUTES = 60;
     private static final long DEFAULT_TICK_BUDGET_MS = 10;
+    private static final int DEFAULT_MAX_CONCURRENT_AGENTS = 4;
 
     public static AgentConfig load(Path gameDir) {
         Path path = gameDir.resolve("aibuild").resolve("config.json");
         String defaultCommand = defaultAgentCommand();
         if (!Files.isRegularFile(path)) {
-            AgentConfig defaults = new AgentConfig(defaultCommand, DEFAULT_IDLE_TIMEOUT_MINUTES, DEFAULT_HARD_TIMEOUT_MINUTES, DEFAULT_TICK_BUDGET_MS);
+            AgentConfig defaults = new AgentConfig(defaultCommand, DEFAULT_IDLE_TIMEOUT_MINUTES,
+                    DEFAULT_HARD_TIMEOUT_MINUTES, DEFAULT_TICK_BUDGET_MS, DEFAULT_MAX_CONCURRENT_AGENTS);
             try {
                 Files.createDirectories(path.getParent());
                 Files.writeString(path, GSON.toJson(defaults.toJson()) + System.lineSeparator());
@@ -41,10 +44,12 @@ public record AgentConfig(String agentCommand, long idleTimeoutMinutes, long har
             long idle = o.has("idle_timeout_minutes") ? o.get("idle_timeout_minutes").getAsLong() : DEFAULT_IDLE_TIMEOUT_MINUTES;
             long hard = o.has("hard_timeout_minutes") ? o.get("hard_timeout_minutes").getAsLong() : DEFAULT_HARD_TIMEOUT_MINUTES;
             long budget = o.has("tick_budget_ms") ? o.get("tick_budget_ms").getAsLong() : DEFAULT_TICK_BUDGET_MS;
-            return new AgentConfig(command, idle, hard, budget);
+            int maxAgents = o.has("max_concurrent_agents") ? o.get("max_concurrent_agents").getAsInt() : DEFAULT_MAX_CONCURRENT_AGENTS;
+            return new AgentConfig(command, idle, hard, budget, Math.max(1, maxAgents));
         } catch (Exception e) {
             AiBuildMod.LOGGER.warn("[aibuild] failed to parse {}, using defaults", path, e);
-            return new AgentConfig(defaultCommand, DEFAULT_IDLE_TIMEOUT_MINUTES, DEFAULT_HARD_TIMEOUT_MINUTES, DEFAULT_TICK_BUDGET_MS);
+            return new AgentConfig(defaultCommand, DEFAULT_IDLE_TIMEOUT_MINUTES,
+                    DEFAULT_HARD_TIMEOUT_MINUTES, DEFAULT_TICK_BUDGET_MS, DEFAULT_MAX_CONCURRENT_AGENTS);
         }
     }
 
@@ -68,6 +73,7 @@ public record AgentConfig(String agentCommand, long idleTimeoutMinutes, long har
         o.addProperty("idle_timeout_minutes", idleTimeoutMinutes);
         o.addProperty("hard_timeout_minutes", hardTimeoutMinutes);
         o.addProperty("tick_budget_ms", tickBudgetMs);
+        o.addProperty("max_concurrent_agents", maxConcurrentAgents);
         return o;
     }
 

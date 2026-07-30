@@ -1,6 +1,8 @@
 package com.aibuild.mod.bridge;
 
 import com.aibuild.mod.AiBuildMod;
+import com.aibuild.mod.agent.AgentSession;
+import com.aibuild.mod.agent.AgentSessionManager;
 import com.aibuild.mod.agent.WorkDir;
 import com.aibuild.mod.job.BuildJob;
 import com.aibuild.mod.job.FillMode;
@@ -36,6 +38,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -45,8 +48,18 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Minimal embedded HTTP API (JDK {@link com.sun.net.httpserver}) for the
- * mc-mcp-bridge. Binds 127.0.0.1 on a random port with a random bearer token,
- * written to {@code <gameDir>/aibuild/bridge.json} on server start.
+ * mc-mcp-bridge. Binds 127.0.0.1 on a random port with a random master bearer
+ * token, written to {@code <gameDir>/aibuild/bridge.json} on server start.
+ *
+ * E3 multi-token routing: every build session gets its own token (written to
+ * that session's .kimi-code/mcp.json, listed in bridge.json). A request's
+ * X-Aibuild-Token resolves to its session via the AgentSessionManager — write
+ * tools then gate on THAT session's SiteGate, propose_site checks overlap
+ * against other running sessions, and player_messages piggyback drains that
+ * session's inbox. The master token keeps working for external tooling: it
+ * routes to the newest RUNNING session (a "default session"), or — when none
+ * is running — read-only endpoints still work while write endpoints answer
+ * 409 (a deliberate choice over silently mixing sessions).
  *
  * HTTP threads only serialize JSON; every world operation is dispatched to
  * the server main thread via {@link MinecraftServer#execute} and awaited with
@@ -60,22 +73,22 @@ public final class BridgeHttpServer {
     private static final DateTimeFormatter RENDER_FILE_STAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
 
     private final JobManager jobManager;
-    private final PlayerInbox inbox;
-    private final SiteGate gate;
+    private final AgentSessionManager sessions;
     private HttpServer http;
-    private String token;
+    private String masterToken;
     private int port = -1;
     private MinecraftServer server;
+    private Path gameDir;
 
-    public BridgeHttpServer(JobManager jobManager, PlayerInbox inbox, SiteGate gate) {
+    public BridgeHttpServer(JobManager jobManager, AgentSessionManager sessions) {
         this.jobManager = jobManager;
-        this.inbox = inbox;
-        this.gate = gate;
+        this.sessions = sessions;
     }
 
     public void start(MinecraftServer server, Path gameDir) throws IOException {
         this.server = server;
-        this.token = UUID.randomUUID().toString();
+        this.gameDir = gameDir;
+        this.masterToken = UUID.randomUUID().toString();
 
         http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         http.createContext("/tools/fill", ex -> handle(ex, "POST", this::fill));
@@ -96,22 +109,30 @@ public final class BridgeHttpServer {
         http.start();
 
         port = http.getAddress().getPort();
-        Path dir = gameDir.resolve("aibuild");
-        Files.createDirectories(dir);
-        JsonObject info = new JsonObject();
-        info.addProperty("port", port);
-        info.addProperty("token", token);
-        Path bridgeJson = dir.resolve("bridge.json");
-        Files.writeString(bridgeJson, GSON.toJson(info));
-        AiBuildMod.LOGGER.info("[aibuild] bridge http server listening on 127.0.0.1:{} (credentials in {})", port, bridgeJson);
+        refreshBridgeJson(Map.of());
+        AiBuildMod.LOGGER.info("[aibuild] bridge http server listening on 127.0.0.1:{} (credentials in {})",
+                port, gameDir.resolve("aibuild").resolve("bridge.json"));
     }
 
     public int port() {
         return port;
     }
 
-    public String token() {
-        return token;
+    /** Rewrites bridge.json: port + master token + the registry's per-session tokens. */
+    public void refreshBridgeJson(Map<Integer, String> sessionTokens) {
+        try {
+            Path dir = gameDir.resolve("aibuild");
+            Files.createDirectories(dir);
+            JsonObject info = new JsonObject();
+            info.addProperty("port", port);
+            info.addProperty("token", masterToken);
+            JsonObject tokens = new JsonObject();
+            sessionTokens.forEach((no, token) -> tokens.addProperty(String.valueOf(no), token));
+            info.add("sessions", tokens);
+            Files.writeString(dir.resolve("bridge.json"), GSON.toJson(info));
+        } catch (Exception e) {
+            AiBuildMod.LOGGER.warn("[aibuild] failed to write bridge.json", e);
+        }
     }
 
     public void stop() {
@@ -125,7 +146,7 @@ public final class BridgeHttpServer {
 
     @FunctionalInterface
     private interface Endpoint {
-        JsonObject handle(HttpExchange exchange) throws Exception;
+        JsonObject handle(HttpExchange exchange, AgentSession session) throws Exception;
     }
 
     private static final class ApiError extends Exception {
@@ -139,22 +160,46 @@ public final class BridgeHttpServer {
         }
     }
 
+    /**
+     * Resolves the request token: a session token → that session; the master
+     * token → the newest RUNNING session ("default session"), or null when
+     * none is running. Unknown tokens → 403.
+     */
+    private AgentSession resolveSession(HttpExchange ex) {
+        String header = ex.getRequestHeaders().getFirst("X-Aibuild-Token");
+        if (header == null) {
+            return null;
+        }
+        AgentSession s = sessions.sessionForToken(header);
+        if (s != null) {
+            return s;
+        }
+        return masterToken.equals(header) ? sessions.defaultSession() : null;
+    }
+
+    private boolean authorized(HttpExchange ex) {
+        String header = ex.getRequestHeaders().getFirst("X-Aibuild-Token");
+        return header != null && (masterToken.equals(header) || sessions.sessionForToken(header) != null);
+    }
+
     private void handle(HttpExchange ex, String method, Endpoint endpoint) throws IOException {
+        AgentSession session = null;
         try {
-            if (!token.equals(ex.getRequestHeaders().getFirst("X-Aibuild-Token"))) {
-                send(ex, 403, error("forbidden"));
+            if (!authorized(ex)) {
+                send(ex, 403, error("forbidden"), null);
                 return;
             }
             if (!method.equalsIgnoreCase(ex.getRequestMethod())) {
-                send(ex, 405, error("method not allowed"));
+                send(ex, 405, error("method not allowed"), null);
                 return;
             }
-            send(ex, 200, endpoint.handle(ex));
+            session = resolveSession(ex);
+            send(ex, 200, endpoint.handle(ex, session), session);
         } catch (ApiError e) {
-            send(ex, e.status, e.body);
+            send(ex, e.status, e.body, session);
         } catch (Exception e) {
             AiBuildMod.LOGGER.error("[aibuild] error handling {} {}", ex.getRequestMethod(), ex.getRequestURI(), e);
-            send(ex, 500, error("internal error: " + e.getMessage()));
+            send(ex, 500, error("internal error: " + e.getMessage()), session);
         } finally {
             ex.close();
         }
@@ -184,7 +229,7 @@ public final class BridgeHttpServer {
 
     @FunctionalInterface
     private interface BinaryEndpoint {
-        PngReply handle(HttpExchange exchange) throws Exception;
+        PngReply handle(HttpExchange exchange, AgentSession session) throws Exception;
     }
 
     /** PNG body plus the render path actually used ("gl" or "topdown"), sent as a header. */
@@ -193,15 +238,15 @@ public final class BridgeHttpServer {
 
     private void handleBinary(HttpExchange ex, String method, BinaryEndpoint endpoint) throws IOException {
         try {
-            if (!token.equals(ex.getRequestHeaders().getFirst("X-Aibuild-Token"))) {
-                send(ex, 403, error("forbidden"));
+            if (!authorized(ex)) {
+                send(ex, 403, error("forbidden"), null);
                 return;
             }
             if (!method.equalsIgnoreCase(ex.getRequestMethod())) {
-                send(ex, 405, error("method not allowed"));
+                send(ex, 405, error("method not allowed"), null);
                 return;
             }
-            PngReply reply = endpoint.handle(ex);
+            PngReply reply = endpoint.handle(ex, resolveSession(ex));
             ex.getResponseHeaders().set("Content-Type", "image/png");
             ex.getResponseHeaders().set("X-Aibuild-Render-Mode", reply.renderMode());
             ex.sendResponseHeaders(200, reply.pngBytes().length);
@@ -209,21 +254,22 @@ public final class BridgeHttpServer {
                 os.write(reply.pngBytes());
             }
         } catch (ApiError e) {
-            send(ex, e.status, e.body);
+            send(ex, e.status, e.body, null);
         } catch (Exception e) {
             AiBuildMod.LOGGER.error("[aibuild] error handling {} {}", ex.getRequestMethod(), ex.getRequestURI(), e);
-            send(ex, 500, error("internal error: " + e.getMessage()));
+            send(ex, 500, error("internal error: " + e.getMessage()), null);
         } finally {
             ex.close();
         }
     }
 
-    private void send(HttpExchange ex, int status, JsonObject body) {
+    private void send(HttpExchange ex, int status, JsonObject body, AgentSession session) {
         try {
-            // Piggyback queued player messages onto every JSON response (except
-            // auth failures, which by definition do not reach the agent).
-            if (status != 403) {
-                List<String> messages = inbox.drain();
+            // Piggyback the session's queued player messages onto every JSON
+            // response (except auth failures, which by definition do not reach
+            // the agent). Each session drains only its own inbox.
+            if (status != 403 && session != null) {
+                List<String> messages = session.inbox().drain();
                 if (!messages.isEmpty()) {
                     JsonArray arr = new JsonArray();
                     for (String m : messages) {
@@ -265,7 +311,8 @@ public final class BridgeHttpServer {
 
     // ------------------------------------------------------------------ endpoints
 
-    private JsonObject fill(HttpExchange ex) throws Exception {
+    private JsonObject fill(HttpExchange ex, AgentSession session) throws Exception {
+        AgentSession s = requireSession(session);
         JsonObject body = readJsonBody(ex);
         int[] min = vec3(body, "min");
         int[] max = vec3(body, "max");
@@ -288,18 +335,20 @@ public final class BridgeHttpServer {
             throw badRequest("fill volume " + volume + " exceeds limit of " + JobManager.MAX_JOB_BLOCKS + " blocks");
         }
 
-        SiteGate.Bounds bounds = requireBounds();
+        SiteGate.Bounds bounds = requireBounds(s);
         BlockPos minPos = new BlockPos(minX, minY, minZ);
         BlockPos maxPos = new BlockPos(maxX, maxY, maxZ);
         BuildJob job = onMainThread(() -> {
             BlockState state = parseBlock(blockSpec);
             return jobManager.submitFill(server.overworld(), minPos, maxPos, state, mode, bounds,
-                    "fill " + blockSpec + " " + minPos.toShortString() + " ~ " + maxPos.toShortString());
+                    "fill " + blockSpec + " " + minPos.toShortString() + " ~ " + maxPos.toShortString(),
+                    s.sessionTag());
         });
         return jobId(job);
     }
 
-    private JsonObject setBlocks(HttpExchange ex) throws Exception {
+    private JsonObject setBlocks(HttpExchange ex, AgentSession session) throws Exception {
+        AgentSession s = requireSession(session);
         JsonObject body = readJsonBody(ex);
         JsonArray entries = requiredArray(body, "blocks");
         if (entries.size() > JobManager.MAX_SET_BLOCKS_ENTRIES) {
@@ -316,32 +365,33 @@ public final class BridgeHttpServer {
             JsonObject o = el.getAsJsonObject();
             raw.add(new RawEntry(requiredInt(o, "x"), requiredInt(o, "y"), requiredInt(o, "z"), requiredString(o, "block")));
         }
-        SiteGate.Bounds bounds = requireBounds();
+        SiteGate.Bounds bounds = requireBounds(s);
         BuildJob job = onMainThread(() -> {
             List<Placement> placements = new ArrayList<>(raw.size());
             for (RawEntry r : raw) {
                 placements.add(new Placement(new BlockPos(r.x(), r.y(), r.z()), parseBlock(r.spec()), false));
             }
             return jobManager.submitPlacements(server.overworld(), placements, bounds,
-                    "set_blocks " + raw.size() + " blocks");
+                    "set_blocks " + raw.size() + " blocks", s.sessionTag());
         });
         return jobId(job);
     }
 
-    private JsonObject setBlock(HttpExchange ex) throws Exception {
+    private JsonObject setBlock(HttpExchange ex, AgentSession session) throws Exception {
+        AgentSession s = requireSession(session);
         JsonObject body = readJsonBody(ex);
         int x = requiredInt(body, "x");
         int y = requiredInt(body, "y");
         int z = requiredInt(body, "z");
         String blockSpec = requiredString(body, "block");
-        SiteGate.Bounds bounds = requireBounds();
+        SiteGate.Bounds bounds = requireBounds(s);
         BuildJob job = onMainThread(() -> jobManager.submitPlacements(server.overworld(),
                 List.of(new Placement(new BlockPos(x, y, z), parseBlock(blockSpec), false)), bounds,
-                "set_block " + blockSpec + " @ " + x + " " + y + " " + z));
+                "set_block " + blockSpec + " @ " + x + " " + y + " " + z, s.sessionTag()));
         return jobId(job);
     }
 
-    private JsonObject searchBlocks(HttpExchange ex) throws Exception {
+    private JsonObject searchBlocks(HttpExchange ex, AgentSession session) throws Exception {
         JsonObject body = readJsonBody(ex);
         String query = requiredString(body, "query");
         JsonArray matches = new JsonArray();
@@ -353,7 +403,7 @@ public final class BridgeHttpServer {
         return res;
     }
 
-    private JsonObject jobStatus(HttpExchange ex) throws Exception {
+    private JsonObject jobStatus(HttpExchange ex, AgentSession session) throws Exception {
         String id = queryParam(ex, "id");
         if (id == null || id.isEmpty()) {
             throw badRequest("missing query parameter 'id'");
@@ -365,7 +415,7 @@ public final class BridgeHttpServer {
         return job.toJson();
     }
 
-    private JsonObject getBlock(HttpExchange ex) throws Exception {
+    private JsonObject getBlock(HttpExchange ex, AgentSession session) throws Exception {
         JsonObject body = readJsonBody(ex);
         BlockPos pos = new BlockPos(requiredInt(body, "x"), requiredInt(body, "y"), requiredInt(body, "z"));
         return onMainThread(() -> {
@@ -379,28 +429,37 @@ public final class BridgeHttpServer {
         });
     }
 
-    private JsonObject proposeSite(HttpExchange ex) throws Exception {
+    private JsonObject proposeSite(HttpExchange ex, AgentSession session) throws Exception {
+        AgentSession s = requireSession(session);
         JsonObject body = readJsonBody(ex);
         SiteGate.Bounds proposal = SiteGate.Bounds.of(vec3(body, "min"), vec3(body, "max"));
         if (proposal.volume() > SiteGate.MAX_VOLUME) {
             throw badRequest("proposed volume " + proposal.volume() + " exceeds limit of " + SiteGate.MAX_VOLUME + " blocks");
         }
         return onMainThread(() -> {
-            if (!gate.propose(proposal)) {
-                String why = gate.state() == SiteGate.State.CONFIRMED
-                        ? "site already confirmed for this session: " + gate.currentBounds().describe()
+            AgentSession conflict = sessions.findConflict(s, proposal);
+            if (conflict != null) {
+                SiteGate.Bounds other = conflict.gate().activeBounds();
+                throw new ApiError(409, error("proposed site intersects the bounds of running session #"
+                        + conflict.no() + " (" + (other != null ? other.describe() : "?")
+                        + ") — pick a non-overlapping area"));
+            }
+            if (!s.gate().propose(proposal)) {
+                String why = s.gate().state() == SiteGate.State.CONFIRMED
+                        ? "site already confirmed for this session: " + s.gate().currentBounds().describe()
                         : "another site proposal is already pending confirmation";
                 throw new ApiError(409, error(why));
             }
-            broadcastProposal(proposal);
+            broadcastProposal(s, proposal);
             JsonObject res = new JsonObject();
             res.addProperty("status", "pending_confirmation");
+            res.addProperty("session", s.no());
             res.addProperty("message", "等待玩家确认(/aiconfirm 或 /aireject);确认前写工具保持锁定");
             return res;
         });
     }
 
-    private JsonObject getTerrainSummary(HttpExchange ex) throws Exception {
+    private JsonObject getTerrainSummary(HttpExchange ex, AgentSession session) throws Exception {
         JsonObject body = readJsonBody(ex);
         JsonArray center = requiredArray(body, "center");
         if (center.size() != 2) {
@@ -418,7 +477,7 @@ public final class BridgeHttpServer {
         return res;
     }
 
-    private JsonObject getRegionSummary(HttpExchange ex) throws Exception {
+    private JsonObject getRegionSummary(HttpExchange ex, AgentSession session) throws Exception {
         JsonObject body = readJsonBody(ex);
         BlockPos[] box = regionBox(body);
         String text = onMainThread(() -> RegionSummary.generate(server.overworld(), box[0], box[1]));
@@ -434,10 +493,11 @@ public final class BridgeHttpServer {
      * shares the JVM with the client); when it is unavailable or fails, the
      * server-side top-down raster is returned instead, transparently to the
      * caller (the actual path is reported via the X-Aibuild-Render-Mode
-     * response header). The PNG is also written to {@code <world>/aibuild/renders/}
+     * response header). The PNG is also written to the session's
+     * {@code renders/} dir (or the aibuild root's for session-less requests)
      * so the player can look at what the AI saw.
      */
-    private PngReply renderRegion(HttpExchange ex) throws Exception {
+    private PngReply renderRegion(HttpExchange ex, AgentSession session) throws Exception {
         JsonObject body = readJsonBody(ex);
         BlockPos[] box = regionBox(body);
         BlockPos minPos = box[0];
@@ -476,7 +536,8 @@ public final class BridgeHttpServer {
         }
 
         try {
-            Path rendersDir = WorkDir.dirOf(server).resolve("renders");
+            Path root = WorkDir.dirOf(server);
+            Path rendersDir = (session != null ? session.workDir(root) : root).resolve("renders");
             Files.createDirectories(rendersDir);
             String stamp = RENDER_FILE_STAMP.format(LocalDateTime.now());
             Files.write(rendersDir.resolve("render_" + stamp + "_" + usedMode + ".png"), png);
@@ -503,9 +564,18 @@ public final class BridgeHttpServer {
         return new BlockPos[]{new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ)};
     }
 
+    /** Write tools need a session-bound token; the master token alone is not enough. */
+    private AgentSession requireSession(AgentSession session) throws ApiError {
+        if (session == null) {
+            throw new ApiError(409, error("no build session is bound to this request "
+                    + "(master token with no running session) — use a session token from that session's .kimi-code/mcp.json"));
+        }
+        return session;
+    }
+
     /** Bounds gate for write tools: 409 while the session has no confirmed range. */
-    private SiteGate.Bounds requireBounds() throws ApiError {
-        SiteGate.Bounds bounds = gate.currentBounds();
+    private SiteGate.Bounds requireBounds(AgentSession session) throws ApiError {
+        SiteGate.Bounds bounds = session.gate().currentBounds();
         if (bounds == null) {
             throw new ApiError(409, error("site not confirmed"));
         }
@@ -518,10 +588,11 @@ public final class BridgeHttpServer {
      * verified against 1.21.11: ClickEvent is an interface of records, the
      * client trims the optional leading "/" before sending the command).
      * With nobody online the message is logged and RCON/console can run the
-     * same commands.
+     * same commands. /aiconfirm acts on the NEWEST pending session.
      */
-    private void broadcastProposal(SiteGate.Bounds b) {
-        MutableComponent msg = Component.literal("[aibuild] AI proposes build site " + b.describe() + "  ");
+    private void broadcastProposal(AgentSession session, SiteGate.Bounds b) {
+        MutableComponent msg = Component.literal("[aibuild] #" + session.no()
+                + " AI proposes build site " + b.describe() + "  ");
         msg.append(Component.literal("[确认]").withStyle(Style.EMPTY
                 .withColor(ChatFormatting.GREEN).withBold(true)
                 .withClickEvent(new ClickEvent.RunCommand("/aiconfirm"))));
@@ -529,7 +600,7 @@ public final class BridgeHttpServer {
         msg.append(Component.literal("[拒绝]").withStyle(Style.EMPTY
                 .withColor(ChatFormatting.RED).withBold(true)
                 .withClickEvent(new ClickEvent.RunCommand("/aireject"))));
-        AiBuildMod.LOGGER.info("[aibuild] site proposed: {}", b.describe());
+        AiBuildMod.LOGGER.info("[aibuild] #{} site proposed: {}", session.no(), b.describe());
         server.getPlayerList().broadcastSystemMessage(msg, false);
     }
 
