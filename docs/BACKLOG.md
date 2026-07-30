@@ -6,17 +6,17 @@
 
 **背景**(2026-07-29 讨论定调):用户强烈倾向多 agent 协作;定论是**杂交架构**——
 
-**模型分工(2026-07-30 硅基流动实测+代金券覆盖确认)**:
+**模型分工(2026-07-30 终版:Kimi 原生梯队,放弃外部供货商)**:
 
 | 岗位 | 模型 | 依据 |
 | --- | --- | --- |
-| 规划/分解(planner) | K3(Kimi Code 主 agent) | 选址/拆任务/风格一致性;A/B 备选 DeepSeek-V3.2(券内) |
-| 终审/视觉验收 | **Qwen3-VL-32B-Instruct**(券内) | 实测 19.3s/张,结构描述精确+缺陷观察合格;N-1 轮初筛,英雄资产终审留 K3 |
-| 执行搬砖(worker) | **Qwen3-Coder-30B-A3B-Instruct**(券内) | 结构化输出+空间小任务全对(普通 30B 同测试窗户放错,代码版全对) |
-| 备选 | Qwen3-VL-30B-A3B-Instruct(券内,视觉备选)、GLM-4.5V、DeepSeek-V3.2 | 实测对比后定 |
-| 禁区 | 小模型不做审美裁决/规划(Project Sid:MC 空间推理是全线最弱;T2BM:GPT-4 端到端审美仅 38%) | 调研实证 |
+| 规划/分解(planner) | K3(Kimi Code managed) | 选址/拆任务/风格一致性 |
+| 终审/视觉验收 | K3 | 英雄资产审美终审(GDMC 证据:审美不外包给小模型) |
+| 执行搬砖(worker) | **K2.7 Coding**(managed,同套餐) | 用户套餐内自带,image_in+thinking+tool_use 全有,可自渲染自检;零新增成本、零外部限流 |
+| 短平快杂务 | K2.7 Coding Highspeed | 高速变体 |
+| ~~外部小模型~~ | 放弃 | SiliconFlow 券级限流风暴实测不可用于生产;百炼/Minimax/OpenRouter 免费档同属共享池病;按量付费 vs 套餐内自带,后者胜 |
 
-注意:DeepSeek-V4-Flash/Pro **不在**券内(实测 106s 也偏慢);Kimi K2 系不在券内。硅基流动端点 = OpenAI 兼容 `https://api.siliconflow.cn/v1`,接 Kimi Code `[secondary_model]`(`type="openai"` + base_url)即可。
+历史记录(2026-07-30 实测):SiliconFlow Qwen3-VL-32B(视觉 19.3s 合格)、Qwen3-Coder-30B(结构化全对)曾入选,但券级限流 429 频发且无缓存豁免,一晚上 7 次掐断 E0,判生产不可用。工人能力本身已验证合格(读任务书/风格卡/propose/放置零错误/渲染自检)。
 
 - **形态**:1 个规划 agent(强模型 K3:选址分区、风格一致性、任务拆分、终审)+ N 个 worker agent(便宜模型 Qwen/DeepSeek/Ollama 本地:执行规格明确的结构)+ 每 worker 自己的渲染自检环 + mod 侧确定性验收
 - **成本逻辑**:总 token 会增加,但 80% 的活挪到便宜 20-50 倍的模型上,总账省 5-10 倍;买的是墙钟时间和上下文隔离(避免单体长建造上下文膨胀/压缩丢细节)
