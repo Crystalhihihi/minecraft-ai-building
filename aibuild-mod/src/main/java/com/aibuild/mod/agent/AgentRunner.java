@@ -89,10 +89,21 @@ public final class AgentRunner {
 
     // ------------------------------------------------------------------ spawns
 
+    /** Spawn arg prefix: command plus optional configured model (-m). */
+    private List<String> newArgs(String... tail) {
+        List<String> args = new ArrayList<>();
+        args.add(config.resolvedAgentCommand());
+        if (config.agentModel() != null && !config.agentModel().isBlank()) {
+            args.add("-m");
+            args.add(config.agentModel());
+        }
+        args.addAll(List.of(tail));
+        return args;
+    }
+
     /** First spawn of the session: fresh task (task.json was written by the manager). */
     public synchronized void startNew() throws IOException {
-        List<String> args = List.of(
-                config.resolvedAgentCommand(),
+        List<String> args = newArgs(
                 "-p", "Read AGENTS.md and task.json in the current directory, then carry out the building task described in task.json.",
                 "--output-format", "stream-json");
         spawn(args);
@@ -104,8 +115,7 @@ public final class AgentRunner {
         if (session.kimiSessionId() == null) {
             throw new IOException("no session to resume");
         }
-        List<String> args = List.of(
-                config.resolvedAgentCommand(),
+        List<String> args = newArgs(
                 "-r", session.kimiSessionId(),
                 "-p", message,
                 "--output-format", "stream-json");
@@ -477,8 +487,7 @@ public final class AgentRunner {
             }
             try {
                 manager.prepareWorkDir(session); // refresh mcp.json (port/token) before the resume
-                List<String> args = List.of(
-                        config.resolvedAgentCommand(),
+                List<String> args = newArgs(
                         "-c", "-p", SELF_HEAL_PROMPT,
                         "--output-format", "stream-json");
                 spawn(args);

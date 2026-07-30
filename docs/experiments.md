@@ -23,7 +23,12 @@
 - **建成**:42×32 幕墙(高7+勒脚+crenellation.py 垛口)、四角圆塔(直径7高12,自写 manor_gen.py 生成锥顶)、门楼(3x4 门洞+iron_bars 闸门)、21×12 双层主楼(26 箭窗 arch_window.py + gable_roof.py)
 - **结论**:K3 单干 16 分钟一座合格庄园——这是 E4 要打败的锚点。注意它还自写生成器脚本(圆塔锥顶),代码建模已是本能
 
-## E3:mod 并发切片 —— 待做
+## E3:mod 并发切片 —— ✅ 通过(2026-07-31,commit d9be573)
+
+- **改动**:AgentSessionManager/AgentSession 新增(注册表上限 4、每会话 SiteGate/收件箱/token、sessions.json 原子落盘+重启恢复+旧 state.json 迁移);BridgeHttpServer 多 token 路由+propose 跨会话相交 409;AgentRunner 每会话进程引擎+429/异常退出 30s 自动 `kimi -c` 续跑(≤3 次);JobManager 快照按会话 tag 盖戳分账;/aistatus 新增
+- **E2E 五证据**:① 双会话并发建造实物互不干扰(消耗分账正确);② 相交 propose → 409;③ /aistatus 多行状态;④ 建造中途 stop → sessions.json 落 running+confirmed bounds,重启恢复并可 /aichat 续(实锤痛点闭环);⑤ taskkill 强杀 kimi → 30s 自愈续跑盖完,5/5 立方体验货
+- **偏差记录**:主 token 走最新 running 会话(无 running 写 409 读放行);超时不自愈(只自愈进程非零退出);冲突只统计 RUNNING 会话;/aichat 暂无会话号参数
+- **遗留**:DONE 会话 stale last_error 已修未回归;sessions/s<n>/ 只增不减需清理策略;每会话目录从 jar 重释放默认资产(旧根 styles/ 手改不带入)
 
 ## E4:并行 A/B —— 待做
 
