@@ -21,6 +21,8 @@ public final class ToolDispatcher {
 
     private final McBackendClient backend;
     private final BlocksFilePlacer filePlacer;
+    private final ArgumentCoercer coercer = new ArgumentCoercer(
+            message -> System.err.println("[mc-mcp-bridge] " + message));
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ToolDispatcher(McBackendClient backend) {
@@ -34,6 +36,11 @@ public final class ToolDispatcher {
      */
     public ObjectNode call(String name, JsonNode arguments) {
         JsonNode args = (arguments == null || arguments.isNull()) ? mapper.createObjectNode() : arguments;
+        try {
+            args = coercer.coerce(name, args);
+        } catch (ArgumentCoercer.CoercionException e) {
+            return textResult("Invalid " + name + " arguments: " + e.getMessage(), true);
+        }
         try {
             return switch (name) {
                 case Tools.FILL -> jsonResult(backend.postJson("/tools/fill", args));
