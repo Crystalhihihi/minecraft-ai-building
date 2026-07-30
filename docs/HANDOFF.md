@@ -1,55 +1,34 @@
-# 交接文档 — 2026-07-28(额度耗尽,29 号恢复)
+# 交接文档 — 2026-07-30 深夜(供压缩上下文后恢复)
 
-> 写给 29 号的自己/协作者:恢复时先读本文件,再看 spec 与 plan。
+> 读我即恢复全部关键状态。详细历史:git log;实验数据:`docs/experiments.md`;延后事项:`docs/BACKLOG.md`;调研:`docs/research/`(含 reflib 8 类目)。
 
-## 1. 现状快照
+## 当前里程碑
 
-**已完成并提交(git 工作区干净)**:
+- **M1(盲盖闭环)/ M2(安全闭环)/ M3(质量闭环)全部完成**:风格卡片 6 张(含 suzhou_garden)、模式库 10+、渲染自检(GL+topdown)、undo、异步 job、形状回放、support_check、bridge 宽容化(Postel)
+- **真机验证通过**:苏式园林终测合格;教堂四缺陷(鱼鳞顶/偏殿/卡墙/平板墙)已修复
+- **E 系列实验**(docs/experiments.md):
+  - E0 ✅ 工人(K2.7)能力合格;发现"选址审美是 planner 的活"(塔被盖进山腰)
+  - E1 ✅ 并发放置非瓶颈(热区块 ~161k 块/秒,瓶颈只有模型延迟)
+  - E2 ✅ K3 单 agent 庄园基线:**16.1 分钟 / 36 轮 / 52 调用 / 零失败**(幕墙+圆塔+门楼+主楼)
+  - **E3 进行中(agent-35)**:mod 并发会话切片——会话注册表(上限4)、每会话 SiteGate(边界相交 409)、会话 token 路由、**选址状态落盘**、**429 自动 -c 续跑**。代码已改完构建过,正在 dev server E2E
+  - E4 待做:K3 planner + 4×K2.7 worker 同庄园 vs E2 基线;E5 疯狂修改压测
 
-| 阶段 | 内容 | 验证 |
-| --- | --- | --- |
-| 设计 | `docs/specs/2026-07-27-minecraft-ai-building-design.md`(14 节,含风格系统 §5.4) | 用户逐节批准 + 两轮修正 |
-| 调研 | 前人项目/离屏渲染/工具链/MCP 桥,结论已固化进 spec | — |
-| 计划 | `docs/plans/2026-07-27-implementation-plan.md` | 用户批准 |
-| Phase 0 | kimi CLI 行为验证(见 §4) | 全部实测通过 |
-| Phase 1 | `mc-mcp-bridge/`:手写 JSON-RPC stdio MCP server + HTTP 翻译 | **37/37 单测绿** |
-| Phase 2 | `aibuild-mod/`:Fabric 1.21.11 骨架 + HTTP bridge(5 端点)+ 异步分帧 job | curl **8/8** |
-| Phase 3 | AgentRunner:`/aibuild` `/aichat` `/aicancel` + 续聊 + 收件箱捎带 | dev server E2E 通过;**用户真机 M1 测试:合格、速度快** |
-| Phase 4 | 选区杖 + `propose_site` 两阶段确认 + `get_terrain_summary` + 写工具边界强制(SiteGate) | dev server E2E 三路径全过 |
+## 模型分工终版(BACKLOG B1)
 
-**已部署**:PCL 实例 `D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\aibuild-1.0.0.jar` = **Phase 4 版**(重建命令:在 `aibuild-mod/` 跑 `./gradlew build`,产物在 `build/libs/`,复制到该 mods 目录)。
+**K3 规划+终审,K2.7 Coding 搬砖,全在 managed 套餐内。外部供货商全部放弃**(SiliconFlow 券级限流 429 实测生产不可用;百炼/MiniMax/OpenRouter 免费档同属共享池病)。
 
-**最近提交**:`fb93be6` Phase 4 ← `f199602` Phase 3 ← `ba5b497` Phase 2 ← `0e05a01` Phase 1。
+## 环境事实(恢复时不用重新调研)
 
-## 2. 中止点
+- mod 部署:`aibuild-mod && ./gradlew build` → 复制 `build/libs/aibuild-1.0.0.jar` 到 `D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\`
+- dev 测试:`aibuild-mod && ./gradlew runServer`(headless),RCON `python run/rcon.py "cmd"`,bridge.json 在 `run/aibuild/`
+- 手动驱动 agent:在世界 `aibuild/` 工作目录跑 `kimi -p/-c -p -m <alias> --output-format stream-json`;模型 alias:`kimi-code/k3`、`kimi-code/kimi-for-coding`(K2.7)、`kimi-code/kimi-for-coding-highspeed`
+- **每次 server 重启必须同步 mcp.json 的 port/token**;SiteGate 重启归零(E3 正在修)
+- Blender spike 已通(Kimi→MCP→Blender 9876),精灵树专项用得上(PCG 算法栈在 `docs/research/2026-07-29-pcg-algorithms.md`)
+- 硅基 key 已在聊天中泄露过,建议轮换
 
-- **Phase 5(快照 + `/aiundo`)子代理已杀,未产生任何代码变更**(杀掉时 git 干净)。29 号从这里继续。
-- Phase 5 任务要点(重述,免去翻会话):每次 `/aibuild` 在 bounds 确定后用 `StructureTemplate#fillFromWorld` 快照到 `<世界>/aibuild/snapshots/`(留最近 10 份);`/aiundo` 只回退最近一次,**恢复必须复用 JobManager 分帧机制**(禁止原子 placeInWorld 26 万块);agent 运行中禁 undo;mojmap 读取模板方块列表的 API 需 javap 核实。
+## 下一步(按序)
 
-## 3. 待办(按序)
-
-1. **Phase 5**:快照 + undo(见上)
-2. **Phase 6**:渲染 `render_region`(主方案:WorldMesh+离屏 framebuffer,移植 Isometric Renders 的 MIT 模式;V1 回退:MapColor 俯视光栅)——**有一个用户未回答的决策**:渲染是纯客户端代码,dev server 测不了,要么允许我 `gradlew runClient`(会在用户桌面弹 MC 窗口,自动测完自动关),要么用户真人测。29 号先问
-3. **Phase 7**:AGENTS.md 打磨 + 3-5 张手写 baseline 风格卡片(`styles/`)+ 三场景验收
-
-## 4. 关键环境事实(恢复时免重新调研)
-
-- **kimi CLI**:`C:\Users\zengd\.kimi-code\bin\kimi.exe`(0.29.2,官方脚本安装,与 Kimi 桌面版共享 `~/.kimi-code` 登录态)。**每次 agent 调用消耗用户模型额度——E2E 一律用最小任务,能 curl/RCON 测的绝不调 AI**
-- **CLI 行为**(0.29.2 实测):`kimi -p --output-format stream-json` 输出 JSONL;assistant 文本 `{"role":"assistant","content":...}`;**session id 在 meta 行**(`session.resume_hint`);续聊 `kimi -r <id> -p`(首选)或 `-c -p`;长回复期间 stdout/stderr 全程零字节是常态(静默超时=双通道无字节,默认 20min)
-- **工具链**:MC 1.21.11 + Mojang mappings(`loom.officialMojangMappings()`)+ Loom 1.17-SNAPSHOT + Gradle 9.5.1(wrapper 已含腾讯镜像)+ Java 21(Zulu 在 PATH)+ Fabric API 0.141.5+1.21.11
-- **dev server 测试法**:`aibuild-mod/` 下 `./gradlew runServer`(headless);`run/` 已配 eula/RCON/`run/rcon.py` 驱动脚本;无玩家时需 `forceload` 否则区块不加载(1.21 已取消 spawn chunks);空服 60s 会暂停 tick(原版行为)
-- **1.21.11 API 变动**(已踩过):`Identifier`(无 ResourceLocation)、`Entity#level()`、`Commands.hasPermission(LEVEL_GAMEMASTERS)`、`getRespawnData().pos()`、物品注册带 RegistryKey、`ClickEvent.RunCommand("/cmd")` 挂 `Style`
-- **mod jar 内含** bridge jar(`assets/aibuild/mc-mcp-bridge.jar`,gradle 任务自动从兄弟模块构建复制)
-
-## 5. 真机待验证项(29 号用户测)
-
-- [ ] `propose_site` 聊天栏**可点击 [确认]/[拒绝] 按钮**(API 字节码核实过,真实客户端未点过)
-- [ ] 选区杖左/右键点击设定两角(物品 `/give @s aibuild:selection_wand`)
-- [ ] 越界拒放(界外条目 job 报 `out_of_bounds` failed)
-- [ ] `/aiselect show/clear/set`
-
-## 6. 注意事项
-
-- RCON 控制台中文回显乱码仅为 Windows 控制台编码,文件与游戏内均为正常 UTF-8
-- dev server `run/` 目录在 .gitignore 内(含 rcon.py 测试工具,不进仓库)
-- 曾被杀掉的 32³ obsidian 测试任务在 dev 世界 y≈220 有残留方块(测试世界,无所谓)
+1. 等 E3(agent-35)交卷 → 审查+提交+重建部署
+2. E4 并行 A/B:同庄园,planner 拆 4 区 + 4 worker,对比 E2 基线
+3. E5 疯狂修改压测
+4. 之后:复杂建筑阶段验收(有设计的中世纪庄园)→ 精灵树专项(PCG+Blender)→ 多建筑群景观
