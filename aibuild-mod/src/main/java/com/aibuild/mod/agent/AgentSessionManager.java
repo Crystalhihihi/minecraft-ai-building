@@ -17,6 +17,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -221,6 +222,15 @@ public final class AgentSessionManager {
                         + conflict.gate().activeBounds().describe() + ")——换一块不相交的区域");
             }
         }
+        // @path: read the real task brief from a file under the aibuild root
+        // (RCON/chat command length limits make long inline descriptions impossible).
+        if (description.startsWith("@")) {
+            Path taskFile = aibuildRoot().resolve(description.substring(1)).normalize();
+            if (!taskFile.startsWith(aibuildRoot()) || !Files.isRegularFile(taskFile)) {
+                throw new IOException("task file not found under aibuild root: " + description.substring(1));
+            }
+            description = Files.readString(taskFile, StandardCharsets.UTF_8).trim();
+        }
 
         int no = nextSessionNo++;
         AgentSession s = new AgentSession(no, UUID.randomUUID().toString(), "sessions/s" + no);
@@ -249,7 +259,8 @@ public final class AgentSessionManager {
         }
         persist();
         refreshBridgeJson();
-        return "agent started (session #" + no + "): " + description + (selection != null
+        String brief = description.length() > 60 ? description.substring(0, 60) + "…" : description;
+        return "agent started (session #" + no + "): " + brief + (selection != null
                 ? " (bounds: " + selection.describe() + ")"
                 : " (no selection — AI will propose a site for confirmation)");
     }
