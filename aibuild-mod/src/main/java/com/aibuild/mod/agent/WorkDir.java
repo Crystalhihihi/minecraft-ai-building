@@ -40,6 +40,7 @@ public final class WorkDir {
             "styles/waterfront_dock.json",
             "styles/stilt_house.json",
             "styles/nordic_villa.json",
+            "styles/suzhou_garden.json",
             "patterns/gable_roof.py",
             "patterns/gable_roof.json",
             "patterns/hip_roof.py",

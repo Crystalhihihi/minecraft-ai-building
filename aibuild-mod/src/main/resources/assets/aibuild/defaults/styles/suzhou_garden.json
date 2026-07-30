@@ -1,0 +1,68 @@
+{
+  "style_id": "suzhou_garden",
+  "name": "Suzhou Garden (苏式园林)",
+  "use_for": "Chinese classical gardens, Jiangnan gardens, 园林/亭台楼阁/曲桥回廊/山水园",
+  "proportions": {
+    "layout": "center pond (中心水池), buildings ring the water, winding paths between; NO axis symmetry except the main hall",
+    "storey_height": "3-4 for halls (厅), pavilions (亭) single-storey open",
+    "wall_thickness": 1,
+    "typical_pavilion_footprint": "3x3 ~ 5x5 (亭), 5x7 ~ 9x11 for main hall (厅)",
+    "corridor_width": "2 (游廊/回廊), columns every 3-4",
+    "bridge_width": "2 (曲桥 zigzag, 3 or 5 bends)",
+    "garden_wall_height": "3-4, white with dark tile cap",
+    "door_height": 2
+  },
+  "materials": {
+    "primary": [
+      "minecraft:white_concrete",
+      "minecraft:smooth_quartz"
+    ],
+    "primary_mix": "white walls: 85% white_concrete / 15% smooth_quartz, mixed deterministically per-position",
+    "secondary": [
+      "minecraft:dark_oak_planks",
+      "minecraft:dark_oak_log",
+      "minecraft:spruce_log"
+    ],
+    "secondary_use": "columns, beams, railing, corridor structure, door/window frames (dark timber on white walls is the signature contrast)",
+    "accent": [
+      "minecraft:stone",
+      "minecraft:andesite",
+      "minecraft:cobblestone",
+      "minecraft:mossy_cobblestone"
+    ],
+    "accent_use": "rockery (假山/湖石: stacked stone with mossy mixing, irregular silhouette), stone lanterns, stepping stones",
+    "roof": [
+      "minecraft:deepslate_tile_stairs",
+      "minecraft:deepslate_tile_slab"
+    ]
+  },
+  "roof": {
+    "type": "hip (歇山) for halls and square pavilions, conical point (攒尖) for round/square small pavilions; flying eaves with upturned corners (飞檐翘角)",
+    "slope": "45 degrees at ridge, softening to ~30 near eaves (举折 curve); corners upturn 1-2",
+    "overhang": "1-2 (deeper than western roofs; eaves cast shadow band on white walls)",
+    "material": "deepslate_tile_stairs (黛瓦) — always dark grey, distinct from white walls",
+    "pattern": "patterns/hip_roof.py; upturn corners manually 1-2 at four corners"
+  },
+  "windows": {
+    "pattern": "lattice windows (漏窗): decorative openings in white garden walls, geometric pattern from dark fence/bars; hall windows are full-height dark timber lattice",
+    "size": "1x2 or 2x2 for lattice, full bay for halls",
+    "material": ["minecraft:dark_oak_fence", "minecraft:iron_bars"],
+    "frame": "dark_oak trim around the opening",
+    "pattern_script": "none — compose lattice manually per opening"
+  },
+  "details": {
+    "moon_gate": "circular opening in white wall (月洞门), diameter 4-5 (odd), white frame ring, leads between garden zones",
+    "pond": "center water body, irregular shoreline (no circles/rectangles), depth 1-2, lily pads + sugar cane clusters at edges, gravel/sand bottom mixed",
+    "zigzag_bridge": "spruce_planks deck width 2, 3 or 5 right-angle bends crossing the pond to the island pavilion, low dark railing",
+    "corridor": "covered winding walkway (游廊) along wall or water: dark columns every 3-4, hip roof deepslate tiles, half-height white balustrade wall with dark cap",
+    "rockery": "stacked stone mountain (假山) 3-6 high, stone+andesite+cobblestone+mossy mix, irregular overhangs, pine/spruce sapling on top, stone lantern at foot",
+    "planting": "bamboo clusters (3-7) at wall corners, pine on rockery, banana leaf illusion (broad-leaf plants) near halls, plum/cherry accent tree near water, never lawns of flowers",
+    "paving": "mixed pebble paths: gravel+stone+cobble+stone_bricks deterministic mix, 2-3 wide, meandering (no straight runs > 7)",
+    "lighting": "stone lanterns (石灯笼: stone base + dark cap + glowstone/sea_lantern inside) at path bends and pond edges; wall-top dark lamps every 6-8; interior lantern per room",
+    "depth": {
+      "pilaster": {"enabled": false, "note": "Chinese walls stay flat; depth comes from eaves shadow and dark timber frames"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_stairs", "corner_material": "minecraft:dark_oak_log", "sill_material": "minecraft:dark_oak_slab"},
+      "string_course": {"enabled": false, "note": "use dark timber beam lines at column tops instead"}
+    }
+  }
+}
