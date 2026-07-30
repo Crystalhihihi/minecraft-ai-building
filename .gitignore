@@ -24,3 +24,7 @@ Thumbs.db
 
 # 本地实验与 Phase 0 验证产物
 scratch/
+
+# Python 缓存
+__pycache__/
+*.pyc
