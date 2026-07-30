@@ -57,8 +57,10 @@
     "corridor": "covered winding walkway (游廊) along wall or water: dark columns every 3-4, hip roof deepslate tiles, half-height white balustrade wall with dark cap",
     "rockery": "stacked stone mountain (假山) 3-6 high, stone+andesite+cobblestone+mossy mix, irregular overhangs, pine/spruce sapling on top, stone lantern at foot",
     "planting": "bamboo clusters (3-7) at wall corners, pine on rockery, banana leaf illusion (broad-leaf plants) near halls, plum/cherry accent tree near water, never lawns of flowers",
-    "paving": "mixed pebble paths: gravel+stone+cobble+stone_bricks deterministic mix, 2-3 wide, meandering (no straight runs > 7)",
-    "lighting": "stone lanterns (石灯笼: stone base + dark cap + glowstone/sea_lantern inside) at path bends and pond edges; wall-top dark lamps every 6-8; interior lantern per room",
+    "paving": "mixed pebble paths: gravel+stone+cobble+stone_bricks deterministic mix, width 3 (min), meandering (no straight runs > 7)",
+    "lighting": "stone lanterns (石灯笼: stone base + dark cap + glowstone/sea_lantern inside) at EVERY path bend and pond corner; wall-top dark lamps every 6-8; lanterns on corridor column tops and bridge posts; interior lantern per room",
+    "railing": "bridge and corridor railings are CONTINUOUS, never stub posts: dark_oak_fence run + dark_oak_slab cap on top, posts (log pillar) only every 3-4; corridor balustrade = half-height white wall + dark fence + slab cap",
+    "decoration_density": "RICH, not sparse — Suzhou gardens are dense with small details: lantern at every turn, plants grouped at every corner, rail/cap on every edge, lattice windows on every white wall run; every edge and corner should carry one deliberate detail",
     "depth": {
       "pilaster": {"enabled": false, "note": "Chinese walls stay flat; depth comes from eaves shadow and dark timber frames"},
       "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_stairs", "corner_material": "minecraft:dark_oak_log", "sill_material": "minecraft:dark_oak_slab"},
