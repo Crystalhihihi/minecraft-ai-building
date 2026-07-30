@@ -64,6 +64,7 @@ public final class WorkDir {
             "patterns/window_trim.json",
             "patterns/validators/symmetry_check.py",
             "patterns/validators/collision_check.py",
+            "patterns/validators/support_check.py",
             "blocks.md");
 
     private WorkDir() {
@@ -295,11 +296,21 @@ public final class WorkDir {
               `details.depth` values from your style card instead of
               freehanding (or skipping) them.
             - VALIDATORS: `patterns/validators/` holds deterministic
-              self-check scripts (symmetry_check.py, collision_check.py).
-              They read the same JSON block files as the generators, print a
-              JSON diff report, and exit 0 = pass / 1 = differences found.
-              Run them in your shell BEFORE placing — they catch coordinate
-              drift for zero AI tokens.
+              self-check scripts (symmetry_check.py, collision_check.py,
+              support_check.py). They read the same JSON block files as the
+              generators, print a JSON diff report, and exit 0 = pass / 1 =
+              differences found. Run them in your shell BEFORE placing — they
+              catch coordinate drift for zero AI tokens.
+            - STAIRS & SLABS (context states, not geometry): a stair's
+              `facing` is the direction it ASCENDS toward — the tall back side
+              faces uphill / against the wall, the step faces the walker.
+              State each stair row's facing in plan.md; never emit stairs
+              without facing. A top slab `[type=top]` must have a block
+              directly below it (or it renders floating); vertical stacks
+              keep y continuous (no skipping). Before placing any script
+              output containing slabs, run
+              `python patterns/validators/support_check.py --params '{"blocks":"<file>.json","base":"walls.json"}'`
+              — it must exit 0.
 
             ## Tools (MCP server `aibuild`)
 
