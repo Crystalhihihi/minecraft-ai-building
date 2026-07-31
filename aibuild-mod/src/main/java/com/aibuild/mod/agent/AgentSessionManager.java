@@ -118,8 +118,41 @@ public final class AgentSessionManager {
         for (AgentSession s : sessions.values()) {
             s.gate().setOnChange(this::persist);
         }
+        backfillTokenUsage();
         persist();
         refreshBridgeJson();
+    }
+
+    /**
+     * One-shot token-bill backfill for sessions restored from disk that have a
+     * kimi session id but no recorded usage yet (they ran before billing
+     * existed): sums their wire.jsonl usage records once. Absolute totals, so
+     * re-running it on later starts is a no-op. Best-effort.
+     */
+    private void backfillTokenUsage() {
+        int backfilled = 0;
+        for (AgentSession s : sessions.values()) {
+            if (s.kimiSessionId() == null || s.totalTokens() > 0) {
+                continue;
+            }
+            try {
+                TokenUsage total = TokenUsage.sumWireRecords(s.kimiSessionId());
+                if (total == null) {
+                    continue;
+                }
+                synchronized (s) {
+                    s.tokenInput = Math.max(s.tokenInput, total.input());
+                    s.tokenOutput = Math.max(s.tokenOutput, total.output());
+                    s.tokenCacheRead = Math.max(s.tokenCacheRead, total.cacheRead());
+                }
+                backfilled++;
+            } catch (Exception e) {
+                AiBuildMod.LOGGER.warn("[aibuild] token usage backfill failed for session #{}", s.no(), e);
+            }
+        }
+        if (backfilled > 0) {
+            AiBuildMod.LOGGER.info("[aibuild] backfilled token usage for {} session(s)", backfilled);
+        }
     }
 
     public synchronized void onServerStopping() {
@@ -225,8 +258,9 @@ public final class AgentSessionManager {
         // @path: read the real task brief from a file under the aibuild root
         // (RCON/chat command length limits make long inline descriptions impossible).
         if (description.startsWith("@")) {
-            Path taskFile = aibuildRoot().resolve(description.substring(1)).normalize();
-            if (!taskFile.startsWith(aibuildRoot()) || !Files.isRegularFile(taskFile)) {
+            Path root = aibuildRoot().toAbsolutePath().normalize();
+            Path taskFile = root.resolve(description.substring(1)).normalize();
+            if (!taskFile.startsWith(root) || !Files.isRegularFile(taskFile)) {
                 throw new IOException("task file not found under aibuild root: " + description.substring(1));
             }
             description = Files.readString(taskFile, StandardCharsets.UTF_8).trim();
@@ -341,6 +375,9 @@ public final class AgentSessionManager {
             };
             sb.append(" |").append(gateNote);
             sb.append(" | ").append(s.statsSummary());
+            if (s.totalTokens() > 0) {
+                sb.append(" | ").append(s.tokenSummary());
+            }
             if (s.kimiSessionId() != null) {
                 sb.append(" | kimi ").append(s.kimiSessionId(), 0, Math.min(8, s.kimiSessionId().length())).append("…");
             }
@@ -415,6 +452,46 @@ public final class AgentSessionManager {
             }
         }
         return null;
+    }
+
+    /** Occupied-map entry: one session (any status) with confirmed bounds. */
+    public record OccupiedSite(int sessionNo, SiteGate.Bounds bounds) {
+    }
+
+    /**
+     * The occupied map: confirmed bounds of EVERY session that has one, any
+     * status (DONE/FAILED/CANCELLED/RUNNING — tiny test boxes count too).
+     * Used by analyze_site to keep new builds off previously built ground.
+     */
+    public synchronized List<OccupiedSite> occupiedSites() {
+        List<OccupiedSite> out = new ArrayList<>();
+        for (AgentSession s : sessions.values()) {
+            SiteGate.Bounds b = s.gate().currentBounds();
+            if (b != null) {
+                out.add(new OccupiedSite(s.no(), b));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Occupied-map overlap for the propose_site soft warning: non-RUNNING
+     * sessions (excluding {@code self}) whose confirmed bounds intersect
+     * {@code b}. RUNNING sessions are covered by the hard 409 in
+     * {@link #findConflict}; these historical overlaps only warn, never block.
+     */
+    public synchronized List<AgentSession> occupiedOverlap(AgentSession self, SiteGate.Bounds b) {
+        List<AgentSession> out = new ArrayList<>();
+        for (AgentSession s : sessions.values()) {
+            if (s == self || s.status() == AgentSession.Status.RUNNING) {
+                continue;
+            }
+            SiteGate.Bounds other = s.gate().currentBounds();
+            if (other != null && other.intersects(b)) {
+                out.add(s);
+            }
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------ runner support

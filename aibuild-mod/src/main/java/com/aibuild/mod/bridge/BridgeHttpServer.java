@@ -99,6 +99,7 @@ public final class BridgeHttpServer {
         http.createContext("/tools/search_blocks", ex -> handle(ex, "POST", this::searchBlocks));
         http.createContext("/tools/propose_site", ex -> handle(ex, "POST", this::proposeSite));
         http.createContext("/tools/get_terrain_summary", ex -> handle(ex, "POST", this::getTerrainSummary));
+        http.createContext("/tools/analyze_site", ex -> handle(ex, "POST", this::analyzeSite));
         http.createContext("/tools/get_region_summary", ex -> handle(ex, "POST", this::getRegionSummary));
         http.createContext("/tools/render_region", ex -> handleBinary(ex, "POST", this::renderRegion));
         http.setExecutor(Executors.newCachedThreadPool(r -> {
@@ -455,6 +456,19 @@ public final class BridgeHttpServer {
             res.addProperty("status", "pending_confirmation");
             res.addProperty("session", s.no());
             res.addProperty("message", "等待玩家确认(/aiconfirm 或 /aireject);确认前写工具保持锁定");
+            // 已占用地图软警告: 与历史会话(DONE/FAILED/CANCELLED)的 confirmed bounds
+            // 相交时附加 warning — 不拦截,只提醒 AI 这块地盖过东西(RUNNING 相交已在上面 409)。
+            List<AgentSession> overlaps = sessions.occupiedOverlap(s, proposal);
+            if (!overlaps.isEmpty()) {
+                StringBuilder warn = new StringBuilder("warning: overlaps previously built area of ");
+                for (int i = 0; i < overlaps.size(); i++) {
+                    if (i > 0) {
+                        warn.append(", ");
+                    }
+                    warn.append("session #").append(overlaps.get(i).no());
+                }
+                res.addProperty("warning", warn.toString());
+            }
             return res;
         });
     }
@@ -472,6 +486,31 @@ public final class BridgeHttpServer {
             throw badRequest("radius must be between 1 and " + TerrainSummary.MAX_RADIUS);
         }
         String text = onMainThread(() -> TerrainSummary.generate(server.overworld(), cx, cz, radius));
+        JsonObject res = new JsonObject();
+        res.addProperty("text", text);
+        return res;
+    }
+
+    /**
+     * analyze_site: read-only site-selection scout (master token works with no
+     * running session, like get_terrain_summary). Per 16x16 candidate tile:
+     * ground mean/stddev, cut+fill estimate, water share, tree count, and the
+     * conflict list against the occupied map (all sessions' confirmed bounds).
+     */
+    private JsonObject analyzeSite(HttpExchange ex, AgentSession session) throws Exception {
+        JsonObject body = readJsonBody(ex);
+        JsonArray center = requiredArray(body, "center");
+        if (center.size() != 2) {
+            throw badRequest("'center' must be [x,z]");
+        }
+        int cx = center.get(0).getAsInt();
+        int cz = center.get(1).getAsInt();
+        int radius = requiredInt(body, "radius");
+        if (radius < 1 || radius > SiteAnalyzer.MAX_RADIUS) {
+            throw badRequest("radius must be between 1 and " + SiteAnalyzer.MAX_RADIUS);
+        }
+        List<AgentSessionManager.OccupiedSite> occupied = sessions.occupiedSites();
+        String text = onMainThread(() -> SiteAnalyzer.generate(server.overworld(), cx, cz, radius, occupied));
         JsonObject res = new JsonObject();
         res.addProperty("text", text);
         return res;

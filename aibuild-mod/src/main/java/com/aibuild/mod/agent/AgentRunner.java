@@ -234,6 +234,17 @@ public final class AgentRunner {
         } catch (Exception e) {
             return; // not JSON — already in the log file
         }
+        // Token 账单的 stream-json 通道: 当前 kimi 版本(0.30.0)的 stream-json 不带
+        // usage(见 TokenUsage 注释),这里是面向未来版本的兜底;真正的来源是 foldStats
+        // 里的 wire.jsonl 汇总。
+        TokenUsage usage = TokenUsage.fromStreamJson(o);
+        if (usage != null) {
+            synchronized (session) {
+                session.tokenInput += usage.input();
+                session.tokenOutput += usage.output();
+                session.tokenCacheRead += usage.cacheRead();
+            }
+        }
         String role = o.has("role") && o.get("role").isJsonPrimitive() ? o.get("role").getAsString() : "";
         switch (role) {
             case "assistant" -> {
@@ -463,6 +474,32 @@ public final class AgentRunner {
                 session.blocksPlaced += Math.max(0, jobManager.placedForTag(session.sessionTag()) - session.placedBaseline);
             }
             session.wallMillis += Math.max(0, System.currentTimeMillis() - session.wallStartMillis);
+        }
+        harvestTokenUsage();
+    }
+
+    /**
+     * Token 账单: 从 kimi 会话存储(wire.jsonl)汇总本会话的 usage.record 绝对总量,
+     * 取 max 写回 — 自愈续跑 / /aichat 续聊跑的是同一个 kimi session,wire 单调增长,
+     * 所以跨进程、跨服务器重启都不会重复计数(见 TokenUsage)。
+     */
+    private void harvestTokenUsage() {
+        String kimiId = session.kimiSessionId();
+        if (kimiId == null) {
+            return;
+        }
+        try {
+            TokenUsage total = TokenUsage.sumWireRecords(kimiId);
+            if (total == null) {
+                return;
+            }
+            synchronized (session) {
+                session.tokenInput = Math.max(session.tokenInput, total.input());
+                session.tokenOutput = Math.max(session.tokenOutput, total.output());
+                session.tokenCacheRead = Math.max(session.tokenCacheRead, total.cacheRead());
+            }
+        } catch (Exception e) {
+            AiBuildMod.LOGGER.warn("[aibuild] {} failed to harvest token usage", tag(), e);
         }
     }
 

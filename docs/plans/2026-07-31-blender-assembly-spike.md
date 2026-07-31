@@ -32,3 +32,13 @@
 - blender-mcp addon 已在 scratch/blender-mcp/addon.py,曾在本机跑通过(tree spike)
 - Blender 4.2.23 在 D:\blender-4.2.23-windows-x64
 - 待做:module_gen.py 编写、模块库生成、装配 agent 试跑、导出器、游戏内对比
+
+## 结果(2026-07-31 探针完成,✅ 朝向零错误达成)
+
+- 产物:`scratch/blender-spike/`{module_gen.py(17 模块/476 方块),assemble_chapel.py(33 实例),export_blocks.py(808 块),place_rcon.py,verify_mc.py,chapel_blocks.json,renders/}
+- **朝向错误数 = 0**(808/808 块 get_block 逐块回读,id/属性/楼梯 facing/half/shape 全对;游戏内直建上轮 >10 处)
+- 导出器零重叠块、单连通体;Blender 渲染 4 视角+顶视与 MC render_region topdown 一致
+- 装配 33 实例一次跑完;2 轮自查修正(90° 旋转 cell 映射 off-by-one、尖顶环悬空)
+- 选址:任务建议区 x[-80,-60] z[200,230] 实为海底(床岩 y=-64),已用 analyze_site 改址 (-78,-92) 平地;海底误建已清理复原
+- 卡点:①bridge 写工具需 RUNNING 会话+confirmed SiteGate,无会话时只能用 RCON /setblock 旁路;②vanilla fill 对未加载区块直接报错,需 get_block 预加载;③collection instance 不吃 object color,Workbench 需每方块独立 mesh+材质
+- 通道:kimi 会话未挂 blender MCP 工具,改用 addon 原生 9876 socket 直连(blender_client.py),协议同 blender-mcp

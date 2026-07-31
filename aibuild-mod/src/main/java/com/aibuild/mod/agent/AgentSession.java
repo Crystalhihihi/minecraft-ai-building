@@ -50,6 +50,10 @@ public final class AgentSession {
     final Map<String, Integer> toolCounts = new LinkedHashMap<>();
     long blocksPlaced;
     long wallMillis;
+    // token 账单(同样跨进程累计): input = 非缓存输入 + 缓存创建, cacheRead = 缓存读取
+    long tokenInput;
+    long tokenOutput;
+    long tokenCacheRead;
 
     long createdAtMillis = System.currentTimeMillis();
     Long endedAtMillis;
@@ -111,6 +115,20 @@ public final class AgentSession {
                 + (secs / 60) + " 分 " + (secs % 60) + " 秒";
     }
 
+    public synchronized long totalTokens() {
+        return tokenInput + tokenOutput + tokenCacheRead;
+    }
+
+    /** Short token bill: "12.3k in / 4.5k out / 112.3k cache" (cache part omitted when zero). */
+    public synchronized String tokenSummary() {
+        String s = formatTokens(tokenInput) + " in / " + formatTokens(tokenOutput) + " out";
+        return tokenCacheRead > 0 ? s + " / " + formatTokens(tokenCacheRead) + " cache" : s;
+    }
+
+    static String formatTokens(long n) {
+        return n >= 1000 ? String.format(java.util.Locale.ROOT, "%.1fk", n / 1000.0) : Long.toString(n);
+    }
+
     // ------------------------------------------------------------------ sessions.json
 
     synchronized JsonObject toJson() {
@@ -132,6 +150,9 @@ public final class AgentSession {
         stats.addProperty("tool_calls", toolCalls);
         stats.addProperty("blocks_placed", blocksPlaced);
         stats.addProperty("wall_ms", wallMillis);
+        stats.addProperty("token_in", tokenInput);
+        stats.addProperty("token_out", tokenOutput);
+        stats.addProperty("token_cache_read", tokenCacheRead);
         JsonObject tools = new JsonObject();
         toolCounts.forEach((name, count) -> tools.addProperty(name, count));
         stats.add("tools", tools);
@@ -170,6 +191,9 @@ public final class AgentSession {
             s.toolCalls = stats.has("tool_calls") ? stats.get("tool_calls").getAsInt() : 0;
             s.blocksPlaced = stats.has("blocks_placed") ? stats.get("blocks_placed").getAsLong() : 0;
             s.wallMillis = stats.has("wall_ms") ? stats.get("wall_ms").getAsLong() : 0;
+            s.tokenInput = stats.has("token_in") ? stats.get("token_in").getAsLong() : 0;
+            s.tokenOutput = stats.has("token_out") ? stats.get("token_out").getAsLong() : 0;
+            s.tokenCacheRead = stats.has("token_cache_read") ? stats.get("token_cache_read").getAsLong() : 0;
             if (stats.has("tools") && stats.get("tools").isJsonObject()) {
                 for (Map.Entry<String, com.google.gson.JsonElement> e : stats.getAsJsonObject("tools").entrySet()) {
                     s.toolCounts.put(e.getKey(), e.getValue().getAsInt());
