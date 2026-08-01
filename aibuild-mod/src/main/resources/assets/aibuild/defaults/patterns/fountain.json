@@ -1,0 +1,30 @@
+{
+  "name": "fountain",
+  "description": "Parametric fountain (喷泉): circle or square ground basin (floor disc at y, 1-deep water, full rim ring, lip of upside-down stairs facing outward = flat walkable edge, or a slab cap) + center pillar (wall column is the classic) + 1-3 shrinking upper tiers stacked on the pillar, each a floor disc with stair lip and water, one source on top cascading down. All stair states derived by the script; corners auto-resolved.",
+  "when_to_use": "Plaza/courtyard/garden centerpiece, park node, estate forecourt. origin = CENTER cell of the basin, y = basin floor layer (one below surrounding pavement if the basin is sunken, or same level for a raised-rim fountain). Pair with plaza (its centerpiece='fountain' reserves the accent disc at exactly this center). DIRECTION STATES ARE DERIVED — never hand-edit (禁止手改方向状态).",
+  "use_for": "广场/庭院/花园中心水景;圆池(circle)或方池(square);单层(1)庭院小泉,多层(2-3)纪念性喷泉",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "水池中心格;y = 池底层(水面在 y+1,池沿在 y+1,压边在 y+2)"},
+    "shape": {"type": "enum", "values": ["circle", "square"], "default": "circle", "notes": "圆池/方池"},
+    "radius": {"type": "int", "range": "3-8", "default": 5, "notes": "外沿半径(圆)/半边长(方);5 是社区最经典尺寸"},
+    "tiers": {"type": "int", "range": "1-3", "default": 1, "notes": "水层级数;1=单池,2-3=中心柱上叠小池"},
+    "tier_height": {"type": "int", "range": "2-5", "default": 3, "notes": "每层水面上方露出的柱高;也是 tiers=1 时的柱高"},
+    "shrink": {"type": "float", "range": "0.3-0.7", "default": 0.5, "notes": "每上一层半径倍率( radius*shrink^i,最小 1 )"},
+    "rim_material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "池沿整砖;白/浅风用 quartz_block,沙漠风用 sandstone,海洋风用 prismarine"},
+    "floor_material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "池底;深色底(prismarine/dark_prismarine)显水深"},
+    "trim": {"type": "enum", "values": ["stairs", "slab", "none"], "default": "stairs", "notes": "压边:stairs=倒放楼梯外张沿(可坐,经典);slab=平半砖盖顶;none=素沿"},
+    "trim_material": {"type": "block id (*_stairs)", "default": "minecraft:stone_brick_stairs", "notes": "压边楼梯;trim=slab 时自动换成同名 _slab"},
+    "pillar_material": {"type": "block id", "default": "minecraft:stone_brick_wall", "notes": "中心柱;墙/栅栏柱是社区经典(GrabCraft 多层喷泉实测),也可用整砖/铁栏杆 iron_bars"},
+    "water": {"type": "bool", "default": true, "notes": "false=干池(改花坛/雕像基座时关)"}
+  },
+  "pitfalls": [
+    "origin 是池子中心不是角落;radius 含池沿,水池内壁比 radius 小一圈,别把中心柱位置让给水",
+    "中心柱从池底(y)连续堆到顶,中间被各层水盘穿过是设计如此——柱子替换该格的水,不许留空",
+    "压边楼梯是'倒放(half=top)背朝外',脚本已按离心力向推导每格 facing,围合转角 shape 自动解析;手改必缺角",
+    "水只放源头格:池内每格一个源 + 柱顶一个源;不要在半空画'水帘'列,游戏内会自己流;流水不是静态方块能表达的",
+    "上层小池地板悬在柱周:靠柱心水平咬合支撑(验收器认可),但视觉上 tier_height 别超过 5,否则像电线杆挑盘子",
+    "radius<=3 时 tiers 最多 2——第三层半径缩到 1 只剩柱顶一碗水,不如不加"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check"],
+  "example": "python patterns/fountain.py --params '{\"origin\":[100,64,100],\"radius\":5,\"tiers\":2}' --out fountain.json && python patterns/fountain.py --params '{\"origin\":[120,64,100],\"shape\":\"square\",\"radius\":4,\"trim\":\"slab\",\"rim_material\":\"minecraft:quartz_block\",\"floor_material\":\"minecraft:prismarine\"}' --out fountain2.json"
+}

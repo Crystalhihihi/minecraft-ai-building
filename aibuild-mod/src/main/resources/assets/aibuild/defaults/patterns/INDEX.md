@@ -15,6 +15,7 @@
 | 卡 | use_for |
 | --- | --- |
 | plains_cabin | 平原小木屋/农舍,5×7~9×11 |
+| medieval_house | 中世纪民居/客栈/铁匠铺,木骨石基+上层悬挑(jetty),7×9~13×15 |
 | medieval_tower | 中世纪塔楼 |
 | waterfront_dock | 滨水码头 |
 | stilt_house | 吊脚楼 |
@@ -42,11 +43,22 @@
 | quadruped_statue | 四足雕像 |
 | mirror_build | 镜像建造 |
 | furniture | 家具图鉴(床/桌/椅/凳/沙发/书架/橱柜/厨台/书桌/落地灯/花盆/长椅/抽屉柜/壁炉/钢琴,piece 参数选件) |
+| balcony | 阳台(cantilever 挑板/recessed 凹进;support 托臂/立柱;railing 四材质) |
+| railing | 护栏/栏杆(fence/wall/pane/trapdoor+楼梯扶手+桥栏;转角自动推导) |
+| wall_weathering | 墙壁肌理(掺比 preset/基座深浅分层/壁柱线脚分格/垂藤做旧) |
+| interior_rooms | 房间陈设模板(bedroom/kitchen/living/dining/study/corridor;碰撞+通道自动校验) |
+| fountain | 喷泉(圆/方,1~3 层,楼梯/半砖压边,中心墙柱) |
+| flower_field | 花海/花境(single/stripes/gradient/meadow;小径穿插;边缘渐稀) |
+| terrace_farm | 梯田(层高差 1、宽 2~4,田埂压边,zigzag 层间下灌) |
+| plaza | 广场铺装(同心圆/放射/棋盘/镶边;中心点缀位;灯椅节奏) |
+| garden_tree | 景观树(橡/桦/樱/杉×3 体量;确定性;贴面分枝+镂空叶团) |
 
 ## 规则文档
 
 - `patterns/stair_orientations.md`:楼梯朝向铁律(facing=高侧;围合转角必用 corner shape;正放倒放叠放;光滑上升梯段)
 - `patterns/roof_types.md`:屋顶选型速查(13 种顶型一句话+参数起点;老虎窗什么时候加;檐口/屋脊装饰;材料比例)
+- `patterns/wall_weathering.md`:墙壁肌理规则(掺比公式/上浅下深/做旧手法)
+- `patterns/interior_layout.md`:室内布局规则(分房五步法/最小开间/走廊与动线/家具尺度/门窗对位)
 - `blocks.md`:常用方块 id 速查
 
 ## 验收器 patterns/validators/

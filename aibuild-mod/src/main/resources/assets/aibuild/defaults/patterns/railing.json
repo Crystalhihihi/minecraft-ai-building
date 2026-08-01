@@ -1,0 +1,45 @@
+{
+  "name": "railing",
+  "description": "Railing/balustrade (护栏/栏杆): six kinds from one generator — fence (wooden balustrade), wall (cobblestone/stone-brick wall blocks, chunky castle/bridge look), pane (glass_pane/iron_bars infill between posts), trapdoor (vertical OPEN trapdoors = panel balustrade), stair_rail (handrail stepping along a stair slope, one post per step, stair facing = uphill per the iron rule), bridge (deck + rails on both long edges + optional abutment piers). L-corners via the corner param; pane corners and run ends get anchor posts. All direction states (trapdoor facing/open, stair facing) are DERIVED from origin+facing.",
+  "when_to_use": "Any edge that needs guarding or a finished lip: balcony/terrace edges, stair flights (stair_rail), bridges (bridge), roof decks, garden fences, dock edges. origin = the FIRST cell of the run, y = the layer the railing stands in (the cell ABOVE the deck/floor for edge rails; for stair_rail, the first step's cell). facing = the direction the run GOES (origin -> far end; for stair_rail: uphill). DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit (禁止手改方向状态).",
+  "use_for": "阳台/露台/桥/楼梯扶手/屋面平台/花园围栏边缘收边;木民居 fence,石构/城堡 wall,现代/采光 pane,木面板式 trapdoor",
+  "params": {
+    "kind": {"type": "enum", "required": true, "values": ["fence", "wall", "pane", "trapdoor", "stair_rail", "bridge"], "notes": "做法大类;见 kinds 节"},
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "首格(栏杆所在层,即甲板/地面上一格);stair_rail 为第一步踏板格"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "east", "notes": "栏杆走向(origin->远端);stair_rail=上坡方向"},
+    "length": {"type": "int", "range": "1-32", "default": 5, "notes": "沿走向格数(stair_rail=踏步数)"},
+    "material": {"type": "block id", "default": "minecraft:spruce_fence", "notes": "按 kind 校验后缀:fence=*_fence, wall=*_wall, pane=*_pane|iron_bars, trapdoor=*_trapdoor, stair_rail=扶手柱(*_fence|*_wall), bridge=栏杆条"},
+    "height": {"type": "int", "range": "1-2", "default": 1, "notes": "栏杆高(fence/wall/pane/trapdoor);2 层 pane=落地玻璃栏板"},
+    "outward": {"type": "\"auto\"|\"north\"|\"south\"|\"east\"|\"west\"", "default": "auto", "notes": "trapdoor 面板朝向(铰链+面板所在侧);auto=走向右侧;只影响 trapdoor"},
+    "corner": {"type": "enum", "values": ["none", "left", "right"], "default": "none", "notes": "远端 L 型拐弯;拐弯处 pane 自动加锚柱,trapdoor 第二段 outward 自动换向"},
+    "corner_length": {"type": "int", "range": "1-16", "default": 3, "notes": "拐弯段长度(不含转角格)"},
+    "post_material": {"type": "block id", "default": "minecraft:spruce_fence", "notes": "pane 锚柱/bridge 角柱;可用 *_log 做粗柱"},
+    "post_spacing": {"type": "int", "range": "2-8", "default": 3, "notes": "pane 每隔几格一根柱(首尾与转角恒有柱)"},
+    "step_material": {"type": "block id (*_stairs)", "default": "minecraft:oak_stairs", "notes": "stair_rail 的梯段;facing=上坡(铁律,脚本推导)"},
+    "with_steps": {"type": "bool", "default": true, "notes": "stair_rail:false=只发扶手柱(架在已有梯段上;验收时 support_check 需传 base=梯段文件)"},
+    "width": {"type": "int", "range": "1-5", "default": 3, "notes": "bridge 甲板宽"},
+    "deck_material": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "bridge 甲板/桥墩"},
+    "rail": {"type": "enum", "values": ["fence", "wall", "pane"], "default": "fence", "notes": "bridge 两长边栏杆做法"},
+    "piers": {"type": "bool", "default": true, "notes": "bridge 两端桥墩"},
+    "pier_drop": {"type": "int", "range": "1-8", "default": 2, "notes": "桥墩下探层数(须到地面/水面下)"}
+  },
+  "kinds": {
+    "fence": {"recipe": "一排栅栏(1-2 高),自动连接成栏;转角靠 MC 自动连接,拐角格即转角。", "pitfalls": ["栅栏别和 wall 混排(视觉粗细突变);要转角柱加粗用 post_material 的思路:另放 log 柱"]},
+    "wall": {"recipe": "一排墙块(cobblestone_wall/stone_brick_wall),粗壮压边,适合石桥/城堡/基座缘。", "pitfalls": ["wall 块顶面可站人但别当 walkway;与 fence 衔接处会断开一截,交接处用整砖柱过渡"]},
+    "pane": {"recipe": "玻璃板/铁栏杆填充,首尾+每 post_spacing 格+转角一根 post_material 锚柱。", "pitfalls": ["pane 没有柱锚就像飘带,首尾必须有柱;铁栏杆(iron_bars)配石构,玻璃板配现代"]},
+    "trapdoor": {"recipe": "立起的开活板门(open=true)一排,铰链/面板在 outward 侧,读作木面板栏板。", "pitfalls": ["open 必须 true,closed 是躺板不是栏杆;outward 给反了面板就贴在甲板内侧;高度 1 层就够,2 层像墙"]},
+    "stair_rail": {"recipe": "梯段每步升 1 格(楼梯 facing=上坡,铁律),每步踏板上立一根扶手柱。", "pitfalls": ["扶手柱必须落在每步踏板正上方,别悬在两级之间;光滑坡道扶手别用整条斜线(做不到),踏步柱就是正解;坡顶/坡底平台要接一段平栏杆(另调本卡 kind=fence)"]},
+    "bridge": {"recipe": "甲板(宽 width)+两长边栏杆(v=1)+四角锚柱(fence/wall 栏杆时)+两端桥墩。", "pitfalls": ["栏杆在甲板边缘格的正上方,不占走道;桥墩 pier_drop 必须触地,水面桥墩要伸进水里;width=1 的独木桥别加栏杆(没地方站)"]}
+  },
+  "pitfalls": [
+    "栏杆放'甲板边缘格的正上方一格',不是悬空贴在甲板外侧面——贴外侧那一列会浮空且玩家走不出去",
+    "trapdoor 栏杆 open=true 才立得住面板;facing=面板所在侧(outward),给反了栏板贴到内侧",
+    "stair_rail 楼梯 facing=上坡方向(stair_orientations.md 铁律),扶手柱在每步踏板正上方",
+    "转角处理:fence/wall 靠自动连接(拐角格共用),pane 必须在转角放锚柱,trapdoor 拐角段 outward 要换向(脚本已推导)",
+    "pane 首尾无柱是大忌;高度 2 的 pane 只用于现代落地栏板",
+    "本卡只管栏杆本体;阳台整体(甲板+支撑+栏杆)用 balcony 卡",
+    "验收:输出必须过 support_check(桥墩/梯段提供支撑路径);stair_rail 过 stair_corner_check"
+  ],
+  "validators": ["support_check", "stair_corner_check", "slab_check"],
+  "example": "python patterns/railing.py --params '{\"kind\":\"fence\",\"origin\":[100,64,100],\"facing\":\"east\",\"length\":6,\"corner\":\"right\"}' --out rail.json && python patterns/railing.py --params '{\"kind\":\"stair_rail\",\"origin\":[100,64,120],\"facing\":\"north\",\"length\":5,\"step_material\":\"minecraft:stone_brick_stairs\",\"material\":\"minecraft:cobblestone_wall\"}' --out stair_rail.json && python patterns/railing.py --params '{\"kind\":\"bridge\",\"origin\":[100,64,140],\"facing\":\"south\",\"length\":8,\"width\":3,\"rail\":\"pane\",\"material\":\"minecraft:glass_pane\"}' --out bridge.json"
+}

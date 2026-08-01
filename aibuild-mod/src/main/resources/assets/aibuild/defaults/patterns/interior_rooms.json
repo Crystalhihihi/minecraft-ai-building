@@ -1,0 +1,60 @@
+{
+  "name": "interior_rooms",
+  "description": "Furnished-room templates (房间陈设模板): pick a `room`, give the interior rect (width x depth), origin and door position(s); the generator fills it with a canonical furniture set per room type — bedroom(床+床头柜+衣柜/抽屉柜+落地灯), kitchen(厨台[水槽+台面+炉灶]+橱柜), living(沙发+茶几+书架+壁炉或落地灯), dining(长桌+对坐餐椅+落地灯), study(书桌+书架+落地灯), corridor(落地灯+盆栽点缀). All pieces come from patterns/furniture.py (same recipes, direction states derived). The generator itself enforces wall-flush placement, no overlaps, door cells clear, and a connected >=1-wide walkway from every door to every piece's front — the AI never free-styles placement.",
+  "when_to_use": "Interior furnishing AFTER walls/floor/ceiling exist — replaces free-hand furniture placement (which historically produced empty shells or unenterable rooms). origin = the room's min-corner INTERIOR cell, y = the layer furniture stands in (one above the floor blocks). The interior rect is [0..width-1] x [0..depth-1]; walls sit OUTSIDE it. doors = one entry per doorway: {\"wall\": \"north|south|east|west\", \"at\": offset along that wall from the room min corner}; empty = auto (south-centre door; corridor gets two end doors). Room too small / piece fits nowhere -> hard error with the legal minimum; enlarge or move the door. Layout rationale and room-division rules: patterns/interior_layout.md.",
+  "use_for": "室内布局/软装成套布置:卧室/厨房/客厅/餐厅/书房/走廊;修内饰时按房间逐个调用,不要逐件自由摆放",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,65,0]", "notes": "室内最小角(西北角)的家具站立格;y = 地板上面那一层"},
+    "room": {"type": "enum", "required": true, "values": ["bedroom", "kitchen", "living", "dining", "study", "corridor"], "notes": "房型,决定成套陈设"},
+    "width": {"type": "int", "range": "1-16", "default": 5, "notes": "室内净宽(沿 x,不含墙厚)"},
+    "depth": {"type": "int", "range": "1-16", "default": 5, "notes": "室内净深(沿 z,不含墙厚)"},
+    "doors": {"type": "list of {wall, at}", "default": "[] = 自动", "notes": "每个门洞一条:wall=所在墙, at=沿墙偏移(北/南墙沿 x,东/西墙沿 z,从房间最小角数);门内侧一格永不放家具"},
+    "bed_color": {"type": "bed color", "default": "red", "notes": "bedroom:16 色床"},
+    "storage": {"type": "enum", "values": ["dresser", "cabinet"], "default": "dresser", "notes": "bedroom:dresser=抽屉柜(斗柜), cabinet=衣柜"},
+    "fireplace": {"type": "bool", "default": false, "notes": "living:true=壁炉(烟囱道 chimney=0,穿出屋顶请接 chimney 卡);false=落地灯"},
+    "wood": {"type": "wood prefix", "default": "spruce", "notes": "沙发/厨台/书桌的楼梯木种(spruce/dark_oak/oak...)"}
+  },
+  "rooms": {
+    "bedroom": {
+      "min_size": "4x4(任意旋转)",
+      "set": "bed(床头贴墙,真床方块) + table 1x1 当床头柜(贴床头侧) + storage(2宽3高抽屉柜/衣柜,贴侧墙) + lamp_post(远角,可选)",
+      "pitfalls": ["床两侧+床尾至少留出一条 1 宽通道(生成器保证床尾与脚侧可达),别把床三面封死只留床头", "床头柜是 1x1 table(fence+pressure_plate),就贴床头那格;别放成第二张床"]
+    },
+    "kitchen": {
+      "min_size": "4x4",
+      "set": "kitchen_counter(cauldron 水槽+倒放楼梯台面+smoker 炉灶,长 2-4 贴主墙) + cabinet 2x2(贴侧墙/对墙)",
+      "pitfalls": ["台面正面(人站的那排)必须留空——生成器已校验;别把橱柜再压到台面前", "smoker 才是灶,别换 furnace;水槽就是空 cauldron,别倒水(会烫脚且漫不出)"]
+    },
+    "living": {
+      "min_size": "5x5",
+      "set": "sofa(2-4 座贴主墙) + table 茶几(沙发前两格,可选) + bookshelf 2x2(侧墙) + fireplace 或 lamp_post(沙发对墙)",
+      "pitfalls": ["壁炉正面 1 格是烤火位,必须留空;沙发与壁炉之间至少留 1 行走道", "fireplace=true 时烟囱道只到壁炉顶(chimney=0);要继续穿屋顶用 chimney 卡接上,别在室内凭空叠柱"]
+    },
+    "dining": {
+      "min_size": "4x5",
+      "set": "table 长桌(宽 2-4,居中) + chair 对坐两排(桌宽>=3 时每侧 2 把,否则 1 把) + lamp_post(角,可选)",
+      "pitfalls": ["餐椅从椅子背后入座(椅背后是通道),椅面正对桌子;别把椅子放成背对桌子", "椅子含扶手 sign 实际占 3 格宽,两把椅子之间至少隔 1 格——生成器按桌宽自动减椅数"]
+    },
+    "study": {
+      "min_size": "4x4",
+      "set": "desk(2-3 宽贴主墙,带 lectern) + bookshelf 2x3(侧墙/对墙) + lamp_post(角,可选)",
+      "pitfalls": ["书桌正面留空坐人;书架别挡在书桌正前方", "bookshelf 不是 chiseled_bookshelf(空格纹理像烂柜)"]
+    },
+    "corridor": {
+      "min_size": "1x3(净宽<2 或长<4 时不出家具,只留空廊——见 interior_layout.md)",
+      "set": "lamp_post(长边一侧 1/3 处) + flower_pot pedestal(对侧 2/3 处,可选)",
+      "pitfalls": ["净宽 1 的走廊什么都别放——一格灯柱就断路;要装饰就放宽到 2", "灯与点缀必须错开两侧/错位摆放,同格对放会把 2 宽走廊掐成 0"]
+    }
+  },
+  "pitfalls": [
+    "先跑本卡再补散件:本卡保证通道成网,之后手加的散件(地毯/盆栽)也必须跑 collision_check + support_check 复验",
+    "width/depth 是室内净尺寸(不含墙厚)——把外墙外尺寸填进来家具会嵌进墙里",
+    "doors 的 at 是沿墙偏移不是世界坐标;填错墙/偏移,家具可能堵住真实门洞(生成器只保你声明的门)",
+    "床必须用真床方块(part=foot/head 两格)——项目耻辱柱错误,严禁羊毛冒充",
+    "所有朝向状态由 furniture.py 从 origin+facing 推导,禁止手改输出 JSON 里的 facing/half/rotation/part",
+    "房间小于 min_size 会直接报错——去 interior_layout.md 查最小开间,先改房间划分再来陈设",
+    "家具都在 y+0/y+1 落地;天花板吊灯不在本卡范围(用 chain+lantern 自己挂,见 interior_layout.md)"
+  ],
+  "validators": ["collision_check", "support_check", "stair_corner_check"],
+  "example": "python patterns/interior_rooms.py --params '{\"room\":\"bedroom\",\"origin\":[100,65,100],\"width\":5,\"depth\":5,\"doors\":[{\"wall\":\"south\",\"at\":2}]}' --out bedroom.json && python patterns/interior_rooms.py --params '{\"room\":\"living\",\"origin\":[100,65,120],\"width\":6,\"depth\":6,\"fireplace\":true}' --out living.json && python patterns/validators/collision_check.py --params '{\"a\":\"walls.json\",\"b\":\"bedroom.json\"}'"
+}

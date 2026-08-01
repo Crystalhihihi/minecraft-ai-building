@@ -12,6 +12,7 @@
   "materials": {
     "primary": ["minecraft:oak_planks"],
     "primary_use": "wall infill panels",
+    "primary_mix": "GrabCraft wooden-houses 统计锚点: oak_log 24% / planks 系合计 ~40% / stairs+slab ~11% — 木屋是「原木框架重」风格; 墙板可 80% oak_planks / 20% spruce_planks 微掺",
     "secondary": ["minecraft:oak_log"],
     "secondary_use": "vertical corner posts + horizontal frame beams top/bottom of each storey (log frame = the cabin look)",
     "accent": [

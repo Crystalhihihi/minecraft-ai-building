@@ -1,0 +1,21 @@
+{
+  "name": "garden_tree",
+  "description": "Handcrafted landscape tree (景观树) with 4 species silhouettes x 3 sizes, fully deterministic (same params = same tree). Oak: branched round crown, branches climb as face-connected staircases with tip blobs, large gets 2x2 trunk + buttress roots. Birch: tall slim trunk + elongated canopy + side tufts. Cherry: low fork, two slanted stems, wide flat airy pink canopy. Spruce: conical tapering tiers with cut corners. Canopies are carved ellipsoid blobs — never vanilla solid balls. Exists to end the 'sapling-grown random tree' look in designed landscapes.",
+  "when_to_use": "Park/plaza/garden/avenue trees where the silhouette must be DESIGNED, not random. origin = trunk base cell (min corner of the trunk), y = ground layer the trunk stands on. Use small for courtyards, medium for streets/gardens, large for park landmarks. For an avenue, repeat with the same species+size along a road_segment.",
+  "use_for": "公园/广场/庭园/行道树;oak=通用庭荫树,birch=纤秀节点树,cherry=春日花树(中式/日式园),spruce=锥形背景树/雪地",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "树干基部格(2x2 粗干时为最小角);y = 地面层"},
+    "species": {"type": "enum", "values": ["oak", "birch", "cherry", "spruce"], "default": "oak", "notes": "橡木圆冠/白桦瘦高/樱花宽冠/云杉锥形"},
+    "size": {"type": "enum", "values": ["small", "medium", "large"], "default": "medium", "notes": "体量;oak large 自动 2x2 干+板根"}
+  },
+  "pitfalls": [
+    "树形完全由 origin 哈希定:同一参数同一棵树,想要'另一棵同种树'就挪一格 origin,不要手改输出",
+    "枝干是贴面阶梯(横一格竖一格),验收器不会报悬空;别为'顺滑'手删阶梯里的竖格,删了就真悬空",
+    "叶团表面有哈希镂空,是手工树的'呼吸感',不是缺块;镂空率按树种调好(cherry 最疏),别补成实心球",
+    " birch/spruce 没有侧枝是物种特征;birch 的秀气靠瘦干+侧叶团,别给它加 oak 的分枝逻辑",
+    "树冠半径最大 4:要更大的'古木'就种 2-3 棵 large 挨近,别指望单棵树盖 10 格",
+    "树干落地那格 y 必须是地表;种在半空或埋干都是 origin 没对地形(先 terraform_pad)"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/garden_tree.py --params '{\"origin\":[100,64,100],\"species\":\"cherry\",\"size\":\"large\"}' --out tree.json && python patterns/garden_tree.py --params '{\"origin\":[120,64,100],\"species\":\"oak\",\"size\":\"large\"}' --out tree2.json"
+}

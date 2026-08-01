@@ -1,0 +1,43 @@
+{
+  "name": "wall_weathering",
+  "description": "Wall texturing/weathering (墙壁肌理): emits one facade rectangle that is never a flat single-material slab. Four parameterized build-circle techniques: (1) 材质掺比 — palette of [block, weight] entries, a primary + 2-3 accents blended by seeded weighted random (e.g. stone_bricks 60 + cracked 15 + mossy 15 + cobble 10); (2) 深浅分层 — base_height bottom rows use the heavier/darker base_palette, gradient=true ramps the accent share up toward the ground (weathering creeps from the base); (3) 壁柱/线脚分格 — pilaster_every N full-height pilaster columns + course_rows horizontal beam rows (log axis derived from wall direction); (4) 藤蔓做旧 — vine_pct chance per column of a vine strip hanging down the front face. Five presets with ratios derived from GrabCraft sample stats + community gradient recipes (see wall_weathering.md); explicit palette/base_palette override presets. Deterministic via seed.",
+  "when_to_use": "Any exterior wall larger than ~3x3 — a flat one-material wall is exactly the '墙壁没有肌理' failure this card fixes. Use for house/keep/tower facades, retaining walls, ruins. origin = bottom-LEFT cell of the facade (seen from outside), y = base layer (ground contact); facing = the outward normal. Rule of thumb: primary >= 55%, each accent 5-25%, accents must share the primary's color family (mossy/cracked variants of the primary are the safest). Windows/doors are NOT this card's job — cut them with window_trim/arch_window after, or leave their cells out of the rectangle.",
+  "use_for": "外墙肌理/做旧:石构(stone_brick_aged/deepslate_dark)、田园(cobble_rustic)、红砖(brick_townhouse)、木骨架白墙(plaster_timber 配 pilaster_every);废墟/古建拉高 vine_pct + cracked/mossy 权重",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "立面外视左下角格;y=基座层(贴地)"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "立面外法线;藤蔓面状态/梁轴由此推导"},
+    "width": {"type": "int", "range": "3-64", "default": 9, "notes": "沿墙宽"},
+    "height": {"type": "int", "range": "3-64", "default": 6, "notes": "层高"},
+    "preset": {"type": "enum", "values": ["stone_brick_aged", "cobble_rustic", "deepslate_dark", "brick_townhouse", "plaster_timber"], "default": "stone_brick_aged", "notes": "配比预设(见 presets 节);显式 palette 覆盖"},
+    "palette": {"type": "[[block, weight], ...]", "default": "null=用预设", "notes": "主体掺比;首项=主材(建议>=55),其余=辅材;权重大小即占比"},
+    "base_height": {"type": "int", "range": "0-4", "default": 1, "notes": "底部基座带层数(用 base_palette,更深更重)"},
+    "base_palette": {"type": "[[block, weight], ...]", "default": "null=用预设", "notes": "基座带掺比;典型:圆石+苔石为主"},
+    "gradient": {"type": "bool", "default": true, "notes": "true=辅材占比向基座递增(风化从地面爬上来);false=全高均匀"},
+    "pilaster_every": {"type": "int", "range": "0-8", "default": 0, "notes": "0=关;N=每 N 格一根通高壁柱(u=0 恒有);木骨架风配 3-4"},
+    "pilaster_material": {"type": "block id", "default": "minecraft:spruce_log", "notes": "壁柱;原木=木骨架,stone_bricks=古典壁柱"},
+    "pilaster_ends": {"type": "bool", "default": true, "notes": "末列也强制壁柱(收边)"},
+    "course_rows": {"type": "[int, ...]", "default": "[]", "notes": "线脚/横梁所在 y 偏移列表(整行替换);*_log 梁轴自动沿墙推导"},
+    "course_material": {"type": "block id", "default": "minecraft:spruce_log", "notes": "线脚料;log=横梁,smooth_stone/stone_bricks=石线脚"},
+    "vine_pct": {"type": "number", "range": "0-50", "default": 10, "notes": "每列出现垂藤条的概率(%);废墟 25-40,民居 5-15,现代 0"},
+    "seed": {"type": "int", "default": 7, "notes": "随机种子;同参同输出,换种子换肌理分布"}
+  },
+  "presets": {
+    "stone_brick_aged": {"mix": "stone_bricks 60 + cracked 15 + mossy 15 + cobble 10;基座 cobble 40/mossy_cobble 30/stone 20/stone_bricks 10", "use_for": "城堡/塔楼/石砌民居(GrabCraft stone/military 样本主材)"},
+    "cobble_rustic": {"mix": "cobblestone 55 + mossy_cobble 20 + stone 15 + andesite 10;基座加 gravel", "use_for": "中世纪农舍/田园(GrabCraft medieval 样本 cobblestone 8.1% 为主材之一)"},
+    "deepslate_dark": {"mix": "deepslate_bricks 55 + cracked 20 + cobbled_deepslate 15 + deepslate_tiles 10;基座 cobbled_deepslate/deepslate/blackstone", "use_for": "哥特/要塞/暗色体量"},
+    "brick_townhouse": {"mix": "bricks 75 + stone_bricks 15 + mud_bricks 10;基座 stone_bricks 为主", "use_for": "红砖联排/市民建筑"},
+    "plaster_timber": {"mix": "white_terracotta 75 + light_gray_terracotta 20 + smooth_stone 5;基座石砌", "use_for": "木骨架(半木构)白墙,必须配 pilaster_every 3-4 + course_rows"}
+  },
+  "pitfalls": [
+    "单色满铺是大忌(本卡存在的原因);但辅材也别超过 3 种、占比别超 45%——那是杂色不是肌理",
+    "辅材必须与主材同色系/同质感族(mossy/cracked 变体最安全);cobblestone 墙掺 oak_planks 这种跨族混搭几乎必翻车",
+    "基座带要更深更重(cobble/mossy/deepslate),上浅下深;反过来(顶重脚轻)视觉要塌",
+    "vine_pct 别超 40;藤蔓只出现在立面外侧,别在室内墙用;现代风 vine_pct=0",
+    "pilaster_every 开了就要让壁柱通高落地(本卡保证);间距 2 以内就成栅栏了,木骨架推荐 3-4",
+    "course_rows 会整行替换(含基座行);把 0 放进 course_rows 等于放弃 base_palette 的基座带",
+    "掺比是加权的随机分布,不是周期图案——别手动摆成棋盘格/条纹;同参数同 seed 输出恒定,要换分布改 seed",
+    "门窗洞口不在本卡范围:先发墙再用 window_trim/arch_window 卡切,或干脆把洞口列排除在矩形外"
+  ],
+  "validators": ["support_check", "collision_check"],
+  "example": "python patterns/wall_weathering.py --params '{\"origin\":[100,64,100],\"facing\":\"south\",\"width\":9,\"height\":6,\"preset\":\"stone_brick_aged\"}' --out wall1.json && python patterns/wall_weathering.py --params '{\"origin\":[100,64,120],\"facing\":\"east\",\"width\":11,\"height\":7,\"preset\":\"plaster_timber\",\"pilaster_every\":3,\"course_rows\":[0,3],\"vine_pct\":0}' --out wall2.json"
+}

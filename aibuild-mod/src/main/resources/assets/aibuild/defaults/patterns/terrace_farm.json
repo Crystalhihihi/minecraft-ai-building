@@ -1,0 +1,28 @@
+{
+  "name": "terrace_farm",
+  "description": "Parametric hillside terrace farm (梯田): levels climb toward +z with 1-block height steps, each terrace terrace_depth rows wide (2-4 incl. a back-row water channel), retaining wall + ridge cap (田埂: cobblestone_wall/dirt_path) at every step, a zigzag spill per wall pouring into the channel below (层间下灌), farmland rows with mature crops cycling per level, and solid earth fill down to origin y so nothing floats.",
+  "when_to_use": "Farms on slopes, rice-terrace silhouettes, village agriculture belts. origin = min corner of the LOWEST terrace's surface, y = its field layer; the structure climbs toward +z (rotate your site plan, not the output). Place it against a hillside or let the built-in fill columns form the earthwork; pair with road_segment for an access path along the front.",
+  "use_for": "山坡农田/稻梯田轮廓/村庄农业带;levels 多=远山梯景,levels 少+宽=村口菜地",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "最低层田面最小角;y = 田面层;向 +z 逐级抬升"},
+    "width": {"type": "int", "range": "3-24", "default": 8, "notes": "沿 x 的田宽"},
+    "levels": {"type": "int", "range": "1-8", "default": 3, "notes": "层数;每层 +1 高、占 terrace_depth+1 进深"},
+    "terrace_depth": {"type": "int", "range": "2-4", "default": 3, "notes": "每层行数(含水渠行);灌溉半径 4,不许更宽"},
+    "crops": {"type": "[crop id...]", "default": ["minecraft:wheat", "minecraft:carrots", "minecraft:potatoes"], "notes": "每层循环一种;可加 minecraft:beetroots"},
+    "wall_material": {"type": "block id", "default": "minecraft:cobblestone", "notes": "挡土墙;mossy_cobblestone 更野,stone_bricks 更规整,mud_bricks 稻田风"},
+    "ridge": {"type": "enum", "values": ["cobblestone_wall", "dirt_path", "none"], "default": "cobblestone_wall", "notes": "田埂压边:圆石墙/土径/无"},
+    "fill_material": {"type": "block id", "default": "minecraft:dirt", "notes": "田体填土(每柱填到 origin 的 y)"},
+    "water_channel": {"type": "bool", "default": true, "notes": "false=水渠行也种田"},
+    "spill": {"type": "bool", "default": true, "notes": "每道墙一个水口,左右 zigzag 交替"}
+  },
+  "pitfalls": [
+    "整体只朝 +z 爬坡;要别朝向就在放的时候换算坐标,不要手改输出",
+    "水口格会替换该处的田埂,属于设计;spill=false 才是完整田埂",
+    "terrace_depth 锁死 2-4:MC 水只能润 4 格,做宽了既假又'干',想宽就加层",
+    "田体填土填到 origin 的 y;贴在真山坡上用 terraform_pad 先整出坡脚,别让填土柱露出悬崖",
+    "水渠在每层后排、贴挡土墙;作物行在前排——别把水渠行改种作物,那是层间下灌的魂",
+    "levels 多进深就大:总进深 = levels*(terrace_depth+1)-1,放之前算好别压到后排建筑"
+  ],
+  "validators": ["support_check", "collision_check"],
+  "example": "python patterns/terrace_farm.py --params '{\"origin\":[100,64,100],\"width\":10,\"levels\":4,\"crops\":[\"minecraft:wheat\",\"minecraft:carrots\"]}' --out terrace.json && python patterns/terrace_farm.py --params '{\"origin\":[140,64,100],\"width\":14,\"levels\":6,\"terrace_depth\":2,\"wall_material\":\"minecraft:mud_bricks\",\"ridge\":\"dirt_path\"}' --out rice.json"
+}

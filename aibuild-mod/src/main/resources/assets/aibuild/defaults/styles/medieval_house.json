@@ -1,0 +1,81 @@
+{
+  "style_id": "medieval_house",
+  "name": "Medieval House (中世纪民居)",
+  "use_for": "medieval town/village houses, inns, taverns, blacksmiths, market-stall homes; timber-framed or wood-panelled 2-storey houses",
+  "palette_stats": "GrabCraft medieval-houses 150 件去地形统计: oak_planks 10.8% / spruce_planks 8.8% / spruce_log 8.4% / cobblestone 8.1% / oak_log 5.8% / stone_bricks 5.8% / spruce_stairs 5.1% / oak_stairs 4.6% — 木骨石基是本风格的实测主流",
+  "proportions": {
+    "height_to_width_ratio": "1.2:1 ~ 1.8:1 (walls only, roof excluded)",
+    "storey_height": "3-4 (interior clear)",
+    "wall_thickness": 1,
+    "typical_footprint": "7x9 ~ 13x15; town houses narrow-fronted (宽 5-7 临街), 深 9-13",
+    "door_height": 2,
+    "jetty": "upper storey overhangs ground floor by 1 on front (+sides if detached) — the medieval look; support the overhang ends with upside-down stair brackets (patterns/balcony.py support=brackets 同理)"
+  },
+  "materials": {
+    "ground_floor": [
+      "minecraft:cobblestone",
+      "minecraft:stone_bricks",
+      "minecraft:mossy_cobblestone"
+    ],
+    "ground_floor_mix": "60% cobblestone / 25% stone_bricks / 15% mossy_cobblestone, deterministic per-position (patterns/wall_weathering.py preset=cobble_rustic); 石基上浅下深铁律:最底 1-2 层 mossy 占比加倍",
+    "upper_walls": [
+      "minecraft:oak_planks",
+      "minecraft:spruce_planks",
+      "minecraft:white_terracotta"
+    ],
+    "upper_walls_mix": "two systems, pick per building: (a) wood-panelled: 70% oak_planks / 30% spruce_planks; (b) timber-framed: white_terracotta infill + spruce_log frame (patterns/wall_weathering.py preset=plaster_timber)",
+    "frame": [
+      "minecraft:spruce_log",
+      "minecraft:oak_log",
+      "minecraft:stripped_spruce_log"
+    ],
+    "frame_use": "corner posts + storey band beams + jetty beam; log axis derived by script, never hand-set",
+    "roof": [
+      "minecraft:spruce_stairs",
+      "minecraft:spruce_slab",
+      "minecraft:dark_oak_stairs"
+    ],
+    "roof_use": "spruce_stairs main slope (stats: stairs ≈10% of all blocks — roof is a huge visible area, never skimp); dark_oak for richer houses",
+    "accent": [
+      "minecraft:spruce_trapdoor",
+      "minecraft:oak_fence",
+      "minecraft:lantern"
+    ],
+    "accent_use": "trapdoor shutters + wall-mounted detail panels, fence balcony rail (patterns/railing.py), lantern by door"
+  },
+  "roof": {
+    "type": "gable (人字顶) steep; hip for corner plots (patterns/hip_roof.py)",
+    "slope": "45~60 degrees; medieval roofs are TALL — ridge height ≈ 0.6~1.0x wall height",
+    "overhang": 1,
+    "ridge_support": "solid beam via patterns/gable_roof.py ridge_support (已实机验证, 禁止悬空半砖脊)",
+    "dormers": "1-2 gabled dormers on long slopes (patterns/dormer.py), 屋顶开窗的正规做法",
+    "chimney": "patterns/chimney.py 1x1 or 1x2 stone_bricks shaft on gable end or rear slope, campfire smoke"
+  },
+  "windows": {
+    "pattern": "irregular but balanced: 1-2 per storey per face, aligned vertically when stacked; ground floor windows smaller/higher (defense look)",
+    "size": "1x2 (upright) or 2x2 with cross pane",
+    "material": ["minecraft:glass_pane"],
+    "frame": "patterns/window_trim.py projection=1 spruce_stairs; spruce_trapdoor shutters both sides; arch_window for inn/chapel-grade buildings"
+  },
+  "details": {
+    "base": "1-2 block cobblestone footing flare at ground contact, mossy at bottom — never floating walls",
+    "balcony": "optional front balcony on upper storey: patterns/balcony.py cantilever + railing=fence + support=brackets",
+    "signage": "inn/shop: hanging sign on spruce_fence bracket arm over the door, barrel/cauldron street clutter",
+    "lighting": "lantern on fence post or wall torch at door; interior lantern per room (patterns/interior_rooms.py)",
+    "weathering": "patterns/wall_weathering.py: gradient=true (mossy toward base), vine_pct 5-10 on shaded faces",
+    "interior": "ground floor = shop/tavern/storeroom, upper = bedroom(s); use patterns/interior_rooms.py + interior_layout.md 分房五步法; 内部绝不能留空壳",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 4, "projection": 1, "material": "minecraft:spruce_log", "note": "timber-frame verticals double as pilasters on plaster system"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:spruce_stairs", "corner_material": "minecraft:spruce_log", "sill_material": "minecraft:spruce_slab"},
+      "string_course": {"enabled": true, "material": "minecraft:spruce_log", "note": "jetty beam line IS the string course between storeys"}
+    }
+  },
+  "pitfalls": [
+    "外立面全平无框架 — 必须有 corner posts + band beams + window_trim, 光秃秃是上一版实测翻车点",
+    "屋顶只用半砖平顶 — 中世纪屋顶必须陡坡+实芯脊, 参考 roof_types.md",
+    "上层不挑出 — jetty 悬挑 1 格是风格灵魂, 但挑出端必须带支撑托",
+    "内部空壳 — 壳→分房→门窗→陈设顺序不可颠倒(interior_layout.md)",
+    "石基和木墙之间无过渡 — 用 string_course 梁线收边"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
+}
