@@ -1,0 +1,83 @@
+{
+  "style_id": "sakura_japanese",
+  "name": "Sakura Japanese House (樱花风日式民居)",
+  "use_for": "Japanese-style houses/teahouses/storehouses (kura), sakura-themed builds, feudal-Japan village pieces, light East-Asian roofs",
+  "palette_stats": "语料内 51 件日式样本统计(GrabCraft 无独立日式分类): stone_bricks 19.7%(石基/城下) / oak_planks 10.2% / jungle_planks 6.9% / stone 6.6% / cobblestone 3.9% / white_wool 3.8%(白壁) / spruce_log 2.1% / dark_oak 1.6% / red_wool 1.5%(朱色点缀) — 石基+木骨+白壁+深瓦是实测骨架; 樱花变体换 1.20 樱花木",
+  "proportions": {
+    "height_to_width_ratio": "0.8:1 ~ 1.2:1 (walls) — 横向舒展, 屋顶视觉占比大",
+    "storey_height": "3 (interior clear); 仓库(kura)可 4",
+    "wall_thickness": 1,
+    "typical_footprint": "7x9 ~ 13x11 民居; 仓库 9x13 一层+夹层",
+    "door_height": 2,
+    "raised_floor": "民居地板抬高 1(架空床式基座), 边缘木平台 engawa 缘侧"
+  },
+  "materials": {
+    "base": [
+      "minecraft:stone_bricks",
+      "minecraft:cobblestone",
+      "minecraft:mossy_stone_bricks"
+    ],
+    "base_mix": "70% stone_bricks / 20% cobblestone / 10% mossy — 石基 1-2 层(stats: 石系合计 ~30%)",
+    "frame": [
+      "minecraft:spruce_log",
+      "minecraft:dark_oak_log",
+      "minecraft:stripped_spruce_log"
+    ],
+    "frame_use": "立柱+贯(横向连接木), 原木色系要深; 樱花变体可用 cherry_log 但框仍宜深色",
+    "walls": [
+      "minecraft:white_concrete",
+      "minecraft:white_wool",
+      "minecraft:cherry_planks"
+    ],
+    "walls_mix": "和風=白壁 80% white_concrete / 20% 板材; 樱花变体=cherry_planks 主墙 + 白壁点缀(反白粉比 7:3)",
+    "roof": [
+      "minecraft:deepslate_tile_stairs",
+      "minecraft:deepslate_tiles",
+      "minecraft:blackstone_stairs",
+      "minecraft:dark_oak_stairs"
+    ],
+    "roof_use": "深瓦(deepslate_tiles 系)是日式屋顶的正解; blackstone 更墨, dark_oak 是 budget 替代",
+    "accent": [
+      "minecraft:red_wool",
+      "minecraft:red_concrete",
+      "minecraft:cherry_leaves",
+      "minecraft:lantern"
+    ],
+    "accent_use": "朱色仅点 1-2 处(入口帘/栏干/神社构件); cherry_leaves 作周边樱树(persistent=true); 石灯笼/和灯: cobblestone_wall+lantern"
+  },
+  "roof": {
+    "type": "hip (四坡/寄栋) 优先, gable(切妻) 次之; patterns/hip_roof.py / gable_roof.py",
+    "slope": "缓坡起手(2 in 1 up), 檐口起翘: 四角檐口比中脊高 1(用 stairs 反挑 1 格出檐)",
+    "overhang": "2 — 深檐是日式灵魂(庇), 檐下必有 1 格阴影带",
+    "ridge": "实芯脊(ridge_support 实芯梁), 脊端可大些(棟瓦加厚: deepslate_tile_slab 压顶)",
+    "tiers": "大体量可做二重檐(下层檐+上段小屋根), 忌单面巨坡"
+  },
+  "windows": {
+    "pattern": "横向长窗/格子窗, 少而整; 仓库(kura)几乎无窗(防火), 只高窗 1x1",
+    "size": "宽 2-3 高 1 横长, 或 1x1 高窗",
+    "material": ["minecraft:glass_pane"],
+    "frame": "深色木格: dark_oak_trapdoor 竖梃 2-3 根, 或 spruce_slab 上下枠"
+  },
+  "details": {
+    "engawa": "外檐下木平台 1 深绕屋(同地板高), 缘侧=和风氛围担当",
+    "entry": "入口台阶 2-3 级石阶, 门帘位(活板门垂布)",
+    "garden": "patterns/flower_field.py scheme=single(单色花境) + garden_tree species=cherry + 石灯茏(cobblestone_wall×2+lantern顶) + 碎石板小径(road_segment)",
+    "wall_texture": "patterns/wall_weathering.py 仅用于石基(preset=stone_brick_aged, gradient=true); 白壁保持干净",
+    "interior": "榻榻米感: 浅色地板(birch/oak planks 或 stripped 竹感) + 低家具; patterns/interior_rooms.py 改造用法——床直接落地(无床架), 仓库=成排 barrel/chest 货架+夹层",
+    "lighting": "lantern 落地/吊檐下, 忌 wall_torch 上墙",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 3, "projection": 0, "material": "minecraft:spruce_log", "note": "和风柱在墙面内(真壁造), 不凸出; 凸出变洋风"},
+      "window_trim": {"enabled": true, "projection": 0, "material": "minecraft:dark_oak_trapdoor"},
+      "string_course": {"enabled": true, "material": "minecraft:spruce_log", "note": "貫(横向木)贯穿柱间, 是日式立面骨架"}
+    }
+  },
+  "pitfalls": [
+    "坡太陡无深檐 — 日式=缓坡+深檐 2 格+檐口起翘, 陡坡 45 度是欧式",
+    "白壁全平无木骨 — 柱+貫的深色骨架线是灵魂, 但柱不凸出墙面(真壁造)",
+    "朱色滥用 — red 只能点 1-2 处, 大面积红=神社以外的翻车",
+    "屋顶用木质 stairs — 日式瓦=深灰(deepslate/blackstone), 木顶秒变乡村屋",
+    "仓库开大窗 — kura 防火无窗, 只 1x1 高窗",
+    "樱花树实心球 — cherry_leaves 也要镂空(garden_tree 规则), 粉球一眼假"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
+}

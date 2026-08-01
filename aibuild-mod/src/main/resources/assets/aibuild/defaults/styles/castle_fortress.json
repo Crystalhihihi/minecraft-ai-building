@@ -1,0 +1,77 @@
+{
+  "style_id": "castle_fortress",
+  "name": "Castle Fortress (城堡/军事要塞)",
+  "use_for": "castles, fortresses, military walls and keeps, fortified gates, watch posts",
+  "palette_stats": "GrabCraft military-buildings 42 件+medieval-castles 19 件统计: stone_bricks 29.8% / cobblestone 9.2% / oak_log 8.7% / oak_planks 8.5% / stone_brick_stairs 5.1% / spruce_planks 2.7% — 石砖是绝对主体, 木做内构和顶棚",
+  "proportions": {
+    "height_to_width_ratio": "墙 1:2~1:3(厚墩), 塔 2.5:1~4:1",
+    "storey_height": "3-4 (interior clear)",
+    "wall_thickness": "主墙 2-3(可走马道), 隔墙 1",
+    "typical_footprint": "主楼 keep 9x9~15x15; 院落 21x21 起",
+    "door_height": "门洞 3-4 高(门楼), 内门 2"
+  },
+  "materials": {
+    "primary": [
+      "minecraft:stone_bricks",
+      "minecraft:cracked_stone_bricks",
+      "minecraft:mossy_stone_bricks"
+    ],
+    "primary_mix": "75% stone_bricks / 15% cracked / 10% mossy(wall_weathering preset=stone_brick_aged, gradient=true 底部分层)",
+    "secondary": [
+      "minecraft:cobblestone",
+      "minecraft:stone",
+      "minecraft:andesite"
+    ],
+    "secondary_use": "基础层/填充/粗糙段; cobblestone 做旧区(stats 9.2%)",
+    "timber": [
+      "minecraft:oak_log",
+      "minecraft:oak_planks",
+      "minecraft:spruce_planks",
+      "minecraft:spruce_stairs"
+    ],
+    "timber_use": "马道板/楼层板/顶棚/门楼内构; 攻城器械感构件",
+    "roof": [
+      "minecraft:deepslate_tile_stairs",
+      "minecraft:spruce_stairs",
+      "minecraft:stone_brick_stairs"
+    ],
+    "accent": [
+      "minecraft:iron_bars",
+      "minecraft:dark_oak_log",
+      "minecraft:lantern"
+    ]
+  },
+  "roof": {
+    "type": "塔=尖顶(patterns/helm_roof.py)或雉堞平顶; 主楼=gable/hip 陡坡",
+    "overhang": 1,
+    "crenellation": "patterns/crenellation.py 是灵魂——墙顶和塔冠必须有垛口, stone_brick_wall 间距 2",
+    "ridge_support": "实芯脊(gable_roof ridge_support)"
+  },
+  "windows": {
+    "pattern": "箭缝为主: 1x2 竖缝每 3-4 格, 顶层才开大窗",
+    "size": "1x2 箭缝 / 顶层 1x2 窗",
+    "material": ["minecraft:glass_pane"],
+    "frame": "patterns/arch_window.py 石框拱(主楼/礼拜堂级)"
+  },
+  "details": {
+    "base": "墙基外扩 1-2(收分放脚), 石基做旧(墙底 mossy 加倍)",
+    "buttress": "patterns/buttress.py 长墙每 5-7 格, 转角必设",
+    "gatehouse": "门楼=双塔夹门洞+iron_bars 闸门(半开 1 格)+上方窗洞",
+    "wall_walk": "主墙顶 1-2 宽马道, 内侧矮墙+外侧垛口",
+    "interior": "主楼: 底层大厅(长桌+壁炉 patterns/interior_rooms dining), 上层居住; 营房=成排床位",
+    "lighting": "wall_torch/lantern 每 5-6 格, 院落火盆(campfire)",
+    "depth": {
+      "pilaster": {"enabled": false, "note": "军事墙靠 buttress 不靠壁柱"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:stone_brick_stairs"},
+      "string_course": {"enabled": true, "material": "minecraft:stone_bricks", "note": "层线 1 格凸带"}
+    }
+  },
+  "pitfalls": [
+    "墙顶光秃 — 无垛口的城墙=围墙不是城堡",
+    "墙面全平 — 长墙必须 buttress 节奏+箭缝, 大光墙一眼假",
+    "材料单一 stone_bricks — 必须 cracked/mossy 掺旧+底部加深",
+    "塔身竹竿 — 塔高宽比超 4:1 必倒视觉, 2.5-4:1",
+    "门洞无门楼 — 主入口要双塔+闸+上方防卫窗"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
+}

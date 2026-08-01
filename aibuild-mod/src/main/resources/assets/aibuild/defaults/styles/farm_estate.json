@@ -1,0 +1,77 @@
+{
+  "style_id": "farm_estate",
+  "name": "Farm Estate (农场庄园)",
+  "use_for": "farmhouses with barns, ranches, farmyards, granaries, stables, working farm complexes",
+  "palette_stats": "GrabCraft farm-buildings 15 件统计: stone 29.8%(石基/墙) / spruce_log 10.4% / cobblestone 9.1% / stone_bricks 6.3% / spruce_planks 4.1% / oak_stairs 2.9% / snow 2.5% — 石木各半的粗粝功能主义",
+  "proportions": {
+    "height_to_width_ratio": "主屋 1:1~1.3:1; 谷仓 0.8:1(矮胖大跨)",
+    "storey_height": "主屋 3, 谷仓内净高 5-7(囤草)",
+    "wall_thickness": 1,
+    "typical_footprint": "主屋 7x9~11x13; 谷仓 9x15~13x21; 场院 21x21 起",
+    "door_height": "人门 2, 谷仓大门 3-4(双开)"
+  },
+  "materials": {
+    "primary": [
+      "minecraft:spruce_planks",
+      "minecraft:oak_planks"
+    ],
+    "primary_use": "谷仓/棚屋墙板(竖拼感), 主屋墙板",
+    "base": [
+      "minecraft:stone",
+      "minecraft:cobblestone",
+      "minecraft:stone_bricks"
+    ],
+    "base_mix": "50% stone / 30% cobblestone / 20% stone_bricks — 石基 1-2 层(stats 石系 ~45%, 农建石基比民居厚重)",
+    "frame": [
+      "minecraft:spruce_log",
+      "minecraft:oak_log"
+    ],
+    "frame_use": "谷仓门柱/桁架暴露/围栏桩",
+    "roof": [
+      "minecraft:spruce_stairs",
+      "minecraft:oak_stairs",
+      "minecraft:hay_block"
+    ],
+    "accent": [
+      "minecraft:hay_block",
+      "minecraft:oak_fence",
+      "minecraft:composter",
+      "minecraft:lantern"
+    ],
+    "accent_use": "干草捆堆场(谷仓内/场院角), 围栏分区的真实感来源"
+  },
+  "roof": {
+    "type": "主屋=gable(patterns/gable_roof.py); 谷仓=gambrel 折线顶(patterns/gambrel_roof.py)——谷仓不折线就像仓库",
+    "slope": "主屋 45 度; gambrel 下陡上缓",
+    "overhang": 1,
+    "ridge_support": "实芯脊"
+  },
+  "windows": {
+    "pattern": "主屋每面 1-2 个 1x2; 谷仓只顶层通风小窗 1x1",
+    "size": "1x2 / 1x1",
+    "material": ["minecraft:glass_pane"],
+    "frame": "spruce_trapdoor 遮板"
+  },
+  "details": {
+    "barn_door": "谷仓大门=双开 dark_oak_door 或 fence_gate 加大门洞, 门楣横梁",
+    "yard": "场院: dirt_path 地面 + 围栏(oak_fence) 分畜栏/草料区/工具棚",
+    "fields": "patterns/terrace_farm.py 坡地梯田或平地畦田(水润泽半径 4 锁宽), 作物混种分行",
+    "garden": "patterns/flower_field.py scheme=meadow 房前小菜园/花境",
+    "trees": "patterns/garden_tree.py 场院孤植树 1-2 棵, 果园=小体量成行",
+    "interior": "主屋 patterns/interior_rooms.py 农舍版(kitchen 必配); 谷仓=hay_block 堆垛+农具墙, 不住人",
+    "lighting": "lantern 挂门楣/栏桩, 场院角灯",
+    "depth": {
+      "pilaster": {"enabled": false, "note": "农建靠桁架暴露和门柱做骨架, 不用壁柱"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:spruce_stairs"},
+      "string_course": {"enabled": false}
+    }
+  },
+  "pitfalls": [
+    "谷仓用人字顶 — gambrel 折线顶才是谷仓, 人字顶=普通仓库",
+    "只有房子没有场 — 农场的魂在场院+田+围栏, 单体农屋不算农场",
+    "石基太薄 — 农建石基 1-2 层是(stats 近半材料), 直接木墙落地会飘",
+    "围栏断头 — 围栏必须闭合或接到建筑/门柱, 半截围栏最出戏",
+    "谷仓塞床 — 谷仓囤草不住人, 住人空间在主屋"
+  ],
+  "validators": ["support_check", "slab_check", "collision_check"]
+}

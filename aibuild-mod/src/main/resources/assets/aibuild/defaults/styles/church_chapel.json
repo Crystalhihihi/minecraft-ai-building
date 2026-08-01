@@ -1,0 +1,72 @@
+{
+  "style_id": "church_chapel",
+  "name": "Church / Chapel (教堂/礼拜堂)",
+  "use_for": "churches, chapels, cathedrals, bell towers, monastic halls",
+  "palette_stats": "GrabCraft churches 16 件统计: white_wool 22.3%(白身主流) / bricks 6.4% / cobblestone 5.5% / stone_bricks 4.4% / stone_slab 4.4% / dark_oak_planks 2.8% / black_wool 2.6%(剪影线) — 白身+砖/石骨架+深顶是实测主流, 砖构哥特用 bricks",
+  "proportions": {
+    "height_to_width_ratio": "厅 1.5:1~2:1(高耸感), 塔 3:1~5:1",
+    "storey_height": "厅内净高 6-10(中厅必须高), 侧廊 3-4",
+    "wall_thickness": 1,
+    "typical_footprint": "小堂 7x13(单厅), 教堂 11x21+(中厅+侧廊+后殿), 平面十字或矩形",
+    "door_height": "正门 3-4(拱)"
+  },
+  "materials": {
+    "primary": [
+      "minecraft:white_concrete",
+      "minecraft:quartz_block",
+      "minecraft:bricks",
+      "minecraft:stone_bricks"
+    ],
+    "primary_use": "白堂=white_concrete/quartz 主体; 砖堂=bricks 主体; 二选一, 不混",
+    "frame": [
+      "minecraft:stone_bricks",
+      "minecraft:dark_oak_log"
+    ],
+    "frame_use": "墙角柱/拱肋/窗框(白堂用 stone_bricks, 砖堂用 stone_bricks 勾边)",
+    "roof": [
+      "minecraft:deepslate_tile_stairs",
+      "minecraft:dark_oak_stairs",
+      "minecraft:blackstone_stairs"
+    ],
+    "accent": [
+      "minecraft:black_concrete",
+      "minecraft:glass_pane",
+      "minecraft:lantern",
+      "minecraft:candle"
+    ],
+    "accent_use": "black 剪影线(檐口/窗棂), 彩窗=染色玻璃板竖列(红/蓝/黄 2-3 色)"
+  },
+  "roof": {
+    "type": "厅=gable 陡坡(45-60 度, patterns/gable_roof.py); 塔=尖顶(patterns/helm_roof.py 或逐层收分尖锥)",
+    "overhang": 1,
+    "ridge_support": "实芯脊",
+    "spire": "塔顶十字架位: fence+铁活板门或 end_rod 竖向 2-3",
+    "note": "中厅屋顶坡度要陡——教堂的崇高感一半来自陡坡"
+  },
+  "windows": {
+    "pattern": "尖拱长窗等距排(每 3 格 1 樘), 正面玫瑰窗位(圆或 3x3 花窗)",
+    "size": "1x3~1x4 竖长尖拱",
+    "material": ["minecraft:glass_pane", "minecraft:red_stained_glass_pane", "minecraft:blue_stained_glass_pane", "minecraft:yellow_stained_glass_pane"],
+    "pattern_script": "patterns/arch_window.py 尖拱参数, 彩窗竖列交替"
+  },
+  "details": {
+    "buttress": "patterns/buttress.py 中厅两侧每 3-4 格(哥特飞扶壁感: 顶部外斜 1 格)",
+    "entry": "正门前 2-3 级台阶, 门洞石拱+双扇 dark_oak_door",
+    "bell_tower": "塔独立或贴前厅角, 顶层四面 1x2 拱洞(钟位: iron_bars 吊或音符盒)",
+    "interior": "中厅: 成排长椅(楼梯背对背, patterns/interior_rooms corridor 摆法) + 尽头祭坛(石英台阶+candle×2~4) + 顶部藏光; 忌塞家具",
+    "lighting": "lantern 吊中厅轴线, candle 祭坛; 彩窗白天透光就是灯",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 3, "projection": 1, "material": "minecraft:stone_bricks", "note": "壁柱与窗同节奏, 柱间即窗"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:stone_brick_stairs"},
+      "string_course": {"enabled": true, "material": "minecraft:stone_brick_slab", "note": "檐口下 1 圈线脚"}
+    }
+  },
+  "pitfalls": [
+    "厅高不够 — 净高 <6 的教堂=平房加尖顶, 崇高感全失",
+    "窗是方洞 — 教堂窗必须竖长尖拱, 方窗立即破功",
+    "白盒无骨架 — 白身也要 stone_bricks 柱/框/线脚勾形",
+    "屋顶太缓 — 教堂坡要陡, 缓坡像谷仓",
+    "内饰塞满 — 教堂=长椅+祭坛+光, 放床放桌是灾难"
+  ],
+  "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
+}
