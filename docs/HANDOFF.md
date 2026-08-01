@@ -47,3 +47,18 @@ schematic-sources(PMC 340+ 可解析,授权红线=再分发)/chinese-monumental(
 4. 风格卡体系升级(吃 reflib 新 5 篇)——并入大调查 T4
 5. 感知升级:多角度渲染包+接缝扫描+量化检查(schematic verifier 思路)
 6. E5:同一建筑多 worker 并发修改
+
+## 2026-08-01 深夜快照(额度收官)
+
+**系统现状**:访谈(ask_player)+建造闭环全通,14 张风格卡+11 专项模式卡+共享风格库。最新提交 dc9cf85,jar 已部署(23:02,PCL mods)。
+- 访谈流程: /aibuild→访谈 agent(单问题 ask_player,可点按钮,无限等待)→intake_brief.md→自动交接建造 agent;无卡先造卡(styles/<id>.json),新卡自动提升到 <世界>/aibuild/shared_styles/
+- 用户实测反馈(本轮): 卡片让建造明显变快、消耗明显变小
+- 额度账单机制: sessions.json stats(token_in/out/cache_read),缓存命中 90%+,省钱靠 READ LIGHT/断路器/渲染预算(都在 22:27+ jar)
+- **部署纪律修正**: 游戏进程= java.exe(命令行带 Mojang/natives),不是 javaw!检查: powershell Get-CimInstance Win32_Process java.exe 排除 gradle。曾因误判热替换 jar 导致游戏内类加载崩溃
+
+**抓取(零额度,挂着跑)**: scratch/phase9/gc_probe/(grabcraft_scrape.py --shard=k/n)
+- 4 分片(task bash-lbmpu3nc/tkpayj2p/o0yj6eah/s93ql8b8)啃 medieval-houses 1227 件,542 全量,nohup 组(group1-4.log)啃 modern/sightseeing/tree-houses/fictional/castles
+- 全库 2429 件 meta,1257 带层图。GrabCraft 限流(~60 件/h 总),预计上午收完
+- GrabCraft 无日式分类;日式样本 51 件已统计并出 sakura_japanese 卡
+
+**下次开工先做**: ① 查抓取完成度(上表) ② 全量统计补 stats_palettes ③ 细节肌理卡调研(facade_depth>accent_detailing>timber_structure>树枝升级>花园层次,见 2026-08-01 讨论) ④ 用户实机测完整闭环(14 卡)
