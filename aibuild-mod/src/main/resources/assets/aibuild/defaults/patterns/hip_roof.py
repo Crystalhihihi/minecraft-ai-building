@@ -16,7 +16,8 @@ DEFAULTS = {
     "height": 0,                   # 0 = auto 45deg from the shorter span
     "overhang": 1,
     "material": "minecraft:deepslate_tile_stairs",
-    "ridge_material": "minecraft:deepslate_tile_slab"
+    "ridge_material": "minecraft:deepslate_tile_slab",
+    "ridge_support": "minecraft:deepslate_tiles"  # solid beam under the ridge slab (E8 实测:侧放支撑楼梯留半格缝)
 }
 
 def stair(base, facing, shape=None):
@@ -50,13 +51,15 @@ def build(p):
     height = int(p["height"]) or max(1, max_inset)
     height = max(1, min(height, max_inset))
     mat, ridge = p["material"], p["ridge_material"]
+    beam = p.get("ridge_support", "minecraft:deepslate_tiles")
     blocks = []
 
     def ridge_cap(x, y, z, facing):
-        # hidden support stair under the ridge top slab (E7 漏空 fix);
+        # SOLID beam under the ridge top slab — a sideways support stair
+        # leaves a half-gap on its open side (E8 实测 "还是悬空").
         # skipped when the cap sits on the wall top (y==oy, wall supports it)
         if y > oy:
-            blocks.append({"x": ox + x, "y": y - 1, "z": oz + z, "block": stair(mat, facing)})
+            blocks.append({"x": ox + x, "y": y - 1, "z": oz + z, "block": beam})
         blocks.append({"x": ox + x, "y": y, "z": oz + z, "block": top_slab(ridge)})
 
     top = None  # (y, x0, x1, z0, z1) of the last emitted ring

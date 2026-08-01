@@ -23,9 +23,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import mirror_build  # patterns/ : for load_blocks
 
-# 不需要支撑的白名单(名称子串匹配)
+# 不需要支撑的白名单(名称子串匹配;"air"单独精确匹配,否则 stairs 全被误豁免)
 WHITELIST = (
-    "air", "_leaves", "vine", "lichen", "vein", "hanging_roots", "roots",
+    "_leaves", "vine", "lichen", "vein", "hanging_roots", "roots",
     "spore_blossom", "chain", "lantern", "end_rod", "torch", "candle",
     "flower", "tulip", "orchid", "daisy", "allium", "poppy", "dandelion",
     "grass", "fern", "sapling", "bush", "fungus", "sprouts", "cobweb",
@@ -53,7 +53,13 @@ def parse(spec):
 
 def whitelisted(name):
     n = name.lower()
+    if n in ("air", "minecraft:air", "cave_air", "void_air",
+             "minecraft:cave_air", "minecraft:void_air"):
+        return True
     return any(w in n for w in WHITELIST)
+
+
+FACING_DIRS = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}
 
 
 def check(p):
@@ -63,20 +69,42 @@ def check(p):
     solid |= {(b["x"], b["y"], b["z"]) for b in base}
     min_y = min(b["y"] for b in blocks) if blocks else 0
 
+    def supported(pos, name, props):
+        x, y, z = pos
+        if y == min_y:
+            return True
+        if (x, y - 1, z) in solid:
+            return True
+        # hanging from above (upside-down pieces, chandeliers)
+        if (x, y + 1, z) in solid:
+            return True
+        # attached on any horizontal side — reads as connected, not floating
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if (x + dx, y, z + dz) in solid:
+                return True
+        if "_stairs" in name:
+            f = props.get("facing")
+            if f in FACING_DIRS:
+                dx, dz = FACING_DIRS[f]
+                # stair slopes rest on the step below-downhill (y-1, -facing)
+                if (x - dx, y - 1, z - dz) in solid:
+                    return True
+        return False
+
     floaters = []
     for b in blocks:
         name, props = parse(b["block"])
         if whitelisted(name):
             continue
+        pos = (b["x"], b["y"], b["z"])
         below = (b["x"], b["y"] - 1, b["z"])
-        supported = below in solid or b["y"] == min_y
         if "_slab" in name and props.get("type") == "top":
-            if not supported:
+            if below not in solid:
                 floaters.append({"x": b["x"], "y": b["y"], "z": b["z"],
                                  "block": b["block"], "reason": "floating_top_slab"})
-        elif not supported:
+        elif not supported(pos, name, props):
             floaters.append({"x": b["x"], "y": b["y"], "z": b["z"],
-                             "block": b["block"], "reason": "no_block_below"})
+                             "block": b["block"], "reason": "no_support"})
     return {"all_supported": not floaters,
             "checked": len(blocks), "base_blocks": len(base),
             "floater_count": len(floaters), "floaters": floaters[:100]}

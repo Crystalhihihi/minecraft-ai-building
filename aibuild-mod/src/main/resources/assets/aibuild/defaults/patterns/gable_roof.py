@@ -26,6 +26,7 @@ DEFAULTS = {
     "axis": "x",                   # ridge axis: "x" (ridge along x) or "z"
     "material": "minecraft:spruce_stairs",
     "ridge_material": "minecraft:spruce_slab",
+    "ridge_support": "minecraft:spruce_planks",  # solid beam under the ridge slab (a sideways stair leaves a half-gap on its open side — E8 实测)
     "end_fill": ""                 # e.g. "minecraft:oak_planks": solid gable-end triangles inside wall footprint
 }
 
@@ -51,6 +52,7 @@ def build(p):
     height = int(p["height"]) or auto_h
     height = max(1, min(height, auto_h))
     mat, ridge, fill = p["material"], p["ridge_material"], p["end_fill"]
+    beam = p.get("ridge_support", "minecraft:spruce_planks")
     blocks = []
 
     # axis=z transposes local coords (local x -> world z); facing strings must
@@ -75,12 +77,12 @@ def build(p):
         top_y, top_zn, top_zs = y, zn, zs
         for x in range(-oh, w + oh):
             if zn == zs:
-                # ridge: hidden support stair under the top slab (no more
-                # floating top slab / see-through gap, E7 漏空 fix).
+                # ridge: SOLID beam under the top slab — a sideways support
+                # stair leaves a half-gap on its open side (E8 实测 "还是悬空").
                 # skip when the ridge sits on the wall top (y==oy): the wall
                 # itself is the support then.
                 if y > oy:
-                    emit(x, y - 1, zn, stair(mat, "east"))
+                    emit(x, y - 1, zn, beam)
                 emit(x, y, zn, top_slab(ridge))
             else:
                 emit(x, y, zn, stair(mat, "south"))
@@ -97,7 +99,7 @@ def build(p):
         for x in range(-oh, w + oh):
             for z in range(top_zn, top_zs + 1):
                 if top_y > oy:
-                    emit(x, top_y - 1, z, stair(mat, "east"))
+                    emit(x, top_y - 1, z, beam)
                 emit(x, top_y, z, top_slab(ridge))
     return blocks
 

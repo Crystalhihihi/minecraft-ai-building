@@ -101,10 +101,12 @@ def build(p):
         slope_row(r, oy + 2 * h1 + h2, "stair")
 
     # ---- closure at the meeting line --------------------------------------
+    beam = p.get("ridge_support", "minecraft:spruce_planks")
     if T % 2 == 1:
         zmid = -oh + S                    # shared middle ridge column
         for x in range(-oh, w + oh):
-            emit(x, ytop - 2, zmid, stair(mat, "south"))       # hidden support
+            emit(x, ytop - 2, zmid, beam)                    # solid beam: a
+            # sideways stair leaves a half-gap on its open side (E8 实测)
             emit(x, ytop - 1, zmid, slab(ridgem, "top"))       # flush seam
             if p["ridge"]:
                 emit(x, ytop, zmid, slab(ridgem, "bottom"))
