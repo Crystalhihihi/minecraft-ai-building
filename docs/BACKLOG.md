@@ -55,3 +55,15 @@
 - `/aichat` 无会话时直接开新聊天(现在提示无可续会话)
 - render 背景加天空/地面(GL 渲染现在是黑底)
 - 选区杖自定义贴图(现为木棍外观)
+
+## B7. worker 会话缺 ReadMediaFile(E6 发现,2026-07-31)
+
+- **现象**:mod 派生的 worker 会话(kimi -p ... --output-format stream-json)工具集里没有 ReadMediaFile;explore/coder 子代理同样没有;模型本身多模态正常(MCP 返回的渲染图可见,渲染自检不受影响)。E6 对照组 agent 只能靠 PIL 像素分析+装 playwright chrome 绕道看图
+- **疑因**:headless -p 模式的工具白名单,或 AgentRunner spawn 参数/config 缺配置;s1 曾单条流式响应 12.3min 无输出(78k token 一口气写生成器)——"假死"判别法:看 wire.jsonl mtime
+- **重开方式**:查 kimi headless 模式的工具挂载规则(docs skill / kimi --help),确认能否在 AgentRunner spawn 时显式启用;若可行,E6 类"照图施工"任务书不再需要绕道
+
+## B8. 内饰程序化(E6 用户观察衍生,2026-07-31)
+
+- **背景**:E6 两栋木屋——s1(生成器)空壳无内饰;s2(逐块)有家具但动线断、人进不去。同源病:没有环节对"可使用性"负责
+- **方向**:内饰走生成器同一条路——房间功能分区+动线图写成 spec;家具做成模式库(床/桌/柜放置规则+间距/朝向);**机器验收=从门口 flood-fill,2 格净空能否走到每个家具前**(B3 确定性验收层的延伸,零模型 token)
+- **关系**:E6 克隆实验保持外观聚焦,本项单独立项;风格卡体系升级时可并入"内饰卡"

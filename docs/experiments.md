@@ -56,3 +56,66 @@
 
 
 ## E5:疯狂修改压力测试 —— 待做
+
+## E6:克隆实验(照图施工 + 量化 diff 迭代环)—— 阶段 1 基线已出(2026-07-31 晚)
+
+> plan:`docs/plans/2026-07-31-clone-experiment.md`。首选目标:深色云杉木屋(`优秀建筑图片/114017853925562..png`)。
+
+**阶段 0(机位标定 + diff 管线自验)**:
+- `scratch/phase8/clone/diff.py`:mask 提取(topdown alpha / GL 非黑底)、IoU(带 ±24px 平移搜索)、理论剪影投影器(复刻 ClientRegionRenderer 相机:区域局部坐标/距离=1.5×对角线/FOV_Y 50°/768²/persp+ortho,软件光栅 z-buffer)、色板 χ² 直方图。自测:合成结构 3 机位剪影几何目检全对
+- 标定结构(gen_calib.py,276 块全立方体,不对称:角塔+高梁+南墙)建于 dev server x[500,511] z[500,507] y[80,92]
+- **topdown 腿 ✅:网格 IoU = 1.0**(96/96 列逐格一致;渲染 264×176 整倍数放大,格心采样)
+- **GL 腿 ✅(用户世界 新的世界(3),同一标定结构):5 机位(az 0/45/90/180 + 1 ortho)全部 IoU≈1.0**,理论剪影与 GPU 渲染逐像素一致(差 ≤1px 边界,JSON 四位舍入显示 1.0),零平移偏移——**mod 相机模型复刻精确成立**,diff 环的几何基础无误差;`gl_calib.py` 一键复跑
+- 坑:dev server 无玩家,目标区块未加载,vanilla /fill 静默失败(渲染全透明才发现)——**先 forceload 再 fill,fill 后用 execute if block 验证**;**客户端世界同样:fill 后须验证**(本次用户手贴,已验证)
+- bridge HTTP:min/max 是**数组** [x,y,z] 不是对象;token 头 `X-Aibuild-Token`;每次 server 重启 port/token 都变,重读 bridge.json
+
+**阶段 1(2026-07-31 晚,用户世界 新的世界(3),虚空超平坦)**:
+- 双会话并行(模型均为 deepseek/v4-flash 默认,thinking=high;**非 K3**——客户端 config 无 agent_model):
+  - s1 处理组(spec+代码生成):27 轮/52 调用/833 块/26.7min,单条流式响应曾连写 77.9k token(12.3min)——"假死"判别法:看 wire.jsonl mtime
+  - s2 对照组(常规流程):40 轮/109 调用/1448 块/24.1min
+- **基线分**(diff 机位 az0/el8/ortho,refscore 对 ref_mask):
+  - 处理组 v1:IoU 0.6127(best 0.6381),χ² 0.6148
+  - 对照组终:IoU 0.5901(best 0.6908),χ² 0.4516
+- **关键发现 1——worker 无视觉**:s2 全程没看见参考图(ReadMediaFile 不在 worker 工具集,见 BACKLOG B7),只能靠 PIL 像素统计,屋顶做成平板——对照组="现有工作流照图施工"的诚实基线,IoU 虽略高但丢了参考图全部签名特征
+- **关键发现 2——处理组 v1 弱点定位**(3×3 分区 IoU):中柱 0.76/1.0/0.9 优秀;**左翼屋顶缺失**(左列 0.27/0.22/0.38);右侧门廊低檐缺失(右下 0.46);材质偏浅偏黄(χ² 反而高于对照组)
+- s1 生成器:sessions/s1/gen_shell.py + merge.py(多 JSON 合并);v2 迭代在其上改
+- IoU 解读警示:对照组分数虚高——boxy 剪影填满 bbox 占便宜,**分区 IoU+目检才是判断依据,总分只做趋势参考**
+
+**用户实机观察(2026-07-31 晚,v1 两栋后)**:
+- 外观不再"光秃秃"——对照网上 AI 建筑普遍单平面,本次修饰来自 ①spec 显式构件清单 ②生成器让重复修饰边际成本归零。结论:**修饰是工程表达问题,不是审美问题**,可被系统性生产
+- 内部缺陷:s1 全空(diff 环只量外轮廓,你量什么就得到什么;且空壳省料 833 vs 1448 块);s2 逐块建造无空间规划,家具事后塞、动线断、人进不去。同源病:没有任何环节对"可使用性"负责
+- 衍生方向:内饰走同一条路——功能分区+动线 spec、家具模式库、flood-fill 净空连通性机器验收(见 BACKLOG B8)
+
+**v2 叫停与楼梯朝向 ground truth(2026-07-31 晚)**:用户叫停 v2("已经乱七八糟了再修估计也修不好"),并在世界 x[635,659] z[466,482] 手摆 88 块楼梯朝向示范件(原位保留)。已全量回读(`stairs_dump.json`)并提炼规则目录 `docs/research/stair-orientations.md`:内转角框架(背朝外)/外转角框架(背朝内)/长条框架收头/正放倒放叠放/收分拱剖面;生成规则=facing/half/shape 全几何推导+显式写 shape;两条零 token 机器验收规则并入 B3。扫描管线新招:topdown 渲染→木质棕颜色过滤定位构件柱位→全高回读(比盲扫快 10 倍)
+
+**示范件 v2(纯楼梯版)**:用户拆除半砖/活板门/原木后重扫,现存 70 块纯楼梯(stairs_dump.json;v1 完整版 88 块存 stairs_dump_v1_full.json)。拆除后原"收分拱"件显露本体=**光滑上升梯段:正放踏面 + 倒放立面,不用半砖填芯即消锯齿**——屋顶坡面做法直接可用
+
+## E6 阶段总结(2026-07-31 晚收官)
+
+**判而未决的主问题**:diff 环未跑成一轮(v2 被叫停),"相似度曲线能否爬升"无数据。但副产品比主问题值钱:
+
+1. **修饰可编程化成立**:spec 显式构件清单+生成器,使外观立体感(立柱/百叶/花箱/檐灯)可系统性生产——这是与网上 AI 建筑"光秃秃"的分水岭
+2. **worker 无视觉是硬天花板**(B7):对照组盲建丢光参考图特征;照图施工必须有视觉方先拆图
+3. **内外同病**:生成器空壳 vs 逐块进不去——解法是 E7 的从里到外管线+B8 机器验收
+4. **楼梯朝向 ground truth**:用户手摆示范件→规则目录,已打进 mod 默认资产(patterns/stair_orientations.md)
+5. **"极限论"需重测**:E6 质量数据全部来自 deepseek/v4-flash(配置漏设),非 K3;E7 起全员 k3-256k
+6. 管线遗产:diff.py(相机复刻 IoU≈1.0)/refscore/扫描管线(topdown 色滤定位→全高回读)/watch_sessions.py
+
+**walkability 验收器 v1 实测(2026-07-31 晚,对照组房子)**:✅ 验收合格。21.7k 块扫描 221s;判决:一层室内从大门全通(2/2),二层不可达(垂直交通是梯子,v1 不模拟爬梯;E7 spec 已要求真楼梯)——与用户"进不去"实机观察一致。已知局限:不爬梯;门位需先给(get_region_summary 可定位)。E7 会话 A 验收即用它
+
+**E7 会话 A 布局验收(2026-08-01 凌晨,K3)**:布局 13 轮/722 块/11.8min 建成(15×12 两层+阁楼,ASCII 平面图自审后施工)。walkability 初判阁楼不可达,实查为验收器两个模型 bug:①可站立格未把楼梯/台阶自身当立足点(跑楼梯顶格脚下是空气被判死)②缺半格块跨步(+2 移动)。修复后**全票通过:8/8 点可达(厅/餐区/三房/走廊/阁楼/家具),503 可达格**——"从里到外"首段管线闭环跑通
+
+**E7 会话 B 外壳+立面(2026-08-01 凌晨,K3)**:44 轮/958 块/32.9min。渲染目检:对称立面(每层楼 2 窗+百叶+花箱、中门+门廊+灯、四角立柱、甲板栅栏)、双坡屋顶带檐、窗位全部对位内部房间——**"从里到外"两段管线全程跑通,外观立体有轮廓且内部可住(walkability 复测见下行)**。产物:`scratch/phase9/e7_shell_{front,tq,back}.png`
+**E7 外壳后 walkability 复测**:✅ **8/8 全通(978 可达格,较布局段 503 增多=门廊/甲板计入)**——外壳施工未破坏内部连通,阁楼在屋顶盖下后仍可达。E7 管线两段全程闭环:布局(机器验收)→外壳+立面(窗位对位内部)→复测
+
+## 大调查(2026-08-01)
+
+**调研源**:GrabCraft 为结构主源(6000+ 件,纯 HTTP 直抓:对象页材料表+`bprints.grabcraft.com/<id>/Y/combined/<n>.png` 逐层图);清单 `docs/research/2026-08-01-survey-sources.md`
+**抓取器**(`scratch/phase9/gc_probe/grabcraft_scrape.py`):404 终止+3 重试+单件/分类模式;首批 starter-houses 16 件 + 教堂 15 + 桥 16 + 木屋 16 入库(材料表+逐层图);分页 16/页,全量扫待加 page 参数
+**T0 机制层 ✅**:INDEX 索引卡(卡格式 v2:use_for/pitfalls/validators)+ validator×2(slab_check 半砖缝/悬空上半砖;stair_corner_check 围合转角必为 corner shape——初版把 2 格深框架中柱误报,改"恰好 2 个垂直邻接"修正,用户示范件+伪造错例双向验证全绿)
+**家具图鉴 ✅(子 agent 起草+主会话校审)**:furniture.py 15 合一生成器(bed/table/chair/stool/sofa/bookshelf/cabinet/kitchen_counter/desk/lamp_post/flower_pot/bench/dresser/fireplace/piano)+ furniture.json 卡(pitfalls 首条=禁止羊毛冒充床);45 次验收全绿,抽验 bed 输出真 red_bed[part/facing] 正确;id 经知识库核对,现场 search_blocks 验证待游戏开启
+**jar 已部署**(家具卡/validator×2/INDEX,游戏重启生效)
+
+**屋顶模式包 ✅(子 agent 起草+主会话校审,2026-08-01)**:dormer(老虎窗,gabled/shed/hipped,带 air 开凿列切坡)/gambrel/mansard/helm/chimney/roof_types.md 选型速查;roof_common.py 共享层(从用户示范件推 16 项转角 shape 全表);15 组参数×3 验收全绿,主会话抽验复绿;已登记+部署。**发现并记录旧账:既有 gable/hip_roof 屋脊悬空上半砖(=E7 用户所见"漏空"病根),新包绕开,旧件待修**
+
+**旧账修复:gable/hip_roof 屋脊漏空(2026-08-01)**:屋脊上半砖下垫隐藏承重楼梯(沿脊朝向,贴墙顶层豁免);顺手修复 axis=z 时朝向字符串不旋转的潜伏 bug(local→world 旋转表)。**validator 语义修正**:stair_corner_check 只报"显式 shape=straight 位于转角"(缺省 shape=游戏内自动推导,v1 真病根是 facing/half 而非 shape);曾加"直跑成员豁免"后简化。验证:用户示范件/显式 straight 错例(报 4)/6 屋顶样本(axis x/z+陡坡+方/矩形 hip)三验收全绿;axis=z 朝向旋转抽验正确
