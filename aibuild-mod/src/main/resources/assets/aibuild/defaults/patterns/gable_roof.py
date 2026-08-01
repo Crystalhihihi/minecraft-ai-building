@@ -15,7 +15,7 @@ Usage:
   python gable_roof.py --params '{"origin":[100,80,100],"width":7,"depth":9}' [--out roof.json]
 All params optional; bare `python gable_roof.py` prints a demo roof to stdout.
 """
-import argparse, json, math, sys
+import argparse, json, math, re, sys
 
 DEFAULTS = {
     "origin": [0, 64, 0],          # [x,y,z] north-west corner of the WALL footprint; roof base layer y
@@ -53,9 +53,15 @@ def build(p):
     mat, ridge, fill = p["material"], p["ridge_material"], p["end_fill"]
     blocks = []
 
+    # axis=z transposes local coords (local x -> world z); facing strings must
+    # rotate with them: local +z -> world +x, local +x -> world +z.
+    FACING_ROT = {"south": "east", "east": "south", "north": "west", "west": "north"}
+
     def emit(x, y, z, block):
         if p.get("axis", "x") == "z":
             x, z = z, x  # transpose back: local x -> world z
+            block = re.sub(r"facing=(north|south|east|west)",
+                           lambda m: "facing=" + FACING_ROT[m.group(1)], block)
         blocks.append({"x": ox + x, "y": y, "z": oz + z, "block": block})
 
     top_y, top_zn, top_zs = oy, None, None
@@ -69,6 +75,12 @@ def build(p):
         top_y, top_zn, top_zs = y, zn, zs
         for x in range(-oh, w + oh):
             if zn == zs:
+                # ridge: hidden support stair under the top slab (no more
+                # floating top slab / see-through gap, E7 漏空 fix).
+                # skip when the ridge sits on the wall top (y==oy): the wall
+                # itself is the support then.
+                if y > oy:
+                    emit(x, y - 1, zn, stair(mat, "east"))
                 emit(x, y, zn, top_slab(ridge))
             else:
                 emit(x, y, zn, stair(mat, "south"))
@@ -84,6 +96,8 @@ def build(p):
     if top_zn is not None and top_zn < top_zs:
         for x in range(-oh, w + oh):
             for z in range(top_zn, top_zs + 1):
+                if top_y > oy:
+                    emit(x, top_y - 1, z, stair(mat, "east"))
                 emit(x, top_y, z, top_slab(ridge))
     return blocks
 

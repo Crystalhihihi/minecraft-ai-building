@@ -1,0 +1,44 @@
+# roof_types.md — 屋顶选型速查(什么体量/风格用什么顶)
+
+> 知识来源:Minecraft wiki Tutorials/Roof types、Roof decorations、Curved roofs,已提炼为 MC 尺度可执行要点。
+> 通用法则:① 居住建筑屋顶高度 = 1~2 层高(4m 层高 → 屋顶 5-7m),过大过光的屋顶是谷仓/机库不是民居;② 大屋顶体积一旦可用作房间,就要开老虎窗/天窗,不能留一整面空白坡;③ 曲线顶在 MC 尺度(半径<6m)看着只是乱坡 —— 用分段直线(gambrel/mansard)代替;④ 双坡适合宽度 ≤~12 的小体量,再大请换四坡/折线/孟莎。
+
+## 选型表(按复杂度升序)
+
+| 类型 | 一句话 | 什么体量/风格用 | 参数起点(本包生成器) |
+| --- | --- | --- | --- |
+| 平屋顶 flat | 平顶+一圈异材质压边(半砖/倒放楼梯/女儿墙),不压边就是毛坯 | 现代、沙漠、市政;平顶要防刷怪(铺半砖/照明) | 楼板+`crenellation` 卡做女儿墙;压边用倒放楼梯围合(背朝外=inner 转角) |
+| 棚屋顶 shed/skillion | 单向单坡,最便宜 | 棚屋/畜栏/加建披檐;很少当主屋顶 | 单坡楼梯排,每排 +1y 收 1;檐口出挑 1 |
+| 双坡 gable | 倒 V,村庄标配 | 小体量(宽 ≤~12),平原/乡村一切风格 | `gable_roof.py` width=房宽 depth=房深 height=0(自动45°) overhang=1 |
+| 盐箱 saltbox | 一边坡长一边坡短的双坡,常前两层后一层 | 加建/扩建、殖民地风;给老房加披屋的快捷法 | `gable_roof.py` 两次:主坡 height=自动,长坡侧 origin 后移+height 加大 |
+| 四坡 hip | 四面都坡,屋脊短/方顶成金字塔 | 中等体量、庄重感;方形塔楼平顶替代 | `hip_roof.py` width/depth height=0 overhang=1 |
+| 半四坡 half-hip | 下部双坡、顶部一小段四坡 | 较大农舍;比纯双坡秀气 | `gable_roof.py` 建到下段,顶上 2-3 层改用 `hip_roof.py` 收口 |
+| 荷兰山墙 dutch gable | 四坡顶上带小山墙(常开小窗) | 大体量农舍/市政;山墙里开小窗 | `hip_roof.py` 主体 + 顶部 `gable_roof.py` 小段 + `arch_window` |
+| 折线 gambrel | 下陡上缓双坡,阁楼体积翻倍 | 谷仓/农舍/荷兰殖民式,进深 8-14 | `gambrel_roof.py` lower_rise=2 upper_rise=2(报错会列本跨度合法组合) |
+| 孟莎 mansard | 四向陡坡+顶部平台,阁楼可做整层 | 大体量主楼(≥~9×9,wiki:~16×20 才像样)、法式/市政 | `mansard_roof.py` lower_rise=2 platform=null;**几乎必配 dormer.py** |
+| 盔顶 helm | 方塔四山墙尖顶,楼梯只朝两向 | 方形塔楼/教堂塔尖/城堡角楼,奇数宽最佳 | `helm_roof.py` width=塔宽(奇数) spire_material=spruce_fence |
+| 锯齿 saw-tooth | 一串双坡脊,陡面全部装玻璃且统一朝北(或统一朝南) | 工厂/大进深厂房采光顶;朝向必须全场一致 | 重复 `gable_roof.py` 单元拼接,陡面用 glass_pane 替代楼梯 |
+| monitor | 屋脊上骑一条带高侧窗的小长顶 | 谷仓/仓库/厂房通风采光;民居少见 | 主顶 `gable_roof.py`,脊上加一条迷你双坡(`gable_roof.py` 小 width)+侧面玻璃 |
+| 蝴蝶 butterfly | 倒 V 谷形(中间低两边高),戏剧化 | 现代/伦敦联排背面;中沟易漏,慎用于主屋面 | 两片 `gable_roof.py` 镜像坡向中间谷,谷线用半砖沟 |
+
+## 老虎窗什么时候加(dormer.py)
+
+- **大屋顶/阁楼要采光**:屋顶体积够做人就一定要有窗(wiki 法则),孟莎几乎必配。
+- **长坡面单调**:一面坡长度 ≥7-8 格时,每 3-4 格一只老虎窗打破空白。
+- **变体选择**:gabled(狗屋双坡)=乡村/农舍默认;shed(单坡)=棚屋/现代/长条连窗;hipped(四坡)=庄重体量、法式。
+- **摆放**:窗墙下沿坐在坡面上(origin y = 所在坡面层),facing=该坡下坡方向;只开一个坡面,不跨脊;depth < 主坡剩余进深。
+- **别做假窗(blind dormer)**:本生成器的窗洞真切进阁楼(带 air 开凿),纯装饰假窗在大屋顶上容易被验收抓"窗洞贴坡"。
+
+## 材料速查(gc_data 教堂类实测比例)
+
+- 民居木质顶:spruce_stairs/slabs 为主(rustic church:云杉楼梯占屋顶件 ~80%)。
+- 城堡/石作:deepslate_tile_stairs(板岩灰);哥特教堂:stone_brick_stairs 为主屋面 + 石砖/裂石砖墙。
+- 红砖墙+深色顶(dark_oak)是塔楼安全牌;氧化铜(cut copper)=绿色铜锈顶,市政/现代可用。
+- 屋脊/封边永远可与坡面同材质半砖;装饰屋脊可用 wall/fence 一排(奇数宽收尖更利落)。
+
+## 檐口与屋脊装饰(Roof decorations 要点)
+
+- 平屋顶必须压边(异材质),否则像没完工。
+- 屋脊装饰:栅栏/墙一排;山墙端:阶梯山墙(corbie steps,简单有效)。
+- 联排:把共用墙伸出屋面(party wall parapet),分隔感立现。
+- 瓦面嵌花:屋顶面里嵌少量异色楼梯/半砖做图案,小点缀大范围复制效果最好。

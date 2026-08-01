@@ -1,0 +1,26 @@
+{
+  "name": "mansard_roof",
+  "description": "Mansard roof (孟莎屋顶): four-direction slopes (hip-like) with a steep lower pitch (stacked stair-pair rings, ~63°) and a FLAT top deck — the defining feature ('always a shallow or flat section higher up'). Optional 45° transition rings when a smaller platform is requested. Every deck slab is carried by a hidden support stair below. Corners carry derived outer/inner shape intents.",
+  "when_to_use": "Large main buildings (French/municipal/manor styles, footprint >= ~9x9, wiki: mansards only look right at ~16x20 m) with usable attic floors. origin = the wall footprint's north-west corner, y = first layer ABOVE the top wall block. Almost always pair with dormer.py for attic light (the wiki: a mansard 'will almost certainly have dormers'). DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit (禁止手改方向状态).",
+  "use_for": "大体量主楼/法式/市政/庄园风;多层阁楼;需要顶部平台(瞭望/天窗基座)的场合",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "墙 footprint 西北角;y = 墙顶上一层"},
+    "width": {"type": "int", "range": "5-41", "default": 13, "notes": "墙 footprint 沿 x"},
+    "depth": {"type": "int", "range": "5-41", "default": 13, "notes": "墙 footprint 沿 z"},
+    "lower_rise": {"type": "int", "range": ">=1", "default": 2, "notes": "陡段环数(每环 2 高 1 收,双楼梯叠放)"},
+    "platform": {"type": "[pw,pd]|null", "default": null, "notes": "顶部平台尺寸;null=陡段后直接收口;必须满足两轴等量收缩,非法值报错并列合法平台"},
+    "overhang": {"type": "int", "range": "0-2", "default": 1, "notes": "檐口出挑"},
+    "material": {"type": "block id (*_stairs)", "default": "minecraft:deepslate_tile_stairs", "notes": "坡面(石板瓦=法式经典)"},
+    "platform_material": {"type": "block id (*_slab)|\"\"", "default": "", "notes": "平台面板;空=由 material 推导(_stairs->_slab)"}
+  },
+  "pitfalls": [
+    "顶部必须保留平缓平台 —— 全陡收尖就变成金字塔/盔顶,不是孟莎;platform 就是孟莎的灵魂",
+    "platform 不能乱填:四坡等量收缩,合法尺寸只有 [(开口), (-2), (-4)...] 一档档,报错会全列出来",
+    "平台每格上半砖正下方都有一格隐藏承重楼梯(阁楼内看像梁),删了平台变漏顶",
+    "体量小于 ~9×9 别用孟莎(小体量做出来像违章加层);小体量要阁楼请用 gambrel",
+    "孟莎几乎必配老虎窗采光(用 dormer.py 往陡段坡上打),否则大坡面又黑又闷",
+    "底圈(第一层)檐口在墙线上;要巴黎式女儿墙走道请自行加 parapet/crenellation 卡"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check"],
+  "example": "python patterns/mansard_roof.py --params '{\"origin\":[100,83,100],\"width\":13,\"depth\":13}' --out mansard.json && python patterns/mansard_roof.py --params '{\"origin\":[100,83,120],\"width\":11,\"depth\":9,\"lower_rise\":1,\"platform\":[7,5]}' --out mansard2.json"
+}

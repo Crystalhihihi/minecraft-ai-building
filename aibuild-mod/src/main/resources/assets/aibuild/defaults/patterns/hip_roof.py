@@ -51,6 +51,14 @@ def build(p):
     height = max(1, min(height, max_inset))
     mat, ridge = p["material"], p["ridge_material"]
     blocks = []
+
+    def ridge_cap(x, y, z, facing):
+        # hidden support stair under the ridge top slab (E7 漏空 fix);
+        # skipped when the cap sits on the wall top (y==oy, wall supports it)
+        if y > oy:
+            blocks.append({"x": ox + x, "y": y - 1, "z": oz + z, "block": stair(mat, facing)})
+        blocks.append({"x": ox + x, "y": y, "z": oz + z, "block": top_slab(ridge)})
+
     top = None  # (y, x0, x1, z0, z1) of the last emitted ring
     for i in range(height):
         inset = round(i * max_inset / height)
@@ -61,13 +69,13 @@ def build(p):
             break
         top = (y, x0, x1, z0, z1)
         if x0 == x1 and z0 == z1:
-            blocks.append({"x": ox + x0, "y": y, "z": oz + z0, "block": top_slab(ridge)})
+            ridge_cap(x0, y, z0, "east")
         elif z0 == z1:
             for x in range(x0, x1 + 1):  # collapsed to the ridge line
-                blocks.append({"x": ox + x, "y": y, "z": oz + z0, "block": top_slab(ridge)})
+                ridge_cap(x, y, z0, "east")
         elif x0 == x1:
             for z in range(z0, z1 + 1):
-                blocks.append({"x": ox + x0, "y": y, "z": oz + z, "block": top_slab(ridge)})
+                ridge_cap(x0, y, z, "south")
         else:
             for x in range(x0, x1 + 1):
                 # north row (facing south): corners get outer-curve intent
@@ -94,7 +102,7 @@ def build(p):
         if x1 - x0 >= 2 and z1 - z0 >= 2:
             for x in range(x0 + 1, x1):
                 for z in range(z0 + 1, z1):
-                    blocks.append({"x": ox + x, "y": y, "z": oz + z, "block": top_slab(ridge)})
+                    ridge_cap(x, y, z, "east")
     return blocks
 
 def main():

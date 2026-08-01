@@ -1,0 +1,24 @@
+{
+  "name": "helm_roof",
+  "description": "Helm roof (盔顶/Rhenish helm): square tower roof with FOUR gable ends. Wiki recipe ground-truthed: stairs face only TWO directions (filled square layers, north rows face south, south rows face north), each layer inset 1 on all sides (every face shows a triangle = four gables), and the middle row(s) are slabs plugging the seam ('slabs under the main roof blocks'). Odd width comes to a point; even width gets a 2-row seam. Base-course seam uses double slabs so nothing floats.",
+  "when_to_use": "Square towers, church spires, castle corner turrets. origin = the tower footprint's north-west corner, y = first layer ABOVE the top wall block. Prefer odd widths (the wiki: helms work better on odd-width towers). DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit facing/half/shape (禁止手改方向状态).",
+  "use_for": "方形塔楼/教堂塔尖/城堡角楼收顶;奇数宽塔(5/7/9)效果最佳",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "塔 footprint 西北角;y = 墙顶上一层"},
+    "width": {"type": "int", "range": "3-21", "default": 7, "notes": "方塔宽;奇数收尖(推荐),偶数中缝两条"},
+    "overhang": {"type": "int", "range": "0-2", "default": 1, "notes": "檐口出挑"},
+    "material": {"type": "block id (*_stairs)", "default": "minecraft:dark_oak_stairs", "notes": "坡面(深色尖顶经典)"},
+    "ridge_material": {"type": "block id (*_slab)", "default": "minecraft:dark_oak_slab", "notes": "中缝半砖(底层自动 type=double 封基)"},
+    "spire_material": {"type": "block id|\"\"", "default": "", "notes": "塔尖材料(fence/wall 类);空=无尖"},
+    "spire_height": {"type": "int", "range": "0-2", "default": 0, "notes": "尖顶层数;仅奇数总宽(单尖点)可用"}
+  },
+  "pitfalls": [
+    "楼梯只朝两个方向(南北两排)——四向楼梯的盔顶'very fiddly'且效果差(wiki),别改输出里的 facing",
+    "奇数宽才收尖;偶数宽中缝是两条且不能加 spire(报错会提示),要尖塔就把塔宽改成奇数",
+    "中缝半砖是堵缝关键(底层 type=double 坐墙线,上层 type=top 层层相叠)——换整砖会高出半格,删掉留通天缝",
+    "四角 outer 转角、脊端 inner 转角都由脚本按邻接推导;四个三角形山墙面是几何自然结果,不用另做山墙",
+    "盔顶是塔楼收顶,不是大屋顶方案:宽>13 的方体请考虑 hip/mansard"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check"],
+  "example": "python patterns/helm_roof.py --params '{\"origin\":[100,83,100],\"width\":7}' --out helm.json && python patterns/helm_roof.py --params '{\"origin\":[100,83,120],\"width\":7,\"spire_material\":\"minecraft:spruce_fence\",\"spire_height\":2}' --out helm2.json"
+}

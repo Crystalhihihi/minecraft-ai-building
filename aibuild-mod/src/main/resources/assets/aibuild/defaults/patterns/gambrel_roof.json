@@ -1,0 +1,29 @@
+{
+  "name": "gambrel_roof",
+  "description": "Gambrel roof (折线屋顶): two pitches per slope — steep lower (~63°, stacked stair pairs) and shallow upper (~27°, stair+top-slab treads) — the barn / Dutch-Colonial profile that doubles attic volume. Every top slab is carried by a hidden support stair below it (floating slabs fail validation). Ridge sealed, optional gambrel-end wall fill. All states derived.",
+  "when_to_use": "Barns, farmhouses, Dutch-Colonial and rustic builds that need a roomy attic on a mid-size footprint. origin = the wall footprint's north-west corner, y = first layer ABOVE the top wall block. Ridge along `axis`. lower_rise+2*upper_rise must close the span ({S-1, S}, S = (span+2*overhang)//2) — the script errors and lists the legal combos if it doesn't. DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit (禁止手改方向状态).",
+  "use_for": "谷仓/农舍/荷兰殖民式主屋顶;中等体量(进深 8-14)要阁楼空间时替代 gable",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "墙 footprint 西北角;y = 墙顶上一层"},
+    "width": {"type": "int", "range": "3-31", "default": 9, "notes": "墙 footprint 沿 x(屋脊方向,axis=x 时)"},
+    "depth": {"type": "int", "range": "3-31", "default": 11, "notes": "墙 footprint 沿 z(坡跨方向,axis=x 时)"},
+    "lower_rise": {"type": "int", "range": ">=1", "default": 2, "notes": "下陡段层数(每层 2 高 1 收,双楼梯叠放)"},
+    "upper_rise": {"type": "int", "range": ">=1", "default": 2, "notes": "上缓段层数(每层 1 高 2 收,楼梯+上半砖)"},
+    "overhang": {"type": "int", "range": "0-2", "default": 1, "notes": "檐口出挑"},
+    "axis": {"type": "\"x\"|\"z\"", "default": "x", "notes": "屋脊方向;山墙面朝另一轴"},
+    "material": {"type": "block id (*_stairs)", "default": "minecraft:spruce_stairs", "notes": "坡面;缓段半砖由它推导(_stairs->_slab)"},
+    "ridge_material": {"type": "block id (*_slab)", "default": "minecraft:spruce_slab", "notes": "屋脊盖缝"},
+    "ridge": {"type": "bool", "default": true, "notes": "屋脊处加一排盖缝半砖"},
+    "end_fill": {"type": "block id|\"\"", "default": "", "notes": "山墙端面填充材料;空=开口山墙"}
+  },
+  "pitfalls": [
+    "lower_rise+2*upper_rise 必须落在 {S-1, S}(S=(坡跨+2*overhang)//2),报错会列出本跨度的全部合法 [lower,upper] 组合 —— 别硬填,改参数重跑",
+    "下陡段是'双楼梯叠放'(正放+倒放同柱,63°):上面那格必须 half=top,改成 bottom 就出现台阶缺口",
+    "上缓段每格上半砖(type=top)正下方都有一格隐藏承重楼梯 —— 删了就是漏顶洞(slab hole),验收器必抓",
+    "折线感来自分段直线:MC 尺度别追求真曲线(wiki:半径<6m 的'曲线'看着只是乱坡)",
+    "进深太小(<8)做不出两段坡,直接用 gable_roof;只有一段坡需求的也别硬凑 gambrel",
+    "end_fill 山墙是折线剖面的梯形三角,别拿 gable 的纯三角去对"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check"],
+  "example": "python patterns/gambrel_roof.py --params '{\"origin\":[100,83,100],\"width\":9,\"depth\":11,\"material\":\"minecraft:dark_oak_stairs\"}' --out gambrel.json && python patterns/gambrel_roof.py --params '{\"origin\":[100,83,120],\"width\":7,\"depth\":8,\"lower_rise\":1,\"upper_rise\":2,\"end_fill\":\"minecraft:oak_planks\"}' --out gambrel2.json"
+}

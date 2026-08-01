@@ -1,0 +1,113 @@
+{
+  "name": "furniture",
+  "description": "Furniture atlas (家具图鉴): 15 classic MC furniture pieces from one generator — bed/table/chair/stool/sofa/bookshelf/cabinet/kitchen_counter/desk/lamp_post/flower_pot/bench/dresser/fireplace/piano. All recipes are build-circle canon (fence+pressure_plate table, stair+sign chair, stair-row sofa, barrel cabinets, campfire fireplace ...). Direction states (stair facing/half, sign rotation, bed part) are derived from origin+facing by the script.",
+  "when_to_use": "Interior furnishing after walls/roof are done. origin = the piece's bottom-FRONT-left cell at floor level (the block the furniture stands in, not under); facing = the direction the FRONT faces (where the user stands; for seats: the way the sitter faces; for bed: foot->head, i.e. where the pillow points). DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit facing/half/rotation/part in the output; change params and re-run (禁止手改方向状态).",
+  "use_for": "室内家具/软装:卧室(bed/dresser/bookshelf)、客厅(sofa/table/chair/stool/bench/lamp_post/flower_pot/piano)、书房(desk/bookshelf)、厨房(kitchen_counter/cabinet)、壁炉客厅(fireplace)",
+  "params": {
+    "piece": {"type": "enum", "required": true, "values": ["bed", "table", "chair", "stool", "sofa", "bookshelf", "cabinet", "kitchen_counter", "desk", "lamp_post", "flower_pot", "bench", "dresser", "fireplace", "piano"], "notes": "which furniture piece to emit"},
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "bottom-front-left cell at floor level; y = the layer the piece stands in"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "front direction (seats: sitter's view; bed: foot->head); rotation is derived, never hand-filled"},
+    "extra": {"type": "per-piece", "notes": "each piece accepts the extra params listed under pieces.<name>.extra_params; all have safe defaults"}
+  },
+  "pieces": {
+    "bed": {
+      "use_for": "卧室床(双人床两格)",
+      "recipe": "REAL bed block: minecraft:<color>_bed, two cells — part=foot at origin, part=head one cell forward; both share the same facing (foot->head).",
+      "extra_params": {"color": "any of the 16 bed colors, default red"},
+      "pitfalls": ["禁止用两格羊毛/混凝土冒充床 —— 必须用真床方块(color_bed, part=foot/head),这是本项目的耻辱柱错误", "facing 两格必须一致,head 在 facing 方向上一格;放反了枕头就在脚那头", "床头那格前方必须是空气,否则放置失败"]
+    },
+    "table": {
+      "use_for": "餐桌/边桌",
+      "recipe": "fence leg(s) + pressure-plate top (classic 1x1 side table; width 2-4 = dining table).",
+      "extra_params": {"wood": "wood prefix, default oak", "width": "1-4, default 1"},
+      "pitfalls": ["桌面用 pressure_plate 不是 carpet —— carpet 会陷进栅栏顶的视觉缝", "width>1 时每格一条腿,不要只放两端腿(中间桌面悬空难看)"]
+    },
+    "chair": {
+      "use_for": "餐椅/单人椅",
+      "recipe": "one stair (back at the rear: stair facing = OPPOSITE of the sitter's view) + two standing signs beside it as armrests.",
+      "extra_params": {"material": "any *_stairs, default minecraft:oak_stairs", "sign_material": "default minecraft:oak_sign"},
+      "pitfalls": ["楼梯 facing 必须与'坐的人看的方向'相反(facing=高侧/靠背),放反了人面朝靠背", "扶手用站立 sign(rotation 由脚本推导),不要用墙挂 sign"]
+    },
+    "stool": {
+      "use_for": "凳子/脚凳(无扶手矮座)",
+      "recipe": "a single bare stair, no armrests.",
+      "extra_params": {"material": "any *_stairs, default minecraft:spruce_stairs"},
+      "pitfalls": ["stool 不是'没扶手的小椅子'之外的任何东西 —— 别加靠背第二格;要靠背请用 chair/sofa"]
+    },
+    "sofa": {
+      "use_for": "客厅沙发(2-6 座)",
+      "recipe": "row of seat stairs (backs at rear) + one end stair at each side rotated 90°, tall side OUTWARD = chunky armrests.",
+      "extra_params": {"material": "any *_stairs, default minecraft:spruce_stairs", "length": "2-6 seats, default 3"},
+      "pitfalls": ["扶手端楼梯必须背朝外(高侧在外),放反了扶手变成向外下斜的坡", "整排座位楼梯共享一个 facing(=坐的反面),别逐格改"]
+    },
+    "bookshelf": {
+      "use_for": "书房/卧室书架墙",
+      "recipe": "plain minecraft:bookshelf grid; texture is rotation-blind so facing is irrelevant.",
+      "extra_params": {"width": "1-4, default 2", "height": "1-4, default 2"},
+      "pitfalls": ["用 minecraft:bookshelf 不是 chiseled_bookshelf(后者纹理是空格子,不放书像烂柜)", "别超过 4 高,再高像墙不像家具"]
+    },
+    "cabinet": {
+      "use_for": "橱柜/储物柜(厨房、走廊)",
+      "recipe": "barrel grid with lids facing out — the lid reads as a cupboard door.",
+      "extra_params": {"width": "1-4, default 2", "height": "1-4, default 2"},
+      "pitfalls": ["barrel 必须 facing=正面(桶盖当柜门);朝上的桶盖读作木墩不是柜门", "别和 chest 混用:chest 会两两合并成大箱子,破坏网格"]
+    },
+    "kitchen_counter": {
+      "use_for": "厨房操作台(水槽+台面+炉灶)",
+      "recipe": "cauldron sink + upside-down stair counter run (half=top, flat cabinet face toward the front) + smoker oven.",
+      "extra_params": {"material": "any *_stairs, default minecraft:spruce_stairs", "length": "2-6, default 3"},
+      "pitfalls": ["台面楼梯必须 half=top(倒放),正放会在台面上留出台阶缺角", "炉灶用 smoker 不是 furnace —— smoker 才是灶;水槽用 cauldron,空锅即是经典水槽"]
+    },
+    "desk": {
+      "use_for": "书房书桌",
+      "recipe": "upside-down stair writing desk + lectern with an open book on top.",
+      "extra_params": {"material": "any *_stairs, default minecraft:spruce_stairs", "width": "2-4, default 3"},
+      "pitfalls": ["同 kitchen_counter:桌体楼梯 half=top", "lectern 必须放在桌体正上方(脚本保证),手挪一格就悬空"]
+    },
+    "lamp_post": {
+      "use_for": "落地灯/角落照明",
+      "recipe": "fence-post column + lantern on top.",
+      "extra_params": {"material": "any *_fence, default minecraft:spruce_fence", "height": "1-4, default 2", "light_material": "default minecraft:lantern (soul_lantern for cold light)"},
+      "pitfalls": ["灯放栅栏柱顶上,不要贴墙挂(那是 wall_torch 的活)", "height 不要超过 4,再高是路灯不是落地灯"]
+    },
+    "flower_pot": {
+      "use_for": "桌面/地面绿植点缀",
+      "recipe": "potted plant block (flower_pot + plant = minecraft:potted_<plant>); pedestal=true lifts it on a fence-post plant stand.",
+      "extra_params": {"plant": "flower id without prefix, default red_tulip (dandelion/poppy/blue_orchid/allium/azure_bluet/*_tulip/oxeye_daisy/cornflower/lily_of_the_valley)", "pedestal": "true = spruce_fence 底座, default false"},
+      "pitfalls": ["盆栽是 minecraft:potted_<plant> 独立方块,不是 flower_pot 上面叠一朵花(那样花会悬空)", "别放在半砖/地毯上,盆会视觉下沉"]
+    },
+    "bench": {
+      "use_for": "长椅(公园/门廊,无靠背)",
+      "recipe": "row of bottom slabs + standing-sign armrests at both ends.",
+      "extra_params": {"material": "any *_slab, default minecraft:spruce_slab", "length": "2-4, default 2", "sign_material": "default minecraft:spruce_sign"},
+      "pitfalls": ["椅面 slab 必须 type=bottom 贴地,放成 top 会悬出一道缝", "要靠背用 sofa;bench 就是无靠背款"]
+    },
+    "dresser": {
+      "use_for": "卧室抽屉柜/斗柜",
+      "recipe": "tall barrel column grid (lids = drawer fronts) + slab top surface for decorations.",
+      "extra_params": {"width": "1-3, default 2", "height": "2-4, default 3", "top_material": "default minecraft:spruce_slab"},
+      "pitfalls": ["同 cabinet:barrel 盖子朝正面;dresser 比 cabinet 高(height>=2,默认 3),别搞反", "顶面 slab 是 type=bottom 搁在桶上,不是悬空 top slab"]
+    },
+    "fireplace": {
+      "use_for": "客厅壁炉(带烟囱道)",
+      "recipe": "campfire firebox between brick jambs + upside-down stair lintel (arch over the fire, half=top) + brick breast + 1-wide chimney column.",
+      "extra_params": {"material": "default minecraft:stone_bricks", "lintel_material": "default minecraft:stone_brick_stairs", "fire": "minecraft:campfire | soul_campfire", "chimney": "0-8 extra layers, default 2"},
+      "pitfalls": ["火用 campfire[facing=正面],不要用 netherrack 点火(火会乱窜且不符合居住安全惯例)", "过梁楼梯 half=top 架在 campfire 正上方形成拱口;别用整砖封死(火被埋)也别留空(门楣悬空)", "烟囱道从壁炉正上方直通屋顶,别半路拐弯"]
+    },
+    "piano": {
+      "use_for": "客厅/书房立式钢琴",
+      "recipe": "upright: dark body (dark_oak_planks), white_concrete keys strip facing the player, stair lid sloping toward the player.",
+      "extra_params": {"material": "default minecraft:dark_oak_planks", "keys_material": "default minecraft:white_concrete", "lid_material": "default derived: <wood>_stairs"},
+      "pitfalls": ["琴键(白色一格)必须在 facing 正面且被两侧琴身夹住,朝后就成白板", "这是立式钢琴;三角钢琴体积远超 3 格,别用这个凑"]
+    }
+  },
+  "pitfalls": [
+    "床必须用真床方块(red_bed 等, part=foot/head)——上一版用两格羊毛冒充床,已成项目耻辱柱,严禁再犯",
+    "所有朝向状态(stair facing/half、sign rotation、bed part、barrel/smoker/campfire facing)由脚本从 origin+facing 推导,禁止手填或手改输出 JSON",
+    "坐具楼梯 facing = 坐向的反面(facing=高侧/靠背,见 stair_orientations.md)",
+    "台面/桌面用 half=top 倒放楼梯;座面用 half=bottom 正放楼梯/半砖贴地",
+    "家具不浮空:每件都有落地支撑路径(栅栏腿/桶身/楼梯贴地),跑 support_check 验证"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check"],
+  "example": "python patterns/furniture.py --params '{\"piece\":\"bed\",\"origin\":[100,64,100],\"facing\":\"east\"}' --out bed.json && python patterns/furniture.py --params '{\"piece\":\"sofa\",\"origin\":[100,64,110],\"facing\":\"south\",\"length\":4}' --out sofa.json"
+}

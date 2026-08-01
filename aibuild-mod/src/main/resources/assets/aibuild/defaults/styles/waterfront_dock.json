@@ -38,7 +38,7 @@
   "details": {
     "waterline": "piles extend 1-2 blocks BELOW water surface to the seabed — never end piles mid-water",
     "mooring": "barrel + chain + lantern cluster every 4-6 blocks along one edge",
-    "props": ["minecraft:barrel", "minecraft:chain", "minecraft:lantern", "minecraft:mossy_cobblestone", "minecraft:oak_fence"],
+    "props": ["minecraft:barrel", "minecraft:iron_chain", "minecraft:lantern", "minecraft:mossy_cobblestone", "minecraft:oak_fence"],
     "moss": "mossy_cobblestone footing where piles meet water; occasional mossy_cobblestone step down to water",
     "lighting": "lantern on top of alternating piles, or hanging from chain between two piles",
     "steps": "spruce_stairs from deck down to a small landing platform at water level",

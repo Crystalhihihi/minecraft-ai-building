@@ -1,0 +1,29 @@
+{
+  "name": "chimney",
+  "description": "Chimney (烟囱): solid stone-brick/brick shaft (1x1, 1x2 or 2x2) + flashing/service ledge ring where it pierces the roof (检修台/泛水: upside-down stairs one cell out, facing outward, inner corners — a standable ledge) + top rim course + cap: smoking campfire (the classic) or a closed trapdoor lid. Shaft stacks from the base so every block has support.",
+  "when_to_use": "Any hearth building: cottages, farmhouses, kitchens, smithies — and as a roof-silhouette accent. origin = the shaft's bottom-front-left cell, y = the shaft BASE layer (ground floor or fireplace top; the chimney must stack continuously from there through the roof). ledge_layer = the y-offset where the shaft exits the roof surface. DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit (禁止手改方向状态).",
+  "use_for": "壁炉烟囱/厨房排烟/铁匠铺;屋顶轮廓线点缀;石砌风用 stone_bricks,民居用 bricks",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "柱身底部前左角;y = 基座层(从地面/壁炉顶连续堆到顶)"},
+    "width": {"type": "int", "range": "1-2", "default": 2, "notes": "柱身 footprint 沿 x"},
+    "depth": {"type": "int", "range": "1-2", "default": 2, "notes": "柱身 footprint 沿 z"},
+    "height": {"type": "int", "range": "1-24", "default": 6, "notes": "柱身层数(从 origin 到顶)"},
+    "material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "柱身;bricks=红砖民居,mud_bricks=土风"},
+    "cap": {"type": "enum", "values": ["campfire", "trapdoor", "none"], "default": "campfire", "notes": "campfire=冒烟(卖点);trapdoor=活板门压顶;none=素口"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "壁炉/正面方向(campfire 朝这面)"},
+    "ledge_layer": {"type": "int", "range": "-1..height-1", "default": -1, "notes": "检修台/泛水圈所在 y 偏移;-1=自动(height-3);应取烟囱穿出屋面那一层"},
+    "rim": {"type": "bool", "default": true, "notes": "顶部压顶圈"},
+    "trim_material": {"type": "block id (*_stairs)", "default": "minecraft:stone_brick_stairs", "notes": "检修台+压顶圈楼梯"},
+    "trapdoor_material": {"type": "block id (*_trapdoor)", "default": "minecraft:spruce_trapdoor", "notes": "cap=trapdoor 时的盖板"}
+  },
+  "pitfalls": [
+    "柱身必须从基座连续堆到顶,中间别留悬空段;campfire 靠柱顶支撑(它有白名单豁免,但视觉上要靠住)",
+    "检修台/泛水圈是'倒放楼梯外张一圈'(half=top、背朝外=inner 转角),放在穿屋面那一层(ledge_layer 给对),放到半空就是悬浮环",
+    "穿屋顶的洞要屋面自己补:本生成器不开洞,烟囱与屋面交接处用检修台圈盖住缝",
+    "cap=campfire 的烟是灵魂,别换火方块;netherrack 点火不符合居住安全惯例",
+    "柱身别超过 2×2;更大的烟囱用多个 2×2 并排,不要做 3×3 实心碉堡",
+    "rim 圈+检修台圈都是围合框架,四角 inner 转角已由脚本推导;手改 shape 会缺角"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check"],
+  "example": "python patterns/chimney.py --params '{\"origin\":[100,64,100],\"width\":2,\"depth\":2,\"height\":6}' --out chimney.json && python patterns/chimney.py --params '{\"origin\":[100,64,110],\"width\":1,\"depth\":2,\"height\":8,\"material\":\"minecraft:bricks\",\"trim_material\":\"minecraft:brick_stairs\",\"cap\":\"trapdoor\",\"ledge_layer\":5}' --out chimney2.json"
+}

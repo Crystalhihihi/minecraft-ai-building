@@ -1,0 +1,30 @@
+{
+  "name": "dormer",
+  "description": "Dormer (老虎窗) generator: a small roofed window box protruding from a main roof slope. Variants: gabled (狗屋式双坡), shed (单坡), hipped (四坡). Emits the dormer body (window wall + sill + mini roof + cheeks) plus explicit minecraft:air cells that carve the window tunnel INTO the main slope — the opening cuts into the slope, it is not pasted onto it. All stair/slab states derived from origin+params.",
+  "when_to_use": "Main roof is already built and needs attic light, headroom, or a break in a long monotonous slope. origin = the bottom-LEFT cell of the window wall AS SEEN FROM OUTSIDE, y = the slope-surface layer the dormer wall rises from (the wall base replaces/sits on that slope row). facing = downhill direction of the host slope (the way the window looks out). DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit facing/half/shape in the output JSON; change params and re-run (禁止手改方向状态).",
+  "use_for": "大屋顶/阁楼采光、长坡面打破单调、农舍/乡村/法式屋顶构件;mansard 几乎必配;thatched/cottage 风用 gabled,现代/棚屋用 shed,庄重体量用 hipped",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "窗墙下沿左角(从外面看的左侧);y = 窗墙所在的坡面层"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "窗朝向 = 主坡的下坡方向"},
+    "width": {"type": "int", "range": "2-4", "default": 3, "notes": "窗墙宽;2=两格窗,3=中单窗,4=双窗"},
+    "variant": {"type": "enum", "values": ["gabled", "shed", "hipped"], "default": "gabled", "notes": "gabled=狗屋双坡(最经典);shed=单坡(带前墙过梁);hipped=四坡(缓金字塔帽)"},
+    "depth": {"type": "int", "range": "1-4", "default": 2, "notes": "迷你屋顶伸进坡面的进深;必须小于主坡剩余进深"},
+    "wall_material": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "窗墙/山墙三角/腮墙"},
+    "roof_material": {"type": "block id (*_stairs)", "default": "minecraft:spruce_stairs", "notes": "迷你屋顶;一般与主屋顶同款"},
+    "ridge_material": {"type": "block id (*_slab)", "default": "minecraft:spruce_slab", "notes": "gabled 屋脊/hipped 顶帽"},
+    "sill_material": {"type": "block id (*_stairs)", "default": "minecraft:spruce_stairs", "notes": "窗台(倒放楼梯外挑)"},
+    "window_material": {"type": "block id", "default": "minecraft:glass_pane", "notes": "窗洞填充;要真通风可换 minecraft:air"},
+    "cheeks": {"type": "bool", "default": true, "notes": "两侧腮墙填到窗墙底层,把窗体嵌进坡面"}
+  },
+  "pitfalls": [
+    "窗洞必须切进坡面而不是贴在坡上 —— 输出里的 minecraft:air 单元就是干这个的(打通窗洞到阁楼),禁止删掉;没有 place_air 能力时先手工挖掉对应坡面块再放置",
+    "origin 的 y 必须取窗墙下沿所在的坡面层:太高窗墙悬空,太低窗墙被坡面埋半截;沿坡每上坡 1 格 y 抬 1",
+    "老虎窗只开一个坡面,别跨屋脊放;两个坡面都要就分两次生成(facing 相反)",
+    "depth 超过主坡剩余进深会从屋脊穿出去 —— 先量坡面进深再定 depth",
+    "shed 变体前墙顶部有一排过梁墙(y=2),删了窗顶就漏;gabled 奇数宽屋脊半砖下有填充支撑,别挖",
+    "width=2 时窗洞会打穿两侧腮墙(y=1 各留一道槽),这是 2 格宽老虎窗的正常窗侧壁,不是 bug",
+    "迷你屋顶楼梯 facing 一律指向坡内/屋脊(高侧),脚本已推导;手改朝向=坡面漏水"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check"],
+  "example": "python patterns/dormer.py --params '{\"origin\":[100,80,100],\"facing\":\"south\",\"width\":3,\"variant\":\"gabled\"}' --out dormer1.json && python patterns/dormer.py --params '{\"origin\":[100,80,110],\"facing\":\"east\",\"width\":2,\"variant\":\"shed\"}' --out dormer2.json"
+}
