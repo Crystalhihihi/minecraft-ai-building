@@ -102,6 +102,7 @@ public final class BridgeHttpServer {
         http.createContext("/tools/analyze_site", ex -> handle(ex, "POST", this::analyzeSite));
         http.createContext("/tools/get_region_summary", ex -> handle(ex, "POST", this::getRegionSummary));
         http.createContext("/tools/render_region", ex -> handleBinary(ex, "POST", this::renderRegion));
+        http.createContext("/tools/ask_player", ex -> handle(ex, "POST", this::askPlayer));
         http.setExecutor(Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "aibuild-http");
             t.setDaemon(true);
@@ -614,6 +615,9 @@ public final class BridgeHttpServer {
 
     /** Bounds gate for write tools: 409 while the session has no confirmed range. */
     private SiteGate.Bounds requireBounds(AgentSession session) throws ApiError {
+        if (session.status() == AgentSession.Status.INTAKE) {
+            throw new ApiError(409, error("intake interview in progress — write tools unlock when the build phase starts"));
+        }
         SiteGate.Bounds bounds = session.gate().currentBounds();
         if (bounds == null) {
             throw new ApiError(409, error("site not confirmed"));
@@ -641,6 +645,102 @@ public final class BridgeHttpServer {
                 .withClickEvent(new ClickEvent.RunCommand("/aireject"))));
         AiBuildMod.LOGGER.info("[aibuild] #{} site proposed: {}", session.no(), b.describe());
         server.getPlayerList().broadcastSystemMessage(msg, false);
+    }
+
+    /** ask_player: one wait slice per request — the agent re-calls to keep waiting. */
+    private static final long ASK_WAIT_SLICE_MS = 60_000L;
+    /** Caps so a confused agent cannot flood the chat bar. */
+    private static final int ASK_MAX_OPTIONS = 6;
+
+    /**
+     * ask_player endpoint: broadcasts the interviewer's question (options as
+     * clickable buttons that emit /aichat), then waits one slice for the
+     * player's answer. The answer rides back as the tool RESULT (not the
+     * player_messages piggyback), so asking becomes an explicit, un-skippable
+     * action — the interviewer cannot "forget" to ask. ONE question per call
+     * (answers can change later questions); extra questions are dropped with a
+     * warning. Re-calls with the SAME question are not re-broadcast (chat-bar
+     * flood guard, fingerprint kept on the session).
+     */
+    private JsonObject askPlayer(HttpExchange ex, AgentSession session) throws Exception {
+        AgentSession s = requireSession(session);
+        JsonObject body = readJsonBody(ex);
+        JsonArray questions = requiredArray(body, "questions");
+        boolean truncated = questions.size() > 1;
+        JsonArray one = new JsonArray();
+        if (questions.size() > 0 && questions.get(0).isJsonObject()) {
+            one.add(questions.get(0));
+        }
+        if (one.isEmpty()) {
+            throw badRequest("questions must contain at least one object {q, options?}");
+        }
+        String fingerprint = one.toString();
+        if (!fingerprint.equals(s.lastAskFingerprint)) {
+            s.lastAskFingerprint = fingerprint;
+            onMainThread(() -> {
+                broadcastQuestions(s, one);
+                return null;
+            });
+        }
+        String first = s.inbox().take(ASK_WAIT_SLICE_MS);
+        JsonObject res = new JsonObject();
+        if (first == null) {
+            res.addProperty("status", "waiting");
+            res.addProperty("text", "玩家暂未回复(已等 60 秒)。继续调用 ask_player(同一问题)等待即可——"
+                    + "等待没有次数上限,玩家去忙/想问题很正常,绝不能因为等待而自行收尾;"
+                    + "只有玩家说「跳过/随便/你定」才能提前结束访谈。");
+            return res;
+        }
+        List<String> answers = new ArrayList<>();
+        answers.add(first);
+        answers.addAll(s.inbox().drain());
+        res.addProperty("status", "answered");
+        StringBuilder text = new StringBuilder();
+        if (truncated) {
+            text.append("(注意:一次只能问一个问题,多余问题已被丢弃——上一个回答可能改变你下一个问题)\n");
+        }
+        text.append("玩家回复:");
+        for (String a : answers) {
+            text.append("\n- ").append(a);
+        }
+        res.addProperty("text", text.toString());
+        return res;
+    }
+
+    /** Renders ask_player questions to the chat bar with clickable option buttons. */
+    private void broadcastQuestions(AgentSession s, JsonArray questions) {
+        server.getPlayerList().broadcastSystemMessage(Component.literal("[aibuild] #" + s.no()
+                + " AI 提问(点选项按钮 = 快速回答;或 /aichat 自由输入;「跳过」= 不问直接造):"), false);
+        int qi = 0;
+        for (JsonElement el : questions) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            qi++;
+            JsonObject q = el.getAsJsonObject();
+            String text = q.has("q") ? q.get("q").getAsString() : "";
+            server.getPlayerList().broadcastSystemMessage(
+                    Component.literal("[AI#" + s.no() + "] 问题" + qi + ": " + text), false);
+            if (!q.has("options") || !q.get("options").isJsonArray()) {
+                continue;
+            }
+            MutableComponent opts = Component.literal("    ");
+            int oi = 0;
+            for (JsonElement oe : q.getAsJsonArray("options")) {
+                if (++oi > ASK_MAX_OPTIONS) {
+                    break;
+                }
+                String opt = oe.getAsString();
+                opts.append(Component.literal("[" + opt + "]").withStyle(Style.EMPTY
+                        .withColor(ChatFormatting.AQUA)
+                        .withClickEvent(new ClickEvent.RunCommand("/aichat 问题" + qi + ": " + opt))));
+                opts.append(Component.literal("  "));
+            }
+            if (oi > 0) {
+                server.getPlayerList().broadcastSystemMessage(opts, false);
+            }
+        }
+        AiBuildMod.LOGGER.info("[aibuild] #{} ask_player: {} question(s) broadcast", s.no(), questions.size());
     }
 
     // ------------------------------------------------------------------ helpers

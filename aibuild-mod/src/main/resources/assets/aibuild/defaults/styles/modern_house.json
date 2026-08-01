@@ -1,0 +1,76 @@
+{
+  "style_id": "modern_house",
+  "name": "Modern House (现代民居)",
+  "use_for": "modern/contemporary houses, minimalist villas, flat-roof homes, white-box architecture",
+  "palette_stats": "GrabCraft modern-houses 297 件去地形统计: stone 14.5% / white_terracotta 7.9% / white_wool 6.9% / quartz 4.4% / stone_slab 4.3% / glass 4.0% / birch_planks 3.5% / oak_planks 3.4% — 白+灰+大玻璃是现代风实测主流",
+  "proportions": {
+    "height_to_width_ratio": "0.6:1 ~ 1:1 (walls only) — 现代风是横向体量,忌高瘦",
+    "storey_height": "3-4 (interior clear)",
+    "wall_thickness": 1,
+    "typical_footprint": "11x9 ~ 21x15, L 型/错位盒体叠加优于单一矩形",
+    "door_height": 2
+  },
+  "materials": {
+    "primary": [
+      "minecraft:white_concrete",
+      "minecraft:quartz_block",
+      "minecraft:smooth_quartz"
+    ],
+    "primary_use": "外墙主体(白盒);white_concrete 优于 wool(不燃、质感净),quartz 用于边框线脚",
+    "secondary": [
+      "minecraft:stone",
+      "minecraft:smooth_stone",
+      "minecraft:gray_concrete",
+      "minecraft:light_gray_concrete"
+    ],
+    "secondary_use": "基座/烟囱体块/对比盒体(灰),stats 里 stone 占 14.5% 是现代风的素描底",
+    "accent": [
+      "minecraft:birch_planks",
+      "minecraft:oak_planks",
+      "minecraft:dark_oak_planks",
+      "minecraft:black_concrete"
+    ],
+    "accent_use": "木饰面暖区(入口/阳台栏板/内墙),black_concrete 窗框线",
+    "roof": [
+      "minecraft:smooth_stone_slab",
+      "minecraft:quartz_slab",
+      "minecraft:gray_concrete"
+    ],
+    "glass": "glass / glass_pane 大面落地,stats 4% 的占比意味着「一整面墙是玻璃」才够现代"
+  },
+  "roof": {
+    "type": "flat (平顶) with 1-block parapet; 或单坡/蝴蝶顶变体",
+    "overhang": "0-1 (现代风檐口克制)",
+    "material": "smooth_stone_slab 面层 + gray_concrete 女儿墙压顶 — 与中世纪陡坡彻底相反,禁止人字坡",
+    "terrace": "平顶即露台: patterns/railing.py kind=pane/wall 围边 + 户外家具",
+    "note": "屋顶设备间/天窗盒体用对比色小块,坡屋顶需求转 patterns/gable_roof.py 但风格卡降级为「现代乡村」"
+  },
+  "windows": {
+    "pattern": "大面积横向带形窗或整面落地玻璃;窗洞对齐柱网,忌随机小窗",
+    "size": "宽 3-7 × 高 2-3 带形,或整墙落地",
+    "material": ["minecraft:glass", "minecraft:glass_pane"],
+    "frame": "black_concrete / quartz 边框 1 格勾勒 — 边框是现代玻璃面的灵魂",
+    "pattern_script": "patterns/window_trim.py projection=0(平框,不凸)"
+  },
+  "details": {
+    "base": "基座抬高 1 或悬浮感(架空柱 pilotis),与地面交代干净",
+    "balcony": "patterns/balcony.py cantilever + support=none(纯悬挑是现代风特权) + railing=pane",
+    "wall_texture": "patterns/wall_weathering.py 不适用——现代墙要「净」,靠盒体凹凸和材质分块(白/灰/木)做层次,不做旧",
+    "lighting": "藏光: sea_lantern/glowstone 嵌地或槽内,忌外露火把灯笼",
+    "interior": "开放式大空间, patterns/interior_rooms.py living/kitchen 现代摆法,内饰必须跟上(白墙空壳是现代风最大翻车点)",
+    "landscape": "搭配 patterns/plaza.py(几何铺装) + flower_field scheme=stripes(条带花境),忌自然式花园",
+    "depth": {
+      "pilaster": {"enabled": false, "note": "现代墙无壁柱,用盒体进退代替"},
+      "window_trim": {"enabled": true, "projection": 0, "material": "minecraft:black_concrete", "note": "平框勾勒,不凸出"},
+      "string_course": {"enabled": false, "note": "现代风无腰线,用材质分界"}
+    }
+  },
+  "pitfalls": [
+    "做人字坡屋顶 — 现代=平顶/单坡,坡顶立即破功",
+    "随机小窗 — 必须带形窗/落地窗+边框",
+    "白盒裸奔 — 单一白盒无灰/木对比、无盒体进退,等于没设计",
+    "外露光源 — 火把灯笼上墙是现代风灾难,用藏光",
+    "内部空壳 — 白墙+空房间=毛坯房,interior_rooms 必须跟"
+  ],
+  "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
+}

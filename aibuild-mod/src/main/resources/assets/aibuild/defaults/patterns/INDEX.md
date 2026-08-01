@@ -20,6 +20,8 @@
 | waterfront_dock | 滨水码头 |
 | stilt_house | 吊脚楼 |
 | nordic_villa | 北欧别墅 |
+| modern_house | 现代民居(白盒+灰底+大玻璃,平顶),11×9~21×15 |
+| tree_house | 树屋(干穿屋+小屋吊桥+镂空叶团),5×5~9×9 |
 | suzhou_garden | 苏州园林(中式) |
 
 ## 模式卡 patterns/(均有同名 .py 生成器)

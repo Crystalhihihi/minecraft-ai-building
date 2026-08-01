@@ -9,21 +9,21 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** tools/list: all 11 tools present, each with a usable description and valid JSON Schema object. */
+/** tools/list: all 12 tools present, each with a usable description and valid JSON Schema object. */
 class ToolsListTest {
 
     private final TestRig rig = new TestRig("http://127.0.0.1:1");
 
     @Test
-    void listsAllElevenTools() throws Exception {
+    void listsAllTwelveTools() throws Exception {
         JsonNode resp = rig.call("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}");
         JsonNode tools = resp.get("result").get("tools");
-        assertEquals(11, tools.size());
+        assertEquals(12, tools.size());
         Set<String> names = new HashSet<>();
         tools.forEach(t -> names.add(t.get("name").asText()));
         assertEquals(Set.of("fill", "set_blocks", "set_blocks_from_file", "set_block", "get_job_status",
                 "get_block", "search_blocks", "get_region_summary", "get_terrain_summary",
-                "render_region", "propose_site"), names);
+                "render_region", "propose_site", "ask_player"), names);
     }
 
     @Test

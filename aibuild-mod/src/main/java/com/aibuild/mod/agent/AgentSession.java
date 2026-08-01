@@ -16,14 +16,16 @@ import java.util.Map;
  * {@code <world>/aibuild/sessions.json} (written by AgentSessionManager on
  * every change).
  *
- * Status lifecycle: RUNNING (process alive or between self-heal retries) →
- * DONE (exit 0) / FAILED (abnormal exit after retries, timeouts, interrupted
- * by a server restart) / CANCELLED (/aicancel). DONE/FAILED/CANCELLED
+ * Status lifecycle: INTAKE (questions broadcast, no agent process yet, awaiting
+ * the player's /aichat answers) → RUNNING (process alive or between self-heal
+ * retries) → DONE (exit 0) / FAILED (abnormal exit after retries, timeouts,
+ * interrupted by a server restart) / CANCELLED (/aicancel). INTAKE sessions
+ * hold no process and survive restarts as INTAKE. DONE/FAILED/CANCELLED
  * sessions keep their kimi session id and gate state, so /aichat can resume
  * them with the confirmed site intact.
  */
 public final class AgentSession {
-    public enum Status { RUNNING, DONE, FAILED, CANCELLED }
+    public enum Status { INTAKE, RUNNING, DONE, FAILED, CANCELLED }
 
     /** Work dir of the pre-E3 single-session era: the aibuild root itself. */
     public static final String LEGACY_WORK_DIR = ".";
@@ -36,6 +38,8 @@ public final class AgentSession {
     final PlayerInbox inbox = new PlayerInbox();
 
     String description = "";
+    /** Player-chosen reference point, persisted so INTAKE sessions can launch after answers (or a restart). */
+    net.minecraft.core.BlockPos anchor;
     volatile Status status = Status.RUNNING;
     volatile String kimiSessionId;
     /** Snapshot session tag ("b<timestamp>-s<no>") stamping this session's snapshots for /aiundo all. */
@@ -43,6 +47,8 @@ public final class AgentSession {
     volatile String lastError;
     /** Consecutive abnormal exits so far; reset by a clean exit or a manual /aichat resume. */
     int resumeAttempts;
+    /** ask_player flood guard: fingerprint of the last broadcast question (transient, per process). */
+    public transient String lastAskFingerprint;
 
     // consumption stats, accumulated across processes of this session (resumes included)
     int turns;
@@ -144,6 +150,13 @@ public final class AgentSession {
         if (sessionTag != null) {
             o.addProperty("session_tag", sessionTag);
         }
+        if (anchor != null) {
+            com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+            a.add(anchor.getX());
+            a.add(anchor.getY());
+            a.add(anchor.getZ());
+            o.add("anchor", a);
+        }
         o.add("gate", gate.toJson());
         JsonObject stats = new JsonObject();
         stats.addProperty("turns", turns);
@@ -175,6 +188,7 @@ public final class AgentSession {
                 o.has("work_dir") ? o.get("work_dir").getAsString() : LEGACY_WORK_DIR);
         s.description = o.has("description") ? o.get("description").getAsString() : "";
         s.status = switch (o.has("status") ? o.get("status").getAsString() : "failed") {
+            case "intake" -> Status.INTAKE;
             case "running" -> Status.RUNNING;
             case "done" -> Status.DONE;
             case "cancelled" -> Status.CANCELLED;
@@ -182,6 +196,10 @@ public final class AgentSession {
         };
         s.kimiSessionId = o.has("kimi_session_id") ? o.get("kimi_session_id").getAsString() : null;
         s.sessionTag = o.has("session_tag") ? o.get("session_tag").getAsString() : null;
+        if (o.has("anchor") && o.get("anchor").isJsonArray()) {
+            com.google.gson.JsonArray a = o.getAsJsonArray("anchor");
+            s.anchor = new net.minecraft.core.BlockPos(a.get(0).getAsInt(), a.get(1).getAsInt(), a.get(2).getAsInt());
+        }
         if (o.has("gate") && o.get("gate").isJsonObject()) {
             s.gate.restore(o.getAsJsonObject("gate"));
         }

@@ -1,0 +1,81 @@
+{
+  "style_id": "tree_house",
+  "name": "Tree House (树屋)",
+  "use_for": "houses built in/on/around large trees, jungle canopy homes, elevated wooden huts among leaves",
+  "palette_stats": "GrabCraft tree-houses 26 件去地形统计: jungle_log 19.4% / oak_log 14.4% / oak_planks 9.2% / jungle_planks 7.4% / spruce_leaves 6.8% / spruce_log 3.1% / jungle_stairs 3.1% / stone_brick_stairs 3.0% — 原木重(34%)是「树」的主体,板材+树叶围合是「屋」",
+  "proportions": {
+    "height_to_width_ratio": "屋体 1:1 左右,但全程架空 — 地面到屋底 6-15 格",
+    "storey_height": "3 (interior clear) — 树屋忌高,重心要低",
+    "wall_thickness": 1,
+    "typical_footprint": "5x5 ~ 9x9 单屋;多屋=2-3 个小屋吊桥相连,不做大平层",
+    "door_height": 2
+  },
+  "materials": {
+    "trunk": [
+      "minecraft:jungle_log",
+      "minecraft:oak_log",
+      "minecraft:spruce_log"
+    ],
+    "trunk_use": "主树干 2x2~3x3 穿屋而过或贴屋而立 — 屋必须「长」在树上,树干穿楼板是风格证明",
+    "primary": [
+      "minecraft:jungle_planks",
+      "minecraft:oak_planks",
+      "minecraft:spruce_planks"
+    ],
+    "primary_use": "屋体墙板/楼板;jungle_planks 贴丛林木, oak 百搭",
+    "roof": [
+      "minecraft:jungle_stairs",
+      "minecraft:spruce_stairs",
+      "minecraft:oak_stairs"
+    ],
+    "leaves": [
+      "minecraft:spruce_leaves",
+      "minecraft:jungle_leaves",
+      "minecraft:oak_leaves",
+      "minecraft:azalea_leaves"
+    ],
+    "leaves_use": "树冠补形(屋周 2-4 格松散叶团,密度 60-70% 留空隙)+ 屋顶边缘垂叶 — 叶是树屋的「软装」,persistent=true 防消失",
+    "accent": [
+      "minecraft:oak_fence",
+      "minecraft:lantern",
+      "minecraft:ladder",
+      "minecraft:vine"
+    ]
+  },
+  "roof": {
+    "type": "gable (人字顶) 小屋尺度,坡度 45 度;或单片遮阳披",
+    "overhang": 1,
+    "material": "stairs 同墙板色系或深一号;patterns/gable_roof.py 小屋参数",
+    "note": "屋顶可局部被树叶覆盖(叶搭在脊上),制造「藏在冠里」的感觉"
+  },
+  "windows": {
+    "pattern": "小而少,每面 1 个;观景点开大窗/露台",
+    "size": "1x2 或 1x1",
+    "material": ["minecraft:glass_pane"],
+    "frame": "trapdoor 遮板或 fence 小栏"
+  },
+  "access": {
+    "primary": "ladder/vine 沿树干直上,或螺旋楼梯绕干(spruce_stairs 绕 2x2 干)",
+    "bridge": "多屋连接: oak_planks 桥面 + fence 两侧栏(patterns/railing.py kind=fence),桥中部可下垂 1 格做悬索感",
+    "pitfall": "入口必须有平台(2x2 起步),梯子直接顶墙是翻车点"
+  },
+  "details": {
+    "support": "屋底斜撑: 倒放 stairs/fence 从屋底角连到树干 — 树屋可以「悬浮」但不能「无根」",
+    "lighting": "lantern 挂屋檐/桥栏;树干上嵌 glowstone 藏光",
+    "interior": "小屋单功能(卧室/瞭望/储物), patterns/interior_rooms.py bedroom 最小尺寸即可;忌塞满",
+    "garden_tree_ref": "自建支撑树参考 patterns/garden_tree.py(贴面分枝+镂空叶团);直接利用原生大树时清理穿屋枝叶",
+    "depth": {
+      "pilaster": {"enabled": false, "note": "树屋靠树干和斜撑做层次,不用壁柱"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:spruce_trapdoor"},
+      "string_course": {"enabled": false}
+    }
+  },
+  "pitfalls": [
+    "树是树屋是屋 — 树干不穿屋/不贴屋,等于把房子 P 在树旁边",
+    "大平层 — 树屋要小而散,多屋吊桥,单层超大必假",
+    "无支撑悬浮 — 屋底必须有斜撑/索/柱的视觉交代",
+    "叶团实心球 — 树冠要镂空留缝,实心绿叶球一眼假(garden_tree 规则)",
+    "无入口平台 — 梯子顶墙进出,功能和观感双输"
+  ],
+  "validators": ["support_check", "slab_check", "collision_check"]
+}

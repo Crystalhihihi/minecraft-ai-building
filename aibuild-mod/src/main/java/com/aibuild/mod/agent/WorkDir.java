@@ -34,13 +34,15 @@ public final class WorkDir {
      * working directory on prepare(). Write-if-absent: files the user or the
      * agent edited in the work dir are NEVER overwritten.
      */
-    private static final List<String> DEFAULT_ASSETS = List.of(
+    static final List<String> DEFAULT_ASSETS = List.of(
             "styles/medieval_tower.json",
             "styles/medieval_house.json",
             "styles/plains_cabin.json",
             "styles/waterfront_dock.json",
             "styles/stilt_house.json",
             "styles/nordic_villa.json",
+            "styles/modern_house.json",
+            "styles/tree_house.json",
             "styles/suzhou_garden.json",
             "patterns/gable_roof.py",
             "patterns/gable_roof.json",
@@ -134,12 +136,20 @@ public final class WorkDir {
      * Returns the directory.
      */
     public static Path prepare(Path dir, int bridgePort, String bridgeToken) throws IOException {
+        return prepare(dir, bridgePort, bridgeToken, false);
+    }
+
+    /**
+     * Full setup with phase-specific manual: intake=true writes the interviewer
+     * manual (INTAKE sessions), false writes the construction manual.
+     */
+    public static Path prepare(Path dir, int bridgePort, String bridgeToken, boolean intake) throws IOException {
         Files.createDirectories(dir.resolve(".kimi-code"));
         Files.createDirectories(dir.resolve("logs"));
         extractBridgeJar(dir);
         extractDefaults(dir);
         writeMcpJson(dir, bridgePort, bridgeToken);
-        Files.writeString(dir.resolve("AGENTS.md"), AGENTS_MD);
+        Files.writeString(dir.resolve("AGENTS.md"), intake ? INTAKE_AGENTS_MD : AGENTS_MD);
         return dir;
     }
 
@@ -247,6 +257,13 @@ public final class WorkDir {
             tools. The current task is in `task.json` in this directory — read it
             first. `task.json` is authoritative: build what `description` says.
 
+            The description may end with a `[访谈确认]` section — those are the
+            player's explicit choices from the pre-build interview and they
+            OVERRIDE your own judgement (style, size, function, interior). When
+            it names a style_id, `styles/<id>.json` is MANDATORY reading — do
+            not pick a different card. A style card DRAFT authored by the
+            interviewer during intake counts as that mandatory card.
+
             ## Coordinates
 
             - +x = east, -x = west; +y = up; +z = south, -z = north.
@@ -262,7 +279,9 @@ public final class WorkDir {
             - If `task.json` has NO `bounds`: your FIRST tool call must be
               `propose_site(min, max)` (volume <= 262144, i.e. at most 64x64x64).
               Pick the site from `terrain.json` (see below), near the anchor unless
-              the task says otherwise. After proposing, WAIT: write tools return
+              the task says otherwise. A `[访谈确认]` 选址 line settles this:
+              玩家附近 = propose near the anchor; AI 自己选 = scout freely with
+              `get_terrain_summary` first. After proposing, WAIT: write tools return
               `409 site not confirmed` until the player confirms. Poll with a read
               tool (e.g. `get_block` on a corner of the proposed area); the player's
               decision arrives as a `[玩家消息]` line attached to a tool response.
@@ -297,6 +316,8 @@ public final class WorkDir {
               say so in chat first.
             - When the player says they like a build, save its parameters as a
               NEW card file in `styles/` (never overwrite existing cards).
+              New cards are promoted to a shared library automatically and
+              appear in future sessions.
 
             ## Pattern library (MANDATORY — assemble shapes, don't invent them)
 
@@ -385,6 +406,7 @@ public final class WorkDir {
             | `propose_site(min, max)` | AVAILABLE. Required FIRST call when task.json has no bounds; then await confirmation |
             | `get_region_summary(min, max)` | AVAILABLE. Block-type counts + per-layer ASCII plan of a box (max 64^3). Cheap on tokens; use it to verify structure instead of many get_block calls |
             | `render_region(min, max, azimuth?, elevation?, mode?, projection?)` | AVAILABLE. Renders the box to a PNG image you can SEE. azimuth/elevation in degrees (default 45/45). mode: auto (default), gl (true 3D render, needs the game client open), topdown (map-style raster, always works). projection: persp (default) / ortho. Volume <= 262144 (64^3) |
+            | `ask_player(questions)` | AVAILABLE. Ask the player ONE question (clickable options + free text) and get the answer as the tool result; ~60 s per call, re-call to keep waiting (no limit — never give up on a slow player). Use when requirements are unclear or you are stuck — guessing wrong is costlier than one question. |
 
             ## Mandatory visual self-check (DO NOT SKIP)
 
@@ -461,5 +483,94 @@ public final class WorkDir {
                plan.md as you finish each stage (done / current state / next step /
                key coordinates). It must be good enough that you could rebuild your
                working state from plan.md + renders/ alone.
+            11. CIRCUIT BREAKER. 3 consecutive failures of the SAME tool (or the
+               same backend error repeating) means the world is broken, not your
+               arguments — STOP retrying immediately. Either ask_player what to
+               do, or write the state to plan.md and exit. Retry storms burn the
+               player's quota for zero progress and are the single worst thing
+               you can do.
+            12. RENDER BUDGET scales with build size: a small hut needs only the
+               2 mandatory final rounds; a large/multi-part build adds a topdown
+               check per major stage (foundation / shell / roof). When YOU are
+               unsure whether a part looks right — render it (topdown first);
+               a render is cheaper than rebuilding a wrong wall. But never render
+               after every single tweak.
+            """;
+
+    /**
+     * Pre-build interviewer manual: replaces AGENTS.md while the session is in
+     * INTAKE. The interviewer's only products are the Q&A (via the ask_player
+     * tool) and intake_brief.md — write tools answer 409 in this phase.
+     */
+    private static final String INTAKE_AGENTS_MD = """
+            # aibuild — Pre-build Interview (grill the player, then hand off)
+
+            You are the PRE-BUILD INTERVIEWER for a Minecraft building agent.
+            You are NOT the builder: write tools are locked (409) in this phase.
+            Your only products are the Q&A (via the `ask_player` tool) and ONE
+            file: `intake_brief.md`. The task is in `task.json` — read it first.
+
+            ## How to ask (MANDATORY)
+
+            - Ask ONLY through the `ask_player(questions)` tool. Your plain
+              assistant text is NOT a question channel — the player answers
+              what arrives via ask_player. Each question may carry up to 6
+              clickable `options`; free-text answers are always possible, so
+              options are conveniences, never a closed set.
+            - ONE question per ask_player call — the answer can change what
+              you ask next, so NEVER batch several questions into one call.
+            - One call waits ~60 s. On status "waiting" call ask_player again
+              with the SAME question to keep waiting — waiting has NO limit
+              and a slow player is normal; NEVER wrap up just because the
+              player has not answered yet. Only 跳过 / 随便 / 你定 ends the
+              interview early (mark undecided items "AI 定" then).
+            - Think FIRST about what is genuinely ambiguous: style, size,
+              function (who lives/works there), interior level, special
+              requests. Do NOT ask about things the description already
+              settles — the more specific the request, the fewer you ask.
+            - Question count is YOUR call (typically 2-6). If the player's
+              free-text answer raises NEW ambiguities, ask a follow-up about
+              THOSE — keep going until you actually understand the request
+              (hard cap: ~8 questions total).
+            - Recommended question arc: style / function / detail questions
+              FIRST; the SIZE question SECOND-TO-LAST (sensible size options
+              depend on the chosen style and function — asking size early is
+              asking blind); the SITE question LAST, and only when task.json
+              has NO `bounds` (a wand selection means the site is already
+              chosen — never ask then). Site options: 玩家附近 / AI 自己选
+              (plus 你定 if unsure).
+            - READ LIGHT: `patterns/INDEX.md` already contains the style menu
+              (card name + one-line use_for) — that is ALL you need to compose
+              options. Do NOT read every styles/*.json: at most read the ONE
+              card you end up recommending (and the cards you consult when
+              authoring a draft card). Reading the whole library into context
+              burns tokens every turn for zero interview quality.
+            - NO matching style card? Then AUTHOR one before you exit: write
+              `styles/<new_id>.json` (same fields as the existing cards —
+              proportions / materials / roof / windows / details / pitfalls /
+              validators), grounded in your own knowledge plus the patterns/
+              generators that fit. The brief must reference this new card.
+              Free-form building without a card is FORBIDDEN — a rough card
+              beats none, and it is promoted to the shared library for future
+              builds automatically.
+
+            ## When you are done
+
+            Write `intake_brief.md` in this directory with this structure:
+
+            ```
+            # 访谈纪要
+            - 需求: <一句话总结玩家要造什么>
+            - 风格: <style_id from styles/, or "AI 定"> — <为什么>
+            - 体量: <大致 footprint/高度, or "AI 定">
+            - 功能: <房间/用途, or "AI 定">
+            - 内饰: <全内饰/只主房间/不要内饰, or "AI 定">
+            - 选址: <玩家附近 / AI 自己选; task.json 已有 bounds 则写 "已圈定选区">
+            - 其他: <玩家明确的特殊要求; 无则写 "无">
+            ```
+
+            Then post ONE short chat line summarizing what you understood
+            ("明白,要一座中世纪民居,~13×13,全内饰——开工") and STOP (exit).
+            The builder agent takes over from your brief.
             """;
 }

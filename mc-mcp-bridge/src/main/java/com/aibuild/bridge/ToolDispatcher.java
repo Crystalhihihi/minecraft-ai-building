@@ -55,6 +55,7 @@ public final class ToolDispatcher {
                 case Tools.GET_TERRAIN_SUMMARY -> jsonResult(backend.postJson("/tools/get_terrain_summary", args));
                 case Tools.RENDER_REGION -> renderResult(backend.postJson("/tools/render_region", args));
                 case Tools.PROPOSE_SITE -> jsonResult(backend.postJson("/tools/propose_site", args));
+                case Tools.ASK_PLAYER -> jsonResult(backend.postJson("/tools/ask_player", args));
                 default -> throw new IllegalArgumentException("unknown tool: " + name);
             };
         } catch (IOException e) {

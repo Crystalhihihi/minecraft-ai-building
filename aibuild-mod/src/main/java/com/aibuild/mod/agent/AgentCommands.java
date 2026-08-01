@@ -30,10 +30,15 @@ import static net.minecraft.commands.Commands.literal;
 /**
  * /aibuild <description> — start a NEW build session (E3: up to
  *   max_concurrent_agents sessions run in parallel; rejected only at the cap,
- *   or when the wand selection overlaps a running session's bounds). With a
+ *   or when the wand selection overlaps a running session's bounds). Unless the
+ *   description contains escape words (随便/你定/直接造) or intake is disabled in
+ *   config, an INTERVIEWER agent runs first (INTAKE): it reads the request,
+ *   asks whatever it needs via chat, collects /aichat answers, writes
+ *   intake_brief.md and hands off to the builder. With a
  *   complete wand selection the build is bound to it; otherwise the AI must
  *   propose_site and wait for player confirmation.
- * /aichat <message>     — queue into the newest running session's inbox, or
+ * /aichat <message>     — answer the newest INTAKE session's interviewer, or
+ *   queue into the newest running session's inbox, or
  *   resume the newest resumable session with `kimi -r`.
  * /aicancel [n]         — cancel session n (default: the newest running one).
  * /aistatus             — list all sessions (status / bounds / stats / kimi id).

@@ -110,6 +110,15 @@ public final class AgentRunner {
         manager.broadcast("[aibuild] " + tag() + " agent started: " + session.description());
     }
 
+    /** INTAKE spawn: the interviewer agent (work dir AGENTS.md is the interview manual). */
+    public synchronized void startIntake() throws IOException {
+        List<String> args = newArgs(
+                "-p", "Read AGENTS.md and task.json in the current directory, then carry out the pre-build interview described in AGENTS.md.",
+                "--output-format", "stream-json");
+        spawn(args);
+        manager.broadcast("[aibuild] " + tag() + " 访谈 agent 已启动,它会先问清楚再开工 (说「跳过」= 不问直接造): " + session.description());
+    }
+
     /** Manual resume via /aichat: continues the session's kimi conversation. */
     public synchronized void resume(String message) throws IOException {
         if (session.kimiSessionId() == null) {
@@ -131,7 +140,8 @@ public final class AgentRunner {
             stopReason = reason;
             p.destroyForcibly();
             AiBuildMod.LOGGER.info("[aibuild] {} agent process killed: {}", tag(), reason);
-        } else if (session.status() == AgentSession.Status.RUNNING) {
+        } else if (session.status() == AgentSession.Status.RUNNING
+                || session.status() == AgentSession.Status.INTAKE) {
             // between self-heal retries (process already dead): finalize as cancelled now
             session.status = AgentSession.Status.CANCELLED;
             session.endedAtMillis = System.currentTimeMillis();
@@ -424,6 +434,21 @@ public final class AgentRunner {
                     "[aibuild] " + tag() + " agent stopped: " + reason + ". /aichat can continue the session.");
             return;
         }
+        if (session.status() == AgentSession.Status.INTAKE) {
+            // interviewer exited: clean exit hands off to the builder; anything
+            // else fails the interview (no self-heal — /aichat resumes it).
+            if (code == 0) {
+                synchronized (session) {
+                    session.resumeAttempts = 0;
+                }
+                manager.completeIntake(session);
+            } else {
+                terminate(AgentSession.Status.FAILED,
+                        "intake exit code " + code + " — /aichat 可续",
+                        "[aibuild] " + tag() + " 访谈 agent 异常退出 (code " + code + ") — /aichat 可续");
+            }
+            return;
+        }
         if (code == 0) {
             synchronized (session) {
                 session.resumeAttempts = 0;
@@ -462,6 +487,7 @@ public final class AgentRunner {
         // error from an earlier self-heal attempt.
         session.lastError = error;
         session.endedAtMillis = System.currentTimeMillis();
+        manager.promoteSharedStyles(session); // builder-authored cards → shared library
         manager.broadcast(chatMessage);
         broadcastConsumption();
         manager.persist();

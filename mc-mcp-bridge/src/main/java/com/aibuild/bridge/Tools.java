@@ -26,12 +26,14 @@ public final class Tools {
     public static final String GET_TERRAIN_SUMMARY = "get_terrain_summary";
     public static final String RENDER_REGION = "render_region";
     public static final String PROPOSE_SITE = "propose_site";
+    public static final String ASK_PLAYER = "ask_player";
 
     public static final int SET_BLOCKS_MAX_ENTRIES = 4096;
 
     public static List<String> names() {
         return List.of(FILL, SET_BLOCKS, SET_BLOCKS_FROM_FILE, SET_BLOCK, GET_JOB_STATUS, GET_BLOCK,
-                SEARCH_BLOCKS, GET_REGION_SUMMARY, GET_TERRAIN_SUMMARY, RENDER_REGION, PROPOSE_SITE);
+                SEARCH_BLOCKS, GET_REGION_SUMMARY, GET_TERRAIN_SUMMARY, RENDER_REGION, PROPOSE_SITE,
+                ASK_PLAYER);
     }
 
     public static boolean isKnown(String name) {
@@ -114,6 +116,15 @@ public final class Tools {
                         + "player confirms the site.",
                 schema(mapper, new String[][]{{"min", "boxCorner"}, {"max", "boxCorner"}},
                         "min", "max")));
+        tools.add(tool(mapper, ASK_PLAYER,
+                "Ask the player ONE question and WAIT for the answer. The question appears in the "
+                        + "game chat with clickable option buttons; the player's reply (clicked option "
+                        + "or free text) comes back as this tool's result. Exactly ONE question per "
+                        + "call — an answer can change what you ask next, so never batch. Each call "
+                        + "waits ~60 s; on status \"waiting\" call again with the SAME question to "
+                        + "keep waiting — waiting has no limit, NEVER give up just because the player "
+                        + "is slow. Only when the player says 跳过/随便/你定 may you stop asking.",
+                schema(mapper, new String[][]{{"questions", "questionList"}}, "questions")));
         return tools;
     }
 
@@ -239,6 +250,30 @@ public final class Tools {
             case "query" -> {
                 node.put("type", "string");
                 node.put("description", "Substring to match against block ids, e.g. \"stained_glass\".");
+            }
+            case "questionList" -> {
+                node.put("type", "array");
+                node.put("description", "Exactly ONE question (answers can change later questions, "
+                        + "so never batch). May carry up to 6 clickable options.");
+                node.put("minItems", 1);
+                node.put("maxItems", 1);
+                ObjectNode item = node.putObject("items");
+                item.put("type", "object");
+                item.put("additionalProperties", false);
+                ObjectNode ip = item.putObject("properties");
+                ObjectNode q = mapper.createObjectNode();
+                q.put("type", "string");
+                q.put("description", "The question text, e.g. \"想要什么风格?\".");
+                ip.set("q", q);
+                ObjectNode options = mapper.createObjectNode();
+                options.put("type", "array");
+                options.put("description", "Clickable answer options shown as buttons, max 6. "
+                        + "Free-text answers are always possible, so options are conveniences, not a closed set.");
+                options.put("maxItems", 6);
+                options.putObject("items").put("type", "string");
+                ip.set("options", options);
+                ArrayNode ir = item.putArray("required");
+                ir.add("q");
             }
             default -> throw new IllegalArgumentException("unknown schema fragment: " + kind);
         }

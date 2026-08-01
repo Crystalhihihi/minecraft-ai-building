@@ -266,17 +266,59 @@ public final class AgentSessionManager {
             description = Files.readString(taskFile, StandardCharsets.UTF_8).trim();
         }
 
+        AgentSession s = createSession(description, anchor, selection);
+        // intake gate: unless escaped, an interviewer agent (a real LLM — it
+        // reads the request, decides what to ask and how much) runs BEFORE the
+        // builder spawns. Escape words skip it entirely.
+        if (config.intakeEnabled() && !skipsIntake(description)) {
+            s.status = AgentSession.Status.INTAKE;
+            try {
+                Path dir = prepareWorkDir(s);
+                WorkDir.writeTask(dir, s.description, anchor, selection);
+                try {
+                    String terrain = TerrainSummary.generate(server.overworld(), anchor.getX(), anchor.getZ(), 64);
+                    WorkDir.writeTerrain(dir, anchor, 64, terrain);
+                } catch (Exception e) {
+                    AiBuildMod.LOGGER.warn("[aibuild] terrain summary generation failed; continuing without terrain.json", e);
+                }
+                runnerFor(s).startIntake();
+            } catch (IOException | RuntimeException e) {
+                s.status = AgentSession.Status.FAILED;
+                s.lastError = "intake spawn failed: " + e.getMessage();
+                s.endedAtMillis = System.currentTimeMillis();
+                persist();
+                throw e;
+            }
+            persist();
+            refreshBridgeJson();
+            return "session #" + s.no() + " 已创建,访谈 agent 启动中——它先问清楚再开工 (说「跳过」= 直接造)";
+        }
+        launch(s, anchor, selection);
+        String brief = description.length() > 60 ? description.substring(0, 60) + "…" : description;
+        return "agent started (session #" + s.no() + "): " + brief + (selection != null
+                ? " (bounds: " + selection.describe() + ")"
+                : " (no selection — AI will propose a site for confirmation)");
+    }
+
+    /** Creates and registers a session (stays INTAKE or launches immediately). */
+    private AgentSession createSession(String description, BlockPos anchor, SiteGate.Bounds selection) {
         int no = nextSessionNo++;
         AgentSession s = new AgentSession(no, UUID.randomUUID().toString(), "sessions/s" + no);
         s.description = description;
+        s.anchor = anchor;
         s.sessionTag = "b" + TAG_STAMP.format(LocalDateTime.now()) + "-s" + no;
         s.gate().setOnChange(this::persist);
         s.gate().beginSession(selection);
         sessions.put(no, s);
         tokenIndex.put(s.token(), s);
+        return s;
+    }
+
+    /** Spawns the agent process: work dir + task.json + terrain, then startNew. */
+    private void launch(AgentSession s, BlockPos anchor, SiteGate.Bounds selection) throws IOException {
         try {
             Path dir = prepareWorkDir(s);
-            WorkDir.writeTask(dir, description, anchor, selection);
+            WorkDir.writeTask(dir, s.description, anchor, selection);
             try {
                 String terrain = TerrainSummary.generate(server.overworld(), anchor.getX(), anchor.getZ(), 64);
                 WorkDir.writeTerrain(dir, anchor, 64, terrain);
@@ -293,10 +335,6 @@ public final class AgentSessionManager {
         }
         persist();
         refreshBridgeJson();
-        String brief = description.length() > 60 ? description.substring(0, 60) + "…" : description;
-        return "agent started (session #" + no + "): " + brief + (selection != null
-                ? " (bounds: " + selection.describe() + ")"
-                : " (no selection — AI will propose a site for confirmation)");
     }
 
     /**
@@ -305,6 +343,29 @@ public final class AgentSessionManager {
      * {@code kimi -r}. Resuming counts toward the concurrency cap.
      */
     public synchronized String chat(String message) throws IOException {
+        AgentSession intake = latestIntake();
+        if (intake != null) {
+            AgentRunner r = runnerFor(intake);
+            if (r.isProcessAlive()) {
+                intake.inbox().add(message);
+                return "[已排队到访谈会话 #" + intake.no() + ",AI 下次行动时送达] " + message;
+            }
+            if (intake.description.contains("[访谈确认]")) {
+                // interview done but the launch was cap-blocked — retry (idempotent)
+                completeIntake(intake);
+                return "会话 #" + intake.no() + " 开工重试中——/aistatus 查看";
+            }
+            if (intake.kimiSessionId() != null) {
+                if (countRunning() >= config.maxConcurrentAgents()) {
+                    throw new IllegalStateException("已达最大并发 " + config.maxConcurrentAgents() + " 个会话,无法续跑访谈——先 /aicancel");
+                }
+                prepareWorkDir(intake);
+                r.resume(message);
+                persist();
+                return "resuming intake session #" + intake.no() + " (访谈继续): " + message;
+            }
+            throw new IllegalStateException("会话 #" + intake.no() + " 访谈进程不在且无会话记录——/aicancel 后重新 /aibuild");
+        }
         AgentSession running = latestRunning();
         if (running != null) {
             running.inbox().add(message);
@@ -333,7 +394,7 @@ public final class AgentSessionManager {
 
     /** /aicancel [n]: kills session n's process (or aborts its pending self-heal); without n, the newest running. */
     public synchronized String cancel(Integer no) {
-        AgentSession s = no != null ? sessions.get(no) : latestRunning();
+        AgentSession s = no != null ? sessions.get(no) : latestActive();
         if (s == null) {
             throw new IllegalStateException(no != null ? "会话 #" + no + " 不存在" : "no agent is running");
         }
@@ -366,6 +427,11 @@ public final class AgentSessionManager {
             StringBuilder sb = new StringBuilder("#").append(s.no())
                     .append(" [").append(s.status().name().toLowerCase(java.util.Locale.ROOT)).append("] ")
                     .append(s.description());
+            if (s.status() == AgentSession.Status.INTAKE) {
+                sb.append(" | 访谈进行中(/aichat 回答,「跳过」=直接造)");
+                out.add(sb.toString());
+                continue;
+            }
             SiteGate.Bounds active = s.gate().activeBounds();
             String gateNote = switch (s.gate().state()) {
                 case CONFIRMED -> " bounds confirmed " + (active != null ? active.describe() : "?");
@@ -496,9 +562,61 @@ public final class AgentSessionManager {
 
     // ------------------------------------------------------------------ runner support
 
-    /** (Re)writes the session's working directory (mcp.json carries the current port + session token). */
+    /** (Re)writes the session's working directory (mcp.json carries the current port + session token; manual matches the phase). */
     public Path prepareWorkDir(AgentSession s) throws IOException {
-        return WorkDir.prepare(s.workDir(aibuildRoot()), bridge.port(), s.token());
+        Path dir = WorkDir.prepare(s.workDir(aibuildRoot()), bridge.port(), s.token(),
+                s.status() == AgentSession.Status.INTAKE);
+        // Shared style library: cards authored by past interviewers/builders
+        // are available in every session (shared copy is the source of truth).
+        Path shared = sharedStylesDir();
+        if (Files.isDirectory(shared)) {
+            Path target = dir.resolve("styles");
+            Files.createDirectories(target);
+            try (var stream = Files.list(shared)) {
+                for (Path card : stream.filter(p -> p.toString().endsWith(".json")).toList()) {
+                    Files.copy(card, target.resolve(card.getFileName().toString()),
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
+        return dir;
+    }
+
+    /** User-authored style cards live here and are seeded into every session's styles/. */
+    private Path sharedStylesDir() {
+        return aibuildRoot().resolve("shared_styles");
+    }
+
+    /**
+     * Promotes NEW style cards from a session's styles/ into the shared
+     * library (write-if-absent; bundled defaults are skipped). Called at
+     * intake handoff and on session termination.
+     */
+    public void promoteSharedStyles(AgentSession s) {
+        try {
+            Path styles = s.workDir(aibuildRoot()).resolve("styles");
+            if (!Files.isDirectory(styles)) {
+                return;
+            }
+            Path shared = sharedStylesDir();
+            try (var stream = Files.list(styles)) {
+                for (Path card : stream.filter(p -> p.toString().endsWith(".json")).toList()) {
+                    if (WorkDir.DEFAULT_ASSETS.contains("styles/" + card.getFileName().toString())) {
+                        continue; // bundled default, not user-authored
+                    }
+                    Path target = shared.resolve(card.getFileName().toString());
+                    if (!Files.exists(target)) {
+                        Files.createDirectories(shared);
+                        Files.copy(card, target);
+                        AiBuildMod.LOGGER.info("[aibuild] #{} promoted new style card {} to shared library",
+                                s.no(), card.getFileName());
+                        broadcast("[aibuild] #" + s.no() + " 新风格卡 " + card.getFileName() + " 已收入共享库");
+                    }
+                }
+            }
+        } catch (IOException e) {
+            AiBuildMod.LOGGER.warn("[aibuild] #{} style card promotion failed", s.no(), e);
+        }
     }
 
     public Path aibuildRoot() {
@@ -601,5 +719,90 @@ public final class AgentSessionManager {
             }
         }
         return n;
+    }
+
+    // ------------------------------------------------------------------ intake interview
+
+    private static final List<String> INTAKE_SKIP_WORDS = List.of("随便", "你定", "直接造");
+    /** intake_brief.md is appended verbatim into the task description — cap it. */
+    private static final int INTAKE_BRIEF_MAX_CHARS = 4000;
+
+    private static boolean skipsIntake(String description) {
+        for (String w : INTAKE_SKIP_WORDS) {
+            if (description.contains(w)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private AgentSession latestIntake() {
+        AgentSession latest = null;
+        for (AgentSession s : sessions.values()) {
+            if (s.status() == AgentSession.Status.INTAKE) {
+                latest = s;
+            }
+        }
+        return latest;
+    }
+
+    /** Newest session that can be cancelled: INTAKE (newest first) or RUNNING. */
+    private AgentSession latestActive() {
+        AgentSession latest = latestRunning();
+        AgentSession intake = latestIntake();
+        return intake != null && (latest == null || intake.no() > latest.no()) ? intake : latest;
+    }
+
+    /**
+     * Interview handoff (called by AgentRunner on the interviewer's clean exit,
+     * or by /aichat as a cap-blocked retry). Idempotent: the brief is appended
+     * once; later calls only retry the launch.
+     */
+    public synchronized void completeIntake(AgentSession s) {
+        try {
+            if (!s.description.contains("[访谈确认]")) {
+                String brief = readIntakeBrief(s);
+                if (brief != null) {
+                    s.description = s.description + "\n\n[访谈确认]\n" + brief;
+                } else {
+                    AiBuildMod.LOGGER.warn("[aibuild] #{} interviewer exited without intake_brief.md — building from the raw description", s.no());
+                    broadcast("[aibuild] #" + s.no() + " 访谈 agent 没留下纪要,按原描述直接开工");
+                }
+            }
+            if (countRunning() >= config.maxConcurrentAgents()) {
+                broadcast("[aibuild] #" + s.no() + " 访谈完成,但并发已满——/aicancel 其他会话后再 /aichat 任意内容开工");
+                persist();
+                return;
+            }
+            s.status = AgentSession.Status.RUNNING;
+            promoteSharedStyles(s); // interviewer-authored draft cards → shared library
+            BlockPos anchor = s.anchor != null ? s.anchor : server.overworld().getRespawnData().pos();
+            broadcast("[aibuild] #" + s.no() + " 访谈完成,建造 agent 开工");
+            launch(s, anchor, s.gate().currentBounds());
+        } catch (IOException | RuntimeException e) {
+            s.status = AgentSession.Status.FAILED;
+            s.lastError = "intake handoff failed: " + e.getMessage();
+            s.endedAtMillis = System.currentTimeMillis();
+            persist();
+            broadcast("[aibuild] #" + s.no() + " 访谈交接失败: " + e.getMessage() + " — /aichat 可续");
+        }
+    }
+
+    /** The interviewer's work product, or null when missing/blank. */
+    private String readIntakeBrief(AgentSession s) {
+        try {
+            Path file = s.workDir(aibuildRoot()).resolve("intake_brief.md");
+            if (!Files.isRegularFile(file)) {
+                return null;
+            }
+            String text = Files.readString(file, StandardCharsets.UTF_8).trim();
+            if (text.isEmpty()) {
+                return null;
+            }
+            return text.length() > INTAKE_BRIEF_MAX_CHARS ? text.substring(0, INTAKE_BRIEF_MAX_CHARS) : text;
+        } catch (IOException e) {
+            AiBuildMod.LOGGER.warn("[aibuild] #{} failed to read intake_brief.md", s.no(), e);
+            return null;
+        }
     }
 }
