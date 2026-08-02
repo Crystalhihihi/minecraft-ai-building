@@ -62,3 +62,10 @@ schematic-sources(PMC 340+ 可解析,授权红线=再分发)/chinese-monumental(
 - GrabCraft 无日式分类;日式样本 51 件已统计并出 sakura_japanese 卡
 
 **下次开工先做**: ① 查抓取完成度(上表) ② 全量统计补 stats_palettes ③ 细节肌理卡调研(facade_depth>accent_detailing>timber_structure>树枝升级>花园层次,见 2026-08-01 讨论) ④ 用户实机测完整闭环(14 卡)
+
+## 2026-08-02 快照(额度等待期)
+
+- 抓取全收: 3666 件/2587 带层图/53182 PNG(scratch/phase9/gc_probe/),stats_palettes.md 已按全量刷新
+- **肌理卡整批延期至 5 号额度刷新后执行**(用户拍板: 做完整版,含层图分析器校准; 计划= docs/plans/2026-08-02-detail-texture-cards.md,五类框架/骨形色饰景,B1→D1→A3→E,组合下沉 profile 机制)
+- 复工第一步: layer_analyze.py(gc_probe 下,验证 PNG 语义→4 项统计→stats_details.md),然后 B1/D1 子代理并行
+- 14 张风格卡 jar 已部署(23:02),实机完整闭环测试用户择机进行
