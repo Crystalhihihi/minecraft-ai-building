@@ -1,0 +1,23 @@
+{
+  "name": "roof_ornament",
+  "description": "Ridge ornament (屋脊装饰): a THIN generator that places small ornaments ON an existing ridge line — never emits the roof itself. 脊饰不只中式: style whitelist chinese={鸱吻/翘角: 脊端上翘楼梯对+台阶, 正脊兽: 节奏小柱}, gothic={finial 尖塔: 柱+柱+楼梯收尖, 小尖顶: 柱+顶半砖}, japanese={鬼瓦: 脊端前凸板(倒放楼梯侧贴本体)+压顶, 脊瓦帽节奏半砖}, european={cresting 脊冠: 铁栏通长一排, 风向标: 栅栏+立旗+end_rod 尖}. 脊端/脊中节奏由 axis+length 推导; 所有 facing/half/rotation 由脚本推导 — never hand-edit (禁止手改方向状态).",
+  "when_to_use": "After any pitched roof (gable_roof/roof_curve/xieshan_roof...) is up and the ridge silhouette reads bare. origin = 屋脊线起点格, y = 脊顶层(脊半砖所在层, 装饰从 y+1 起); axis/length MUST match the roof card's ridge (gable 脊长 = width+2*overhang 沿其 axis). material 取屋面楼梯族 (slab/柱件由它推导: 木族→fence, 石族→wall).",
+  "use_for": "中式正脊鸱吻脊兽/哥特尖塔 finial/日式鬼瓦/欧式脊冠与风向标;屋顶轮廓线点睛",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "屋脊线起点格(一端);y=脊顶层(脊半砖所在层)——与屋顶卡的脊行一致"},
+    "axis": {"type": "\"x\"|\"z\"", "default": "x", "notes": "屋脊走向;与屋顶卡 axis 一致"},
+    "length": {"type": "int", "range": "3-48", "default": 9, "notes": "脊长(格);gable_roof 取 width+2*overhang"},
+    "style": {"type": "enum", "values": ["chinese", "gothic", "japanese", "european"], "default": "chinese", "notes": "L4a 风格白名单;风格卡选定,无全局通用脊饰"},
+    "material": {"type": "block id (*_stairs)", "default": "minecraft:stone_brick_stairs", "notes": "鸱吻/鬼瓦/尖顶主体;slab 自动推导,柱件木族→*_fence 石族→*_wall;facing/half 由脚本推导"},
+    "seed": {"type": "int", "default": 7, "notes": "随机种子;只影响节奏缺省/风向标端位,同参同输出"}
+  },
+  "pitfalls": [
+    "本卡是薄生成器:只出脊饰不含屋顶——必须先发屋顶,origin/axis/length 与屋顶卡的脊行一致,否则脊饰悬空或偏离脊线",
+    "鬼瓦前凸板/鸱吻翘角会超出脊端一格(轴端 -1 与 length 位)——这是造型本意(悬出山面),侧贴脊端本体,别当悬空误报",
+    "验收 support_check/slab_check 时 --params 的 base 必须给屋顶文件(至少含脊行);单跑脊饰文件会把 y+1 层当接地,验不出真悬空",
+    "跨风格 style 是大忌(chinese 鸱吻压进哥特尖顶):style 只能来自风格卡白名单,非法 style 直接 die 并列出合法值",
+    "风向标/正脊兽由 seed 定缺省节奏——想换分布换 seed,别手改输出里的 facing/rotation"
+  ],
+  "validators": ["support_check", "slab_check"],
+  "example": "python patterns/roof_ornament.py --params '{\"origin\":[100,84,100],\"axis\":\"x\",\"length\":11,\"style\":\"chinese\",\"material\":\"minecraft:deepslate_tile_stairs\"}' --out orn.json && python patterns/roof_ornament.py --params '{\"origin\":[100,84,120],\"axis\":\"z\",\"length\":9,\"style\":\"gothic\",\"seed\":42}' --out orn2.json"
+}

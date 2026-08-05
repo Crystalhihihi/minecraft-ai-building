@@ -51,6 +51,9 @@ public final class WorkDir {
             "styles/suzhou_garden.json",
             "styles/chinese_palace.json",
             "styles/elven_tree.json",
+            "styles/desert_adobe.json",
+            "styles/japanese_castle.json",
+            "styles/gothic_cathedral.json",
             "patterns/gable_roof.py",
             "patterns/gable_roof.json",
             "patterns/hip_roof.py",
@@ -107,6 +110,8 @@ public final class WorkDir {
             "patterns/plaza.json",
             "patterns/garden_tree.py",
             "patterns/garden_tree.json",
+            "patterns/giant_tree.py",
+            "patterns/giant_tree.json",
             "patterns/ellipse.py",
             "patterns/xieshan_roof.py",
             "patterns/xieshan_roof.json",
@@ -143,6 +148,10 @@ public final class WorkDir {
             "patterns/wear_path.py",
             "patterns/wear_path.json",
             "patterns/lottery.py",
+            "patterns/room_partition.py",
+            "patterns/room_partition.json",
+            "patterns/roof_ornament.py",
+            "patterns/roof_ornament.json",
             "patterns/stair_orientations.md",
             "patterns/INDEX.md",
             "patterns/validators/symmetry_check.py",
@@ -425,8 +434,14 @@ public final class WorkDir {
             - INTERIORS LAST: furniture and interior detail go in ONLY after
               the walls are fully placed (all wall jobs done, failed == 0).
               Keep >= 1 air block between interior pieces and wall blocks.
-              Record the wall positions in plan.md before decorating. Before
-              placing interiors, run
+              Record the wall positions in plan.md before decorating. ROOM
+              PARTITIONING IS PATTERN WORK: never freehand interior walls —
+              run `room_partition.py` with the room list from the brief
+              (`rooms` answer), your shell's inner bounds and the structural
+              grid. Its `window_hints` tell you where facade windows should
+              go — partition BEFORE cutting exterior windows, so windows and
+              rooms line up. Its `rooms[]` output feeds `interior_rooms.py`
+              directly. Before placing interiors, run
               `python patterns/validators/collision_check.py --params '{"a":"walls.json","b":"furniture.json"}'`
               — it must exit 0 (no overlap); place only then. AFTER placing
               interiors you MUST run walkability_check (door → every furniture
@@ -658,6 +673,12 @@ public final class WorkDir {
               card you end up recommending (and the cards you consult when
               authoring a draft card). Reading the whole library into context
               burns tokens every turn for zero interview quality.
+              EXCEPTION: the recommended card's `interview_prompts` field is
+              MANDATORY reading — its `rooms` question and `structural`
+              decision points are pre-vetted anchors for this style. Ask them
+              (honouring its `skip_if` downgrade cases) and fold the answers
+              into the brief verbatim; the `rooms` answer feeds the builder's
+              room_partition run directly.
             - NO matching style card? Then AUTHOR one before you exit: write
               `styles/<new_id>.json` (same fields as the existing cards —
               proportions / materials / roof / windows / details / pitfalls /
@@ -671,8 +692,10 @@ public final class WorkDir {
 
             FIRST, once the style is settled (existing card or your draft):
             draw this build's parameters with the anti-preference lottery —
-            `python patterns/lottery.py --params '{"style":"<style_id>","seed":<any int>}' --out build_order.json`
-            and paste the resulting build_order block VERBATIM into
+            `python patterns/lottery.py --params '{"style":"<style_id>"}' --out build_order.json`
+            — do NOT pass a seed, let it roll (it prints the rolled seed;
+            save it into the brief so the build is reproducible). Paste the
+            resulting build_order block VERBATIM into
             intake_brief.md as a `- 任务单:` line. The drawn axes (roof type /
             wall system / trims / seeds) are FIXED for the builder — never
             re-pick them yourself, never second-guess the dice.

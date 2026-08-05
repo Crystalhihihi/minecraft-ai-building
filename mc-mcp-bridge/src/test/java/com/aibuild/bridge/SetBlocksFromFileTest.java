@@ -56,10 +56,12 @@ class SetBlocksFromFileTest {
                     + n + ",\"placed\":" + n + ",\"failed\":0,\"errors\":[]}");
         });
         rig = new TestRig(backend.baseUrl());
+        System.setProperty("aibuild.bridge.fileRoot", tempDir.toString());
     }
 
     @AfterEach
     void tearDown() {
+        System.clearProperty("aibuild.bridge.fileRoot");
         backend.close();
     }
 

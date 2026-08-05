@@ -30,6 +30,9 @@
 | suzhou_garden | 苏州园林(中式) |
 | chinese_palace | 中式殿堂/官式建筑(歇山顶+斗拱+高台基+中轴对称),主殿 9×13~15×21 |
 | elven_tree | 精灵树居(有机白壁+圆平面+活树干贯穿),主室直径 7~11 |
+| desert_adobe | 沙漠/中东土坯(砂岩陶土+平顶女儿墙+穹顶+拱廊内院,厚墙小窗) |
+| japanese_castle | 日式天守阁(石垣收分+白壁+叠层歇山+千鸟破风;xieshan_roof 复用) |
+| gothic_cathedral | 哥特主教堂(十字平面+双塔西立面+大玫瑰窗+束柱高厅) |
 
 ## 模式卡 patterns/(均有同名 .py 生成器)
 
@@ -71,6 +74,7 @@
 | terrace_farm | 梯田(层高差 1、宽 2~4,田埂压边,zigzag 层间下灌) |
 | plaza | 广场铺装(同心圆/放射/棋盘/镶边;中心点缀位;灯椅节奏) |
 | garden_tree | 景观树(橡/桦/樱/杉×3 体量;确定性;贴面分枝+镂空叶团) |
+| giant_tree | 巨树(空间殖民算法;干径 2×2/3×3、高 10-30、板根;实验品,巨型主题用) |
 | round_plan | 圆环墙/收分圆塔(taper 逐层内收;solid 实心/空心;cap 封盘;圆塔/灯塔/精灵圆屋) |
 | altar | 祭坛(多层台座+顶饰) |
 | settlement | 聚落布局(产 scene 空间计划非方块;grid/radial/organic/park) |
@@ -78,6 +82,8 @@
 | plan_shape | 平面形状(rect/L/T/U/rect_bump;翼楼拼合;凹凸率按语料分档 0.10~0.43;治只会矩形) |
 | clutter_pile | 杂物堆(干草/原木/箱桶/劈柴;seed 随机游走簇形,治无菌感) |
 | wear_path | 踩出来的路(两点间 seed 扰动带弯;dirt_path+渐稀收边;轻重磨损档) |
+| room_partition | 分房生成器(回刀式二分+隔墙吸附开间网格+门树动线;内置 BFS 可达校验,不可达 die;输出 rooms/window_hints 供 interior_rooms 与外墙开窗对齐) |
+| roof_ornament | 屋脊装饰(chinese 鸱吻脊兽/gothic 尖塔/japanese 鬼瓦/european 脊冠风向标;白名单分风格) |
 
 > 公共模块:`patterns/ellipse.py`(圆/椭圆栅格化 circle_ring/ellipse_ring/disc,**单一来源**——后续 dome/rose_window 等新卡必须复用,禁止各写一份);`patterns/contract_check.py` 为卡-代码契约校验工具(开发期用,不进世界工作目录)。
 

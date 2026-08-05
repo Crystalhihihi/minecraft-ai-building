@@ -214,8 +214,10 @@ def main():
         die("style card '%s' has no 'lottery' field — 该卡未白名单化 (not whitelisted for lottery)" % style,
             whitelisted_styles())
     if params.get("seed") is None:
-        seed = int(time.time())
-        print("no seed given; using timestamp seed %d "
+        # 真随机种子:A/B 实测发现 agent 爱用当天日期当 seed,同一天抽签结果
+        # 完全相同(多样性被锁死)——缺省必须不可预测。
+        seed = random.SystemRandom().getrandbits(31)
+        print("no seed given; rolled random seed %d "
               "(re-run with '\"seed\":%d' in --params to reproduce)" % (seed, seed), file=sys.stderr)
     else:
         try:

@@ -108,5 +108,15 @@
       {"if": {"roof_type": "mansard_roof"}, "forbid": ["dormer_none"]}
     ]
   },
+  "interview_prompts": {
+    "rooms": "每户内部怎么竖向分区?首层起居+厨房、二层卧室、顶层书房/储物,这样行吗?一共几层?",
+    "structural": [
+      "建独栋还是联排?[独栋/联排 3-5 户]",
+      "屋顶用孟莎顶(mansard)还是山墙朝街的人字顶?[孟莎顶/人字顶]",
+      "首层做住宅台阶入户还是商铺门面?[住宅/商铺]",
+      "墙面用红砖还是石砖?[红砖/石砖/砖石交替分户]"
+    ],
+    "skip_if": "只做街景立面薄片(纯外观)时,房间分区问题跳过,只确认屋顶与墙面材质。"
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
 }

@@ -4,8 +4,14 @@
 Thin generator: scatters small accent GROUPS on the OUTER face of an existing
 wall (it never emits the wall itself). L4a/L4b split is hard-wired:
 
-- L4a: `palette` = per-style whitelist (medieval/japanese/elven/industrial) —
-  the ONLY place piece kinds are chosen. No global all-style accent list.
+- L4a: `palette` = per-style whitelist (medieval/japanese/elven/industrial/
+  interior) — the ONLY place piece kinds are chosen. No global all-style
+  accent list. `interior` is the indoor palette (室内点缀): wall-banner
+  挂画/挂毯 (1.21 实测 painting/item_frame 是实体, setblock 放不了 — 挂画用
+  wall_banner 替代), wall_torch 壁灯, candle 蜡烛台, bookshelf 书架墙,
+  顶角线 crown molding (倒放楼梯贴顶角), potted plant 盆栽; it pairs with
+  the interior surfaces interior_wall / ceiling_corner / tabletop (桌面 30%
+  概率放小件 — each tabletop group slot emits only on a 30% roll).
 - L4b: the scatter algorithm below only decides DISTRIBUTION: accents attach
   to structural seams (corner columns / wall interior seams / under-eave row /
   column base), come in groups of 2-3 cells (never isolated singles), and the
@@ -25,28 +31,34 @@ import argparse, json, random, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from roof_common import die, write_out
+from roof_common import die, stair, write_out
 
 DIRS = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}
 OPP = {"north": "south", "south": "north", "east": "west", "west": "east"}
 RIGHT = {"north": "east", "east": "south", "south": "west", "west": "north"}
-SURFACES = ("wall", "corner", "eave", "column_base")
+SURFACES = ("wall", "corner", "eave", "column_base",
+            "interior_wall", "ceiling_corner", "tabletop")
 
 # kind -> structural seams it may attach to (位置语法:碎件必依附结构缝)
 KIND_SURFACES = {
     "vine": ("corner", "wall"),
-    "banner": ("wall",),
+    "banner": ("wall", "interior_wall"),
     "bars": ("corner", "wall"),
     "lantern_hang": ("eave",),
     "lantern_stand": ("column_base",),
     "button": ("wall",),
-    "candle": ("column_base",),
+    "candle": ("column_base", "tabletop"),
     "trapdoor_panel": ("wall",),
     "stone_lantern": ("column_base",),
     "moss": ("column_base",),
     "gold": ("corner",),
     "sea_lamp": ("eave", "corner"),
     "pipes": ("corner",),
+    # ---- interior palette kinds (室内点缀) --------------------------------
+    "wall_sconce": ("interior_wall",),      # 壁灯:墙面火把排
+    "bookshelf_wall": ("interior_wall",),   # 书架墙:贴墙落地竖列
+    "crown_molding": ("ceiling_corner",),   # 顶角线:倒放楼梯贴顶角
+    "potted_plant": ("tabletop", "column_base"),  # 盆栽:桌面/落地
 }
 
 # L4a 风格化白名单 — each entry: (kind, block-arg or None). 禁止全局通用清单.
@@ -58,6 +70,12 @@ PALETTES = {
     "elven": [("sea_lamp", None), ("gold", None), ("vine", None)],
     "industrial": [("bars", None), ("button", "minecraft:stone_button"),
                    ("pipes", None)],
+    # 室内点缀:挂画=wall_banner 挂毯(1.21 painting/item_frame 是实体,不能
+    # setblock — blocks.md:153);surface 配 interior_wall/ceiling_corner/tabletop
+    "interior": [("banner", "minecraft:light_gray_wall_banner"),
+                 ("wall_sconce", None), ("bookshelf_wall", None),
+                 ("crown_molding", "minecraft:oak_stairs"),
+                 ("candle", None), ("potted_plant", "minecraft:potted_fern")],
 }
 
 DEFAULTS = {
@@ -138,6 +156,20 @@ def place(rng, kind, arg, u, v, F, cells, width, height):
         for q in pts:
             cells[q] = "minecraft:iron_bars"
         return True
+    # ---- interior palette kinds (室内点缀;不影响老 palette 的 rng 流) ------
+    if kind == "wall_sconce":                # 壁灯:贴墙火把横排 2-3
+        return row(rng.randint(2, 3), "minecraft:wall_torch[facing=%s]" % F)
+    if kind == "bookshelf_wall":             # 书架墙:落地竖列 2-3 层
+        pts = [(u, i) for i in range(rng.randint(2, 3))]
+        if not all(free(*q) for q in pts):
+            return False
+        for q in pts:
+            cells[q] = "minecraft:bookshelf"
+        return True
+    if kind == "crown_molding":              # 顶角线:倒放楼梯横排(背贴墙)
+        return row(rng.randint(2, 3), stair(arg, F, half="top"))
+    if kind == "potted_plant":               # 盆栽:成组 2-3(桌面/落地)
+        return row(rng.randint(2, 3), arg)
     return False
 
 
@@ -165,6 +197,15 @@ def build(p):
                 v = rng.randint(1, max(1, height - 2))
             elif surf == "eave":
                 u, v = rng.randint(0, width - 1), height - 1
+            elif surf == "interior_wall":
+                u = rng.randint(1, width - 2) if width > 2 else 0
+                v = rng.randint(1, max(1, height - 2))
+            elif surf == "ceiling_corner":
+                u, v = rng.randint(0, width - 1), height - 1
+            elif surf == "tabletop":         # 桌面 30% 概率放小件:整组放或整组空
+                if rng.random() >= 0.3:
+                    break                    # 本次不放,该组留空(不补抽)
+                u, v = rng.randint(0, width - 1), 1
             else:                            # column_base (柱脚优先转角柱)
                 u = rng.choice((0, width - 1)) if rng.random() < 0.5 \
                     else rng.randint(0, width - 1)

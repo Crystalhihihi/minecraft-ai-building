@@ -113,5 +113,15 @@
       {"if": {"massing": "single_box"}, "then": {"contrast_palettes_min": 2}}
     ]
   },
+  "interview_prompts": {
+    "rooms": "需要哪些房间?客厅厨房开放式一体还是分隔?几间卧室?要不要书房?",
+    "structural": [
+      "体量怎么组合?[L 型/错位盒体/单一方盒]",
+      "屋顶做哪种?[平顶带露台/单坡/蝴蝶顶]",
+      "玻璃做到什么程度?[整面落地/横向带形窗]",
+      "基座怎么处理?[抬高 1 格/架空柱/直接落地]"
+    ],
+    "skip_if": "纯外观展示模型时,房间问题跳过,只确认体量与玻璃做法。"
+  },
   "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
 }

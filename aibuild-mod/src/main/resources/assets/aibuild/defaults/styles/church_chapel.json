@@ -108,5 +108,15 @@
       {"if": {"body_material": "bricks"}, "then": {"frame": "stone_bricks"}}
     ]
   },
+  "interview_prompts": {
+    "rooms": "教堂内部除中厅外还需要什么?要不要侧廊、后殿祭坛区、钟楼小室?",
+    "structural": [
+      "平面做哪种?[单厅/中厅加侧廊/十字平面]",
+      "要不要钟楼?[贴前厅角/独立塔/不要]",
+      "正面要不要玫瑰窗?[要/不要]",
+      "窗用彩色玻璃还是透明玻璃?[染色 2-3 色/透明]"
+    ],
+    "skip_if": "小礼拜堂(单厅级)或纯外观时,房间问题跳过,只确认钟楼有无与彩窗做法。"
+  },
   "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
 }

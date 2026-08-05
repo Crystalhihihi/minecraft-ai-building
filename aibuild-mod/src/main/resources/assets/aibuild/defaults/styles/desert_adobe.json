@@ -1,0 +1,110 @@
+{
+  "style_id": "desert_adobe",
+  "name": "Desert Adobe (沙漠土坯/中东风建筑)",
+  "use_for": "desert and Middle-Eastern/North-African buildings: adobe/mudbrick houses, sandstone mosques and palaces, kasbahs, courtyard houses, desert-town bazaar fronts; flat roofs + domes + arcades + thick walls. 与现有 16 卡零重叠: 唯一砂岩/陶土大地色系+平顶穹顶体系.",
+  "palette_stats": "知识直写(语料库无沙漠/中东类目): 参考真实沙漠建筑(摩洛哥 kasbah/中东老城)——砂岩+陶土单色大地色系为绝对主体, 木仅作梁/门窗点缀, 白墙灰泥抹面为次要变体; 厚墙小窗是隔热逻辑直接决定的形式.",
+  "proportions": {
+    "height_to_width_ratio": "1:1 ~ 1.5:1 (横向低矮匍匐); 穹顶厅/宣礼塔 2:1~3:1",
+    "storey_height": "3-3.5 (interior clear 3)",
+    "wall_thickness": "1-2 — 厚墙隔热是本风格结构逻辑, 主外墙 2, 隔墙 1",
+    "typical_footprint": "单体 7x9 ~ 13x13; 带内院院落 15x15 起, 院占总面积 1/4~1/3",
+    "door_height": "2-3 (拱心门洞, 门框内凹 1 格)"
+  },
+  "materials": {
+    "ground_floor": ["minecraft:cut_sandstone", "minecraft:sandstone", "minecraft:chiseled_sandstone"],
+    "ground_floor_mix": "50% cut_sandstone / 30% sandstone / 20% chiseled_sandstone(饰带点位), deterministic per-position; 底层放脚加深(sandstone 占比加倍)",
+    "upper_walls": ["minecraft:smooth_sandstone", "minecraft:terracotta", "minecraft:white_terracotta"],
+    "upper_walls_mix": "three systems, pick per building: (a) 砂岩: 80% smooth_sandstone / 20% cut_sandstone; (b) 土坯: 70% terracotta / 30% smooth_sandstone; (c) 灰泥抹面: white_terracotta 主体 — 同色系深浅掺比(wall_weathering 掺比手法, 无现成 preset 用显式 palette)",
+    "frame": ["minecraft:acacia_log", "minecraft:stripped_acacia_log"],
+    "frame_use": "平顶木梁(梁头出檐 1 格外露)+门窗过梁+院中棕榈干; log 轴向由脚本推导",
+    "roof": ["minecraft:smooth_sandstone", "minecraft:sandstone_slab", "minecraft:sandstone_wall"],
+    "roof_use": "平顶: smooth_sandstone 满铺 + sandstone_wall/slab 女儿墙圈边(高出屋面 1); 穹顶用 patterns/dome.py, 半球 smooth_sandstone / 洋葱 terracotta",
+    "accent": ["minecraft:acacia_trapdoor", "minecraft:lantern", "minecraft:iron_bars"],
+    "accent_use": "trapdoor 木窗栅(mashrabiya 感), iron_bars 高层小气窗, lantern 只挂内院/门侧, 不上外墙"
+  },
+  "roof": {
+    "type": "平顶+女儿墙为主; 穹顶 patterns/dome.py profile=hemisphere(主厅/清真寺) 或 bulb(洋葱顶); 圆塔 patterns/round_plan.py cap=dome",
+    "slope": "0 (平顶) — 本风格禁止坡屋顶", "overhang": "0-1 — 仅木梁头出挑 1 格, 砂岩墙身不出檐",
+    "parapet": "女儿墙高 1: sandstone_wall 整圈, 或阶梯状雉堞(高低交替 slab)",
+    "note": "穹顶必坐鼓座(抬高 1-2 的方墙段), 禁止穹顶直接飘在平顶边"
+  },
+  "windows": {
+    "pattern": "小而高: 外墙 1x1~1x2 竖窗内凹 1 格, 每 3-4 格 1 樘; 向院内墙面才可开大拱窗",
+    "size": "1x1 / 1x2 竖长", "material": ["minecraft:glass_pane"],
+    "frame": "cut_sandstone 框 + acacia_trapdoor 木栅; 拱廊/主层拱窗用 patterns/arch_window.py(拱必骑柱, 柱距=拱跨)"
+  },
+  "details": {
+    "base": "sandstone 放脚 1 层外扩或加深, 墙脚必落地, 禁止悬空墙",
+    "arcade": "沿街/内院连续拱廊: arch_window 空拱列(无玻璃) + cut_sandstone 柱, 柱距 3",
+    "courtyard": "内院=patterns/plaza.py 砂岩铺装 + fountain 居中 + garden_tree 棕榈(jungle_log+leaves)1-2 株; 院是采光通风核心",
+    "lighting": "lantern 挂拱廊下/门侧成对; 室内每间 1 盏(interior_rooms)",
+    "weathering": "patterns/wall_weathering.py 显式 palette(无现成 preset): gradient=true 底部 sandstone 加深, vine_pct=0(干旱无藤蔓), patch_pct 5 修补痕",
+    "interior": "房间绕院布置: 客厅(majlis)临街, 卧室靠内; patterns/interior_rooms.py, 内部绝不空壳",
+    "depth": {
+      "pilaster": {"enabled": false, "note": "土坯建筑无壁柱, 立面靠拱廊+窗栅分格"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:cut_sandstone", "note": "窗框凸出 1 格遮阳(遮阳即风格)"},
+      "string_course": {"enabled": true, "material": "minecraft:chiseled_sandstone", "note": "层线/檐口下 1 圈雕饰带"}
+    }
+  },
+  "pitfalls": [
+    "开大玻璃窗 — 厚墙小窗是隔热逻辑也是风格灵魂, 外墙窗 ≤1x2 且内凹, 大玻璃面=现代别墅",
+    "做坡屋顶 — 沙漠建筑=平顶+女儿墙或穹顶, 任何欧式坡顶直接破功",
+    "全 smooth_sandstone 单色大光墙 — 必须 cut/chiseled 收边+同色系掺比+底部加深, 光墙一眼假",
+    "穹顶无鼓座或飘在檐边 — 穹顶坐抬高 1-2 的鼓座墙, 支座悬空=结构笑话",
+    "拱廊拱不落柱 — 拱心必须骑在柱上(arch_window 柱距=拱跨 3), 拱落墙中段=验收打回"
+  ],
+  "lottery": {
+    "axes": {
+      "roof_form": {"options": [
+        {"id": "flat_parapet", "weight": 50, "source": "prior"},
+        {"id": "dome_central", "weight": 30, "source": "prior"},
+        {"id": "flat_plus_corner_dome", "weight": 20, "source": "prior"}
+      ]},
+      "wall_system": {"options": [
+        {"id": "sandstone_smooth", "weight": 45, "source": "prior"},
+        {"id": "terracotta_adobe", "weight": 35, "source": "prior"},
+        {"id": "white_lime_plaster", "weight": 20, "source": "prior"}
+      ]},
+      "courtyard": {"options": [
+        {"id": "central_courtyard", "weight": 55, "source": "prior"},
+        {"id": "corner_patio", "weight": 25, "source": "prior"},
+        {"id": "none", "weight": 20, "source": "prior"}
+      ]},
+      "arcade": {"options": [
+        {"id": "courtyard_arcade", "weight": 35, "source": "prior"},
+        {"id": "street_arcade", "weight": 30, "source": "prior"},
+        {"id": "none", "weight": 35, "source": "prior"}
+      ]},
+      "windows": {"options": [
+        {"id": "small_high", "weight": 60, "source": "prior"},
+        {"id": "arched_medium", "weight": 40, "source": "prior"}
+      ]},
+      "dome": {"options": [
+        {"id": "hemisphere", "weight": 55, "source": "prior"},
+        {"id": "bulb", "weight": 20, "source": "prior"},
+        {"id": "dome_none", "weight": 25, "source": "prior"}
+      ]},
+      "parapet": {"options": [
+        {"id": "wall_coping", "weight": 40, "source": "prior"},
+        {"id": "stepped_merlons", "weight": 45, "source": "prior"},
+        {"id": "crenellation", "weight": 15, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"roof_form": "flat_parapet"}, "then": {"dome": "dome_none"}},
+      {"if": {"roof_form": ["dome_central", "flat_plus_corner_dome"]}, "forbid": ["dome_none"]},
+      {"if": {"courtyard": ["corner_patio", "none"]}, "forbid": ["courtyard_arcade"]}
+    ]
+  },
+  "interview_prompts": {
+    "rooms": "院落周边需要哪些房间?客厅(majlis)临街还是朝内?要不要仓房/厨房/卧室?穹顶下是主厅吗?",
+    "structural": [
+      "要不要内院?[中央内院+喷泉/角落小天井/无院]",
+      "屋顶形式?[纯平顶/中央穹顶/平顶+角部小穹顶]",
+      "墙体材质体系?[砂岩/陶土土坯/白色灰泥抹面]",
+      "沿街面或院内要不要连续拱廊?[沿街/院内/不要]"
+    ],
+    "skip_if": "单体小穹顶亭或纯外观布景时,房间问题跳过,只确认屋顶形式与材质体系。"
+  },
+  "validators": ["support_check", "slab_check", "collision_check"]
+}

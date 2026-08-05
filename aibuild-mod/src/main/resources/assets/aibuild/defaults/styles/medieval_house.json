@@ -122,5 +122,15 @@
       {"if": {"wall_system": "timber_framed"}, "then": {"weathering_preset": "plaster_timber"}}
     ]
   },
+  "interview_prompts": {
+    "rooms": "这栋民居里需要哪些房间?几间卧室?底层要不要做成商铺/酒馆/储物间?要不要壁炉?",
+    "structural": [
+      "上层要不要做悬挑(jetty,比底层挑出 1 格)?[正面挑出/不挑]",
+      "外墙用哪种做法?[木板墙/木框架白墙(timber-framed)]",
+      "要不要上层正面小阳台?[要/不要]",
+      "屋顶要不要老虎窗?[开 1-2 个/不开]"
+    ],
+    "skip_if": "纯外观布景或体量很小(占地小于 7x9)时,房间问题跳过,只确认悬挑与外墙做法。"
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
 }

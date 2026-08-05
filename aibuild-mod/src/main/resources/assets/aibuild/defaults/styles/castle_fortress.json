@@ -117,5 +117,15 @@
       {"if": {"tower_roof": "crenellated_flat"}, "then": {"crenellation": true}}
     ]
   },
+  "interview_prompts": {
+    "rooms": "主楼里需要哪些房间?底层大厅(长桌+壁炉)、上层居住、营房床位、储物,各要吗?",
+    "structural": [
+      "整体规模做到哪一级?[只建主楼/主楼加城墙/带院落的完整城堡]",
+      "城墙顶要不要走马道?[要/不要/部分]",
+      "哨塔纯装饰还是连通可爬?[装饰/连通]",
+      "主入口要不要双塔门楼带铁闸?[双塔门楼/简单门洞]"
+    ],
+    "skip_if": "只建一段城墙或单个哨塔的纯外观时,房间问题跳过,只确认马道与门楼。"
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
 }

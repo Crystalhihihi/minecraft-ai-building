@@ -47,10 +47,12 @@ class ArgumentCoercionTest {
         backend.on("/tools/propose_site", MockBackend.Canned.json(
                 "{\"status\":\"pending_confirmation\",\"message\":\"ok\"}"));
         rig = new TestRig(backend.baseUrl());
+        System.setProperty("aibuild.bridge.fileRoot", tempDir.toString());
     }
 
     @AfterEach
     void tearDown() {
+        System.clearProperty("aibuild.bridge.fileRoot");
         backend.close();
     }
 

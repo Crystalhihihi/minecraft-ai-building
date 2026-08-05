@@ -89,5 +89,14 @@
       {"if": {"stilt_height": "stilt_mid"}, "forbid": ["brace_none"]},
       {"if": {"stilt_height": "stilt_tall"}, "forbid": ["brace_none"]}
     ]
+  },
+  "interview_prompts": {
+    "rooms": "屋里需要哪些房间?卧室、起居、储物各要吗?",
+    "structural": [
+      "场地坡度多陡,吊脚预计架多高?[低 2-3 格/中 4-6 格/高 7-8 格]",
+      "面向山谷一侧要不要吊脚阳台?[深阳台 2 格/浅阳台 1 格/不要]",
+      "上下入口用楼梯还是梯子?[楼梯/梯子]"
+    ],
+    "skip_if": "纯外观布景或地形几乎平坦(吊脚不足 2 格)时,吊脚高度问题跳过,按普通木屋只问房间。"
   }
 }

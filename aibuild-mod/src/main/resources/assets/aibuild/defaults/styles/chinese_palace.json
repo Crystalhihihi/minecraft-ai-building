@@ -127,5 +127,15 @@
       {"if": {"roof_type": "gable_roof"}, "then": {"platform_height": "platform_2"}}
     ]
   },
+  "interview_prompts": {
+    "rooms": "殿内需要哪些功能空间?正殿主位(宝座/神龛)之外,要不要耳房、侧室?",
+    "structural": [
+      "台基做几层?[2 层/3 层/4 层]",
+      "屋顶用哪种?[歇山顶/庑殿顶/小型硬山人字顶]",
+      "要不要东西配殿(中轴对称两厢)?[要/不要]",
+      "檐下斗拱做标准还是加重?[标准深 2 格/加重深 3 格]"
+    ],
+    "skip_if": "只建亭/小堂级小体量或纯外观时,房间与配殿问题跳过,只确认台基层数与屋顶形式。"
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
 }

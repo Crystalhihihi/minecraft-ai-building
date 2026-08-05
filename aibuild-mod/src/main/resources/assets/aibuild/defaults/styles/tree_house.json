@@ -112,5 +112,15 @@
       {"if": {"trunk_species": "jungle_log"}, "then": {"leaves": "jungle_leaves"}}
     ]
   },
+  "interview_prompts": {
+    "rooms": "树屋里要哪些小功能间?卧室、瞭望台、储物各要吗?一共要几间小屋?",
+    "structural": [
+      "建在单棵巨树上还是多树群落里?[单棵巨树/多树群落]",
+      "上下交通怎么做?[绕干旋绕楼梯/梯子/藤蔓]",
+      "多间小屋之间要不要吊桥相连?[要吊桥/各自独立]",
+      "树用现成大树还是自建支撑树?[利用原生大树/自建]"
+    ],
+    "skip_if": "只建一间小屋纯外观时,房间问题跳过,只确认树种与上下交通方式。"
+  },
   "validators": ["support_check", "slab_check", "collision_check"]
 }

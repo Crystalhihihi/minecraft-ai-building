@@ -1,0 +1,109 @@
+{
+  "style_id": "gothic_cathedral",
+  "name": "Gothic Cathedral (哥特主教堂)",
+  "use_for": "monumental High-Gothic cathedrals and great abbeys: cruciform plan, twin-tower west front, flying buttresses, rose windows, traceried lancets, vaulted high nave with clustered piers. Differs from church_chapel (单厅小堂/堂区教堂, 净高 6-10, 单钟楼): this card is the monumental skeleton — 中厅净高 10-16 + 束柱 + 飞扶壁 + 双塔西立面 + 大玫瑰窗, 尺度与结构体系都不同.",
+  "palette_stats": "知识直写+church_chapel 语料佐证(GrabCraft churches 16 件: 浅色石身为实测主流): 哥特主教堂=浅灰石主体(stone_bricks 系) + 深色铅皮/石板屋顶(deepslate_tile) + 大面积染色玻璃; 束柱/飞扶壁同石材, 雕饰带用 chiseled.",
+  "proportions": {
+    "height_to_width_ratio": "中厅 1.5:1 ~ 2:1 (高耸); 西塔 4:1~6:1",
+    "storey_height": "中厅净高 10-16 (束柱必须拉高), 侧廊 4-6",
+    "wall_thickness": "1-2 (束柱/扶壁处 2)",
+    "typical_footprint": "主教堂 15x29 起(十字平面), 耳堂两翼各出挑 3-5, 后殿半圆/多边形收束",
+    "door_height": "正门 4-5 (层层凹进尖拱, 门洞凹 2-3 层)"
+  },
+  "materials": {
+    "primary": ["minecraft:stone_bricks", "minecraft:smooth_stone", "minecraft:chiseled_stone_bricks"],
+    "primary_mix": "70% stone_bricks / 20% smooth_stone / 10% chiseled_stone_bricks(雕饰带/柱头点位), deterministic per-position (wall_weathering preset=stone_brick_aged gradient=true 底部微旧)",
+    "frame": ["minecraft:stone_bricks", "minecraft:quartz_block"],
+    "frame_use": "束柱(clustered piers)+拱肋+窗花格框; quartz 只用于祭坛/圣龛, 不上外墙",
+    "roof": ["minecraft:deepslate_tile_stairs", "minecraft:deepslate_tile_slab", "minecraft:blackstone_stairs"],
+    "accent": ["minecraft:end_rod", "minecraft:candle", "minecraft:lantern", "minecraft:iron_bars"],
+    "accent_use": "塔尖十字架=end_rod 竖 2-3; 祭坛 candle; iron_bars 塔顶钟洞; 金/彩漆禁用(哥特靠玻璃出彩)"
+  },
+  "roof": {
+    "type": "中厅/侧廊 gable 陡坡 50-60 度(patterns/gable_roof.py); 塔尖 patterns/helm_roof.py 或逐层收分尖锥; 耳堂端独立山面",
+    "overhang": 1,
+    "ridge_support": "实芯脊(gable_roof ridge_support)",
+    "note": "中厅屋顶必须陡——崇高感一半来自陡坡; 坡度 <45 = 谷仓"
+  },
+  "windows": {
+    "pattern": "尖拱长窗(lancet)等距排(每 3 格 1 樘, 与束柱同节奏), 侧廊窗矮 1 档; 西立面+耳堂端玫瑰窗",
+    "size": "1x4~2x6 竖长尖拱, 上部 1/3 分花格",
+    "material": ["minecraft:red_stained_glass_pane", "minecraft:blue_stained_glass_pane", "minecraft:yellow_stained_glass_pane", "minecraft:purple_stained_glass_pane"],
+    "frame": "patterns/arch_window.py 尖拱石框; 玫瑰窗 patterns/rose_window.py radius 3-5 spokes 8, 彩窗竖列 2-4 色交替"
+  },
+  "details": {
+    "base": "墙基放脚外扩 1, 底部 mossy 微旧(gradient); 台基 1-2 级, 正门前 3-5 级台阶",
+    "buttress": "飞扶壁(flying buttress): 复用 patterns/buttress.py 按 variant 思路拼轮廓——外侧一段高扶壁(depth 2-3, 贴侧廊外墙) + 中厅高窗下一段矮扶壁内收 1 格, 两段错位形成外挑斜撑剪影; 每开间(3-4 格)1 组, 待 buttress 加 flying variant 后整体切换",
+    "piers": "室内束柱: 柱径 1-2, 束柱=中柱+四棱半柱(stone_bricks+fence 贴棱), 柱距 3-4 与窗同节奏",
+    "west_front": "双塔夹玫瑰窗西立面: 塔贴中厅两角, 塔间大玫瑰窗, 下开 3 座凹进尖拱门",
+    "lighting": "彩窗白天透光即灯; lantern 吊中厅轴线每 4-6 格, 祭坛 candle×2~4",
+    "interior": "中厅成排长椅(楼梯背对背) + 尽头祭坛(quartz 台阶+candle) + 束柱列; 耳堂可设侧祭坛; 忌塞家具",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 3, "projection": 1, "material": "minecraft:stone_bricks", "note": "外墙壁柱=束柱外显, 与窗同节奏, 柱间即窗"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:stone_brick_stairs", "note": "尖拱窗棂石框凸出 1 格"},
+      "string_course": {"enabled": true, "material": "minecraft:chiseled_stone_bricks", "note": "檐口下+侧廊顶各 1 圈雕饰带, 竖向分层关键"}
+    }
+  },
+  "pitfalls": [
+    "中厅净高不足 — 净高 <10 的=堂区教堂不是主教堂, 束柱必须拉高, 参照 church_chapel 体量即知差距",
+    "玫瑰窗做成方窗 — 西立面必须 patterns/rose_window.py 圆花窗, 方窗/3x3 凑合=打回",
+    "无飞扶壁剪影 — 高厅侧墙必须有 buttress 错位飞扶壁节奏, 光墙高厅一眼假",
+    "双塔不对称 — 西立面严格轴对称(塔高/窗位/门洞镜像), symmetry_check 必过",
+    "内饰塞床桌 — 主教堂=长椅+束柱+彩窗光+祭坛, 放家具是灾难"
+  ],
+  "lottery": {
+    "axes": {
+      "plan": {"options": [
+        {"id": "cruciform", "weight": 60, "source": "prior"},
+        {"id": "nave_aisles", "weight": 40, "source": "prior"}
+      ]},
+      "west_towers": {"options": [
+        {"id": "twin_towers", "weight": 60, "source": "prior"},
+        {"id": "single_tower", "weight": 25, "source": "prior"},
+        {"id": "tower_none", "weight": 15, "source": "prior"}
+      ]},
+      "spire": {"options": [
+        {"id": "helm_spire", "weight": 45, "source": "prior"},
+        {"id": "openwork_parapet", "weight": 30, "source": "prior"},
+        {"id": "spire_none", "weight": 25, "source": "prior"}
+      ]},
+      "rose_window": {"options": [
+        {"id": "front_large", "weight": 40, "source": "prior"},
+        {"id": "front_small", "weight": 30, "source": "prior"},
+        {"id": "front_and_transept", "weight": 20, "source": "prior"},
+        {"id": "rose_none", "weight": 10, "source": "prior"}
+      ]},
+      "flying_buttress": {"options": [
+        {"id": "full_flyers", "weight": 65, "source": "prior"},
+        {"id": "engaged_buttress", "weight": 35, "source": "prior"}
+      ]},
+      "stained_glass": {"options": [
+        {"id": "full_spectrum", "weight": 55, "source": "prior"},
+        {"id": "blue_red", "weight": 30, "source": "prior"},
+        {"id": "grisaille_clear", "weight": 15, "source": "prior"}
+      ]},
+      "nave_height": {"options": [
+        {"id": "nave_10_12", "weight": 35, "source": "prior"},
+        {"id": "nave_12_14", "weight": 40, "source": "prior"},
+        {"id": "nave_14_16", "weight": 25, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"west_towers": "tower_none"}, "then": {"spire": "spire_none"}},
+      {"if": {"west_towers": "single_tower"}, "forbid": ["openwork_parapet"]},
+      {"if": {"plan": "nave_aisles"}, "forbid": ["front_and_transept"]},
+      {"if": {"rose_window": ["front_large", "front_and_transept"]}, "then": {"rose_radius": 5}}
+    ]
+  },
+  "interview_prompts": {
+    "rooms": "中厅之外还需要哪些空间?侧廊、耳堂、后殿回廊、侧祭坛、地下墓室,各要吗?",
+    "structural": [
+      "西立面双塔还是单塔?[双塔/单塔/无塔]",
+      "玫瑰窗做多大?[大玫瑰窗(半径5)/小玫瑰窗/正立面+耳堂三面/不要]",
+      "平面带耳堂吗?[十字平面/中厅+侧廊]",
+      "飞扶壁做全飞扶壁还是贴墙扶壁?[全飞扶壁/贴墙]"
+    ],
+    "skip_if": "单厅级小堂直接改用 church_chapel 卡; 纯外观时房间问题跳过,只确认塔数与玫瑰窗。"
+  },
+  "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
+}

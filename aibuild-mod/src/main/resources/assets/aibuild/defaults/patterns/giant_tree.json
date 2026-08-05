@@ -1,0 +1,26 @@
+{
+  "name": "giant_tree",
+  "description": "Space-colonization giant tree (巨树) generator — EXPERIMENTAL offline prototype. Attraction points are scattered inside an ellipsoid crown envelope (seeded RNG); the skeleton grows from the trunk base, each node sprouting 1-block steps toward the mean of its attracted points (upward tropism below the crown keeps the bole straight; a leader hack bridges the gap to the crown). Branch calibre follows descendant-tip counts: 2-wide log limb -> log -> fence twig; the lower bole is a solid 2x2/3x3 column up to the first fork. Terminal twigs and unreached crown points grow carved ellipsoid leaf blobs (garden_tree recipe); a full-tree flood fill from the base prunes anything not face-connected. Leaves always [persistent=true]. Same params + same seed = same tree; origin only translates.",
+  "when_to_use": "Landmark/hero trees at 巨树 scale (干径 2x2~3x3, 高 10-30): ancient oaks, world-tree prototypes, forest giants — where garden_tree (max crown r=4) is too small. origin = trunk base min corner, y = ground layer (terraform_pad first on slopes). Use seed to re-roll the silhouette; buttress for tropical/old-growth flare.",
+  "use_for": "巨树/古树地标;oak=通用巨橡,dark_oak=深色圣树;buttress=板根老树;seed 换形不重样;森林之母/世界树原型(远期精灵树标杆的通用底座)",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "树干基部最小角格;y = 地面层(2x2/3x3 干柱自此升起)"},
+    "height": {"type": "int", "default": 18, "notes": "10-30,总高;实际冠顶可能高出叶团半径 1-2 格"},
+    "canopy_radius": {"type": "int", "default": 6, "notes": "3-14,冠层椭球水平半径;竖半径 = min(0.6r, (height-3)/2),冠底不低于 y+3"},
+    "trunk": {"type": "int", "values": [2, 3], "default": 2, "notes": "2 = 2x2 干柱 | 3 = 3x3 干柱,升到第一分叉处(clear_h)"},
+    "species": {"type": "enum", "values": ["oak", "dark_oak"], "default": "oak", "notes": "决定 log/leaves/fence 材质三件套"},
+    "seed": {"type": "int", "default": 0, "notes": "吸引点散布+板根方位+叶团镂空全由此定;同 seed 同树,换 seed 换形"},
+    "buttress": {"type": "bool", "default": true, "notes": "板根:基部 4-6 条阶梯状根鳍(3x3 干更长更高),方位由 seed 定"},
+    "leaf_density": {"type": "float", "default": 0.6, "notes": "0.1-1.0;<0.35 小叶团 r=2,<0.75 r=3,否则 r=4(巨冠自动减 1 控块数);密度越低镂空越多"}
+  },
+  "pitfalls": [
+    "树冠形态由 seed 决定,不是 origin:同 seed 挪位置得同一棵树的平移;想要'另一棵'改 seed,别手改输出",
+    "细梢用 fence、粗枝是 2 宽 log 梁,都是体素化惯例,不是错块;删掉任一格都会破坏 flood-fill 连通链(生成器已自动剪断枝浮叶)",
+    "height 是骨架高度,叶团会再冒 1-2 格;要精确控高按 height+2 预留",
+    "canopy_radius 大但 height 小时冠底被钳到 y+3,树会变成平顶伞盖(猴面包形),不是 bug",
+    "叶全带 persistent=true(实测教训:裸叶放下即消失);别批量替换成默认叶",
+    "块数随 canopy² 增长:25 高/10 冠约 3 千块,30/14 满密度约 7 千块;超大体量先小样试 seed"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/giant_tree.py --params '{\"origin\":[100,64,100],\"height\":22,\"canopy_radius\":8,\"trunk\":3,\"species\":\"dark_oak\",\"seed\":7}' --out tree.json && python patterns/giant_tree.py --params '{\"origin\":[140,64,100],\"height\":14,\"canopy_radius\":5,\"seed\":99,\"buttress\":false}' --out tree2.json"
+}

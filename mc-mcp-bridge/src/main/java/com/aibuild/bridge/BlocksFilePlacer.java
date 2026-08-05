@@ -58,7 +58,16 @@ final class BlocksFilePlacer {
         }
         Path path;
         try {
-            path = Path.of(pathArg);
+            // Path fence (B9): the bridge runs with the session work dir as cwd and
+            // every legit block file lives there — resolve against cwd and refuse
+            // escapes. Bare Path.of allowed absolute/.. reads of arbitrary files.
+            // Tests override the fence root via -Daibuild.bridge.fileRoot=<dir>.
+            Path root = java.util.Optional.ofNullable(System.getProperty("aibuild.bridge.fileRoot"))
+                    .map(Path::of).orElse(Path.of("")).toAbsolutePath().normalize();
+            path = root.resolve(pathArg).normalize();
+            if (!path.startsWith(root)) {
+                return text("path must stay inside the session working directory", true);
+            }
         } catch (InvalidPathException e) {
             return text("Invalid path \"" + pathArg + "\": " + e.getMessage(), true);
         }

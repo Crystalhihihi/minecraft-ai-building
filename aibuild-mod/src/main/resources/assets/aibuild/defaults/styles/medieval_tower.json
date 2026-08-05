@@ -98,5 +98,15 @@
       {"if": {"roof_type": "flat_crenellated"}, "then": {"crenellation": true}},
       {"if": {"footprint": "5x5"}, "forbid": ["corner_buttress"]}
     ]
+  },
+  "interview_prompts": {
+    "rooms": "塔内每层怎么分工?底层守卫室、中层居住、顶层瞭望,这样分行吗?",
+    "structural": [
+      "塔身平面方形还是圆形?[方形/圆形]",
+      "塔顶做哪种?[尖顶/雉堞平顶/人字顶]",
+      "塔做多大?[5x5/7x7/9x9]",
+      "角部要不要扶壁?[要/不要]"
+    ],
+    "skip_if": "纯外观单塔或作为城堡附属构件时,房间问题跳过,只确认塔顶形式。"
   }
 }

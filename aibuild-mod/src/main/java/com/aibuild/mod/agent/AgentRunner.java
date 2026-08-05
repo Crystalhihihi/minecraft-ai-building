@@ -566,7 +566,12 @@ public final class AgentRunner {
         t.start();
     }
 
-    /** "[aibuild] #2 本次建造:N 轮 / M 次工具调用 / X 块 / T 分 T 秒 (top: fill ×12, ...)" */
+    /**
+     * "[aibuild] #2 本次建造:N 轮 / M 次工具调用 / X 块 / T 分 T 秒 (top: fill ×12, ...)",
+     * followed by the one-shot token bill line. Only called on terminal
+     * transitions (terminate + the dead-process /aicancel branch), so the bill
+     * is broadcast exactly once per session ending.
+     */
     private void broadcastConsumption() {
         int turns, toolCalls;
         Map<String, Integer> toolCounts;
@@ -597,6 +602,40 @@ public final class AgentRunner {
             sb.append(")");
         }
         manager.broadcast(sb.toString());
+        broadcastTokenBill();
+    }
+
+    /**
+     * Token 账单一行(输入/输出/缓存命中 + 粗估费用感受),仅在会话终结时随
+     * {@link #broadcastConsumption()} 播一次。静默跳过:回填失败(wire.jsonl
+     * 找不到/读不了)或没有 kimi session 时三项皆为 0 — 不播,也不报错刷屏。
+     */
+    private void broadcastTokenBill() {
+        long input, output, cacheRead;
+        synchronized (session) {
+            input = session.tokenInput;
+            output = session.tokenOutput;
+            cacheRead = session.tokenCacheRead;
+        }
+        if (input + output + cacheRead <= 0) {
+            return;
+        }
+        manager.broadcast("[aibuild] " + tag() + " token 账单: "
+                + AgentSession.formatTokens(input) + " 输入 / "
+                + AgentSession.formatTokens(output) + " 输出 / "
+                + AgentSession.formatTokens(cacheRead) + " 缓存命中 — "
+                + roughCost(input, output, cacheRead));
+    }
+
+    /** 粗估费用感受:按 Kimi K2 量级价(输入 ¥4/M、输出 ¥16/M、缓存读 ¥1/M),只表数量级,以实际账单为准。 */
+    private static String roughCost(long input, long output, long cacheRead) {
+        double yuan = input * 4.0 / 1_000_000 + output * 16.0 / 1_000_000 + cacheRead * 1.0 / 1_000_000;
+        if (yuan < 0.01) {
+            return "粗估费用不到 1 分钱";
+        }
+        return "粗估费用约 ¥" + (yuan < 1
+                ? String.format(java.util.Locale.ROOT, "%.2f", yuan)
+                : String.format(java.util.Locale.ROOT, "%.1f", yuan)) + "(量级参考)";
     }
 
     // ------------------------------------------------------------------ logging

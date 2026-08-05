@@ -1,4 +1,6 @@
-# 产卡任务书(外部 agent 用)v1 · 2026-08-02
+# 产卡任务书(外部 agent 用)v3 · 2026-08-02
+
+> v3 变更:风格卡新增必备字段 `lottery`(反 AI 偏好抽签轴)与 `interview_prompts`(建造前访谈),规格见 2.1 字段表;格式范例对照 `medieval_house.json`。
 
 > 本文件给**零项目上下文的外部 agent**:为 Minecraft AI 建造系统的"建造百科"补充风格卡(任务包 A),可选承接肌理卡(任务包 B)。
 > 产出由项目内 agent 按第 5 节 checklist 逐条验收,不合格打回附原因。
@@ -38,6 +40,8 @@ Minecraft 1.21 Fabric mod 内的 LLM 建造 agent,靠"建造百科"卡施工。�
 | `roof` | type/slope/overhang/ridge_support/dormers/chimney——**引用模式卡**,不自己造轮子 |
 | `windows` | pattern/size/material/frame |
 | `details` | base/lighting/weathering/interior + `depth`(pilaster/window_trim/string_course 参数) |
+| `lottery` | 反 AI 偏好抽签器(v3 必备):`axes` 每轴 4~8 条,`options` 为 `{id, weight, source}` 列表(`source` 标语料出处如 `gc:<类目>:n=<件数>`,无语料标 `prior`;`requires` 可按建造参数过滤选项)+ `rules` 交互规则列表(`if` 匹配已抽轴 → `forbid` 禁选项 id 后该轴重抽;`then` 轴键强制写值、非轴键写入 build_order.params)。消费方 `patterns/lottery.py`,同卡同 seed 逐字节复现,新卡必须冒烟跑通。注意:`forbid` 按选项 id 命中所有声明它的轴,禁词 id 须全卡唯一 |
+| `interview_prompts` | 建造前访谈(v3 必备):`rooms`(房间需求问句)+ `structural`(该风格特有结构决策点数组,每条自带 `[选项1/选项2]` 格式,如天守几重层/哥特双塔还是单塔/沙漠内院有无)+ `skip_if`(小体量或纯外观时哪些问题可跳过) |
 | `pitfalls` | ≥3 条实测翻车点,"禁止 X,因为 Y"式,空泛=打回 |
 | `validators` | 从 5 个验收器里选(见 2.4) |
 
@@ -76,7 +80,7 @@ Minecraft 1.21 Fabric mod 内的 LLM 建造 agent,靠"建造百科"卡施工。�
 
 ## 5. 合格标准(验收 checklist,逐条打钩)
 
-- **A 格式**:JSON 合法;风格卡必备字段齐(`use_for`/`pitfalls`/`validators` 缺一不可);模式卡同名 `.py` 存在且 `example` 命令真实可跑
+- **A 格式**:JSON 合法;风格卡必备字段齐(`use_for`/`pitfalls`/`validators`/`lottery`/`interview_prompts` 缺一不可);模式卡同名 `.py` 存在且 `example` 命令真实可跑
 - **B 方块**:全部原版 1.21 合法 id、带 `minecraft:` 前缀、与 `blocks.md` 一致;禁用模组块/不存在 id
 - **C 口径**:每个尺寸参数有唯一参考点定义(origin/朝向由脚本推导);无明确参考点的数值=打回
 - **D 证据**:`palette_stats`/参数注明出处(语料统计/真实案例/实机实测);`pitfalls` ≥3 条且具体;拍脑袋数值、空泛禁忌=打回

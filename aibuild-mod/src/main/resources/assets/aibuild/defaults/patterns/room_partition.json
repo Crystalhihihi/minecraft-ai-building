@@ -1,0 +1,33 @@
+{
+  "name": "room_partition",
+  "description": "Room partition generator (分房生成器): slices a rectangular shell interior into the demanded rooms — 1-thick full-height partition walls + >=1x2 door openings + per-room rects + facade window hints. Cures '内部乱/进不去': the emitted layout is BFS-proved walkable from the entrance to every room (unreachable -> seeded retry -> die with reason, never garbage). 分房先于外墙开窗: facades take window_hints from this card, not the reverse. Deterministic seed, all states script-derived (禁止手改).",
+  "when_to_use": "After shell walls/floor exist, BEFORE interior_rooms furnishing and BEFORE facade windows/doors. origin = interior NW min cell (same convention as plan_shape/interior_rooms), y = furniture standing layer (one above the floor blocks). Output JSON = blocks (partitions+doors) PLUS two advisory fields: rooms[] (each entry splat-able into interior_rooms params: room/origin/width/depth/doors, world frame, the main door flagged entrance:true) and window_hints[] (one per habitable room; NO blocks emitted — the facade caller carves them so windows align to rooms).",
+  "use_for": "住宅/ interior 功能分区:给定外壳内空+房间需求串,产内隔墙/门洞/房间矩形/窗位建议;分房先于外墙开窗",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,65,0]", "notes": "内空西北角格; y = 地板上面一层(家具站立层)"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "正面朝向; 分房随其整体旋转(脚本推导)"},
+    "width": {"type": "int", "range": "3-31", "default": 7, "notes": "内空净宽(x, 不含外墙厚)"},
+    "depth": {"type": "int", "range": "3-31", "default": 9, "notes": "内空净深(z)"},
+    "height": {"type": "int", "range": "2-8", "default": 3, "notes": "内空净高; 隔墙从 origin.y 起满砌, 门洞占下 2 格"},
+    "rooms": {"type": "string", "required": true, "notes": "需求串 \"bedroom:2,kitchen:1,living:1\"; 合法: bedroom/kitchen/living/dining/study/corridor (最小开间同 interior_rooms)"},
+    "entrance": {"type": "{\"wall\":..,\"at\":..}", "default": "{\"wall\":\"south\",\"at\":width//2}", "notes": "主门面(canonical 正面)+沿墙偏移; 有公共房(living/corridor/dining)时入口必须进公共房, 否则重试"},
+    "grid": {"type": "int", "range": "3-5", "default": "0 = auto (max(W,D)<=10 取 3 否则 4)", "notes": "结构开间距; 隔墙线优先吸附距内空角 grid 倍数的柱线, 小内空允许脱网"},
+    "wall_material": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "隔墙材(无方向整方块)"},
+    "door_material": {"type": "block id|\"\"", "default": "minecraft:oak_door", "notes": "门洞 1x2; *_door id = 放真门(closed, 朝向脚本推导), \"\" = 留 air 洞"},
+    "seed": {"type": "int", "default": 7, "notes": "布局搜索随机源; 同参同输出"}
+  },
+  "output": {
+    "blocks": "隔墙块 + 门洞(真门或 air)",
+    "rooms": "[{room, origin, width, depth, doors:[{wall,at,(entrance)}]}] — 直接展开喂 interior_rooms",
+    "window_hints": "[{room, wall, pos:[x,y,z], width, height}] — 建议窗位(pos=内墙皮最小格, 调用方向外掏墙); 厨房 1x1 高窗(y+2), 其余 2宽x2高窗台 y+1; 不产生方块"
+  },
+  "pitfalls": [
+    "rooms 需求超界直接 die 并报所需最小格数 — 10 房进 7x9 必死; 减房/扩内空再来, 别指望塞垃圾布局",
+    "分房先于开窗: 外墙窗按 window_hints 对齐房间; 先砌死外墙再分房 = 黑房(见 interior_layout.md §8)",
+    "rooms[].doors 含入口门(entrance:true), 喂 interior_rooms 时别删 — 门内侧 1 格禁放区靠它清空",
+    "真门是 closed 态, walkability 视为可通行; 合并别的块时门洞格别再补墙(collision_check)",
+    "竖向交通(楼梯间)不在本卡范围, 用 staircase 卡; corridor 只保 1 宽法律下限"
+  ],
+  "validators": ["walkability_check", "support_check", "collision_check"],
+  "example": "python patterns/room_partition.py --params '{\"width\":9,\"depth\":11,\"rooms\":\"living:1,kitchen:1,bedroom:2\",\"entrance\":{\"wall\":\"south\",\"at\":4}}' --out part.json && python patterns/interior_rooms.py --params '<part.json rooms[0] 展开>' --out r0.json && python patterns/validators/collision_check.py --params '{\"a\":\"part.json\",\"b\":\"r0.json\"}'"
+}

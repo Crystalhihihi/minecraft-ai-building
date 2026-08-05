@@ -121,5 +121,15 @@
       {"if": {"variant": "sakura_cherry"}, "then": {"garden_tree_species": "cherry"}}
     ]
   },
+  "interview_prompts": {
+    "rooms": "屋内需要哪些房间?卧室、起居室、茶室各要吗?",
+    "structural": [
+      "建筑类型是民居、茶室还是仓库(kura)?[民居/茶室/仓库]",
+      "屋顶用四坡(寄栋)还是人字(切妻)?[四坡/人字]",
+      "要不要绕屋的缘侧木平台?[要/不要]",
+      "用白壁和风还是樱花木变体?[白壁/樱花木]"
+    ],
+    "skip_if": "小茶亭级纯外观时,房间问题跳过,只确认屋顶形式与变体。"
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
 }

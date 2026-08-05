@@ -1,0 +1,109 @@
+{
+  "style_id": "japanese_castle",
+  "name": "Japanese Castle (日式天守阁/城郭)",
+  "use_for": "Japanese castle keeps (天守阁 tenshukaku), yagura turrets, fortified palace towers; battered ishigaki stone base + white plaster walls + stacked setback roofs + hafu gables. Differs from sakura_japanese (民居/茶屋/町屋, 轻木构民建): this is the fortified vertical keep — 石垣+层层收分+多层塔. Differs from chinese_palace (单层横向殿堂, 斗拱骨架): 天守是竖向叠层塔, 檐口斗拱可省.",
+  "palette_stats": "知识直写(语料库无日式城郭类目): 参考公开案例(姬路城白壁/松本城黑壁)——石垣=灰系乱石(andesite+stone+cobblestone), 壁体=white_concrete/white_terracotta 白漆喰(黑壁变体=深色下见板), 屋顶=深灰绿瓦(deepslate_tile/prismarine 系), 金具只点脊端鯱.",
+  "proportions": {
+    "height_to_width_ratio": "塔身单重 0.8:1~1.2:1; 全塔(含石垣) 2:1~2.5:1 — 竖向叠层是本风格骨架",
+    "storey_height": "3-4 (interior clear 3)", "wall_thickness": 1,
+    "typical_footprint": "底层 9x9 ~ 13x13 (望楼型天守); 每上一重进退 1-2 (层层收分, 顶层约为底层 6 成)",
+    "door_height": 2, "tiers": "3-5 重(屋顶层数); 石垣高 4-8, 下宽上窄收分(batter: 每 3-4 层退 1)"
+  },
+  "materials": {
+    "stone_base": ["minecraft:andesite", "minecraft:stone", "minecraft:cobblestone"],
+    "stone_base_mix": "50% andesite / 30% stone / 20% cobblestone, deterministic per-position (wall_weathering 掺比手法, 无现成 preset 用显式 palette); 乱石感靠三色随机, 底部 cobblestone 加深",
+    "walls": ["minecraft:white_concrete", "minecraft:white_terracotta", "minecraft:smooth_quartz"],
+    "walls_mix": "80% white_concrete / 20% white_terracotta (白漆喰); 黑壁变体=下层墙面 dark_oak_planks+spruce_planks 下见板(二选一, 不混)",
+    "frame": ["minecraft:spruce_log", "minecraft:dark_oak_log"],
+    "frame_use": "隅柱+层间贯(横梁线)+窗框; 深色木勾勒白壁, log 轴向由脚本推导",
+    "roof": ["minecraft:deepslate_tile_stairs", "minecraft:deepslate_tile_slab", "minecraft:prismarine_stairs", "minecraft:dark_prismarine_stairs"],
+    "roof_mix": "70% deepslate_tile_stairs / 20% prismarine_stairs / 10% dark_prismarine_stairs(绿釉瓦感), deterministic per-position; 深灰绿瓦为绝对主体",
+    "accent": ["minecraft:gold_block", "minecraft:spruce_trapdoor", "minecraft:lantern"],
+    "accent_use": "鯱(しゃちほこ)=gold_block 只点正脊两端 1-2 处; trapdoor 通气窗/狭间盖; lantern 挂檐下"
+  },
+  "roof": {
+    "type": "每层歇山顶 patterns/xieshan_roof.py(东亚通用, 同 chinese_palace 引用) — 天守的层叠歇山是灵魂; 简化变体 hip_roof; 顶层正脊实芯",
+    "slope": "舒缓(xieshan_roof 45 度自动+patterns/roof_curve.py profile=gentle 檐口反翘)", "overhang": 2,
+    "ridge_support": "实芯梁(xieshan_roof ridge_support), 正脊两端 gold_block 鯱各 1",
+    "hafu": "破风(装饰山面): 千鳥破风=正面/侧面三角 gable(patterns/gable_roof.py 小尺度)贴在歇山面上, 天守立面节奏的关键装饰", "dougong": "可选: 檐下斗拱排 patterns/dougong.py depth=1-2; 天守多用简化梁架, 斗拱非必需(与 chinese_palace 必配不同)"
+  },
+  "windows": {
+    "pattern": "白壁小窗: 1x1~1x2 竖窗每 3-4 格, 顶层连格子窗; 底层少窗(防御), 狭间(1x1 铁栏射孔)点缀石垣上层",
+    "size": "1x1 / 1x2 竖 / 顶层连续格窗列", "material": ["minecraft:glass_pane", "minecraft:iron_bars"],
+    "frame": "dark_oak_log 深色框 + spruce_trapdoor 窗盖; 禁止拱窗(洋风)"
+  },
+  "details": {
+    "base": "石垣必须落地+乱石收分放脚(底部外扩 1-2, batter 上退); 白壁坐石垣顶, 墙绝不悬空",
+    "tier_setback": "每上一重平面进退 1-2(收分), 下层屋顶即上层檐下台; 收分错位忌全对齐(望楼型错落美)",
+    "lighting": "lantern 对称挂檐下; 内部每层 1-2 盏(interior_rooms)",
+    "weathering": "石垣显式 palette 掺比(见 stone_base_mix), gradient=true 底部加深, vine_pct 0-5; 白壁保持洁净不做旧",
+    "interior": "底层入口大厅, 中层展示/居住, 顶层展望层(四周开窗); patterns/interior_rooms.py 分层布置, 内部绝不空壳",
+    "landscape": "城前 patterns/plaza.py 铺装 + garden_tree species=cherry 1-2 株点缀, 忌密林包城",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 3, "projection": 1, "material": "minecraft:dark_oak_log", "note": "隅柱凸出白壁成竖向节奏"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_log", "note": "深色窗框勾勒白壁"},
+      "string_course": {"enabled": true, "material": "minecraft:dark_oak_log", "note": "层间贯(水平梁线)是白壁分层骨架, 每重 1 圈"}
+    }
+  },
+  "pitfalls": [
+    "石垣垂直无收分 — 石垣必须下宽上窄(batter 每 3-4 层退 1), 垂直石墙=现代挡土墙",
+    "各重等宽直筒塔 — 天守层层收分(每重进退 1-2), 直筒=烟囱不是天守",
+    "欧式 45-60 度陡坡 — 日式城屋顶是舒缓歇山+檐口反翘(xieshan_roof+roof_curve gentle), 陡坡尖顶是哥特",
+    "浅檐光秃檐口 — 每重深出檐(overhang 2)+层间贯, 檐浅=仓库",
+    "白壁开大餐窗 — 白壁小窗+狭间是攻守逻辑, 大玻璃窗=现代建筑",
+    "金具滥用 — gold 只点正脊两端鯱 1-2 处, 大面积金=俗"
+  ],
+  "lottery": {
+    "axes": {
+      "tiers": {"options": [
+        {"id": "tiers_3", "weight": 40, "source": "prior"},
+        {"id": "tiers_4", "weight": 30, "source": "prior"},
+        {"id": "tiers_5", "weight": 30, "source": "prior"}
+      ]},
+      "roof_type": {"options": [
+        {"id": "xieshan_roof", "weight": 70, "source": "prior"},
+        {"id": "hip_roof", "weight": 30, "source": "prior"}
+      ]},
+      "wall_color": {"options": [
+        {"id": "white_plaster", "weight": 70, "source": "prior"},
+        {"id": "black_lacquer", "weight": 20, "source": "prior"},
+        {"id": "mixed", "weight": 10, "source": "prior"}
+      ]},
+      "hafu_gable": {"options": [
+        {"id": "chidori_front", "weight": 45, "source": "prior"},
+        {"id": "chidori_all_sides", "weight": 25, "source": "prior"},
+        {"id": "hafu_none", "weight": 30, "source": "prior"}
+      ]},
+      "stone_base": {"options": [
+        {"id": "ishigaki_tall", "weight": 45, "source": "prior"},
+        {"id": "ishigaki_low", "weight": 40, "source": "prior"},
+        {"id": "no_base", "weight": 15, "source": "prior"}
+      ]},
+      "dougong": {"options": [
+        {"id": "dougong_none", "weight": 60, "source": "prior"},
+        {"id": "dougong_standard", "weight": 40, "source": "prior"}
+      ]},
+      "roof_material": {"options": [
+        {"id": "deepslate_tile", "weight": 55, "source": "prior"},
+        {"id": "prismarine_green", "weight": 30, "source": "prior"},
+        {"id": "mixed_dark", "weight": 15, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"roof_type": "hip_roof"}, "forbid": ["chidori_front", "chidori_all_sides"]},
+      {"if": {"stone_base": "no_base"}, "then": {"tiers": "tiers_3"}},
+      {"if": {"wall_color": "black_lacquer"}, "then": {"weathering_preset": "dark_kabe"}}
+    ]
+  },
+  "interview_prompts": {
+    "rooms": "天守内部各重用途?底层入口大厅、中层展示/居住、顶层展望层,各要吗?",
+    "structural": [
+      "天守做几重层?[三重/四重/五重]",
+      "外墙用白壁还是黑壁(下见板)?[白漆喰/黑壁/混合]",
+      "要不要千鸟破风装饰山面?[正面/四面/不要]",
+      "天守独立还是带附属橹/石垣围城?[独立/带小橹/带围城]"
+    ],
+    "skip_if": "只建小型橹/城门级小体量或纯外观时,房间问题跳过,只确认重数与壁色。"
+  },
+  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
+}
