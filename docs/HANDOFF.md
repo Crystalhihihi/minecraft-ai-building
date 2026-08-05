@@ -69,3 +69,54 @@ schematic-sources(PMC 340+ 可解析,授权红线=再分发)/chinese-monumental(
 - **肌理卡整批延期至 5 号额度刷新后执行**(用户拍板: 做完整版,含层图分析器校准; 计划= docs/plans/2026-08-02-detail-texture-cards.md,五类框架/骨形色饰景,B1→D1→A3→E,组合下沉 profile 机制)
 - 复工第一步: layer_analyze.py(gc_probe 下,验证 PNG 语义→4 项统计→stats_details.md),然后 B1/D1 子代理并行
 - 14 张风格卡 jar 已部署(23:02),实机完整闭环测试用户择机进行
+
+## 2026-08-06 凌晨快照(全线收口,读我恢复全部状态)
+
+**最新提交 f5acd0a;jar 已部署(00:49,PCL mods)。资产总账:19 风格卡 + 47 模式生成器 + 6 验收器。**
+
+### 用户已定稿的路线图(docs/plans/2026-08-05-roadmap.md,grill 敲定)
+
+R1 卡格式 v3 ✅ → R2 内饰包 ✅ → R3 A/B 实验 A 组 ✅ → R4 零钱组合 ✅ → R5 脊饰卡 ✅ → **R6 环境轴(进行中,见下)** → R7 二批 3 卡 ✅ → R8 巨树调研(原型已出) → R9 聚落(放最后)。冻结:B12 大串烧/B1 集群(精灵树后)。**系统已达"普通玩家水平"(用户认定)**。
+
+### 本轮落地(全部已部署)
+
+- **多样性机制(B13)**:16 卡 lottery 白名单字段 + lottery.py 抽签器(rules 收敛/requires/确定性)+ 访谈后抽签产出 build_order 任务单(与访谈答案同权威,默认不可推翻)。**缺省 seed 已改 SystemRandom 真随机**——A/B 实测抓到访谈 agent 爱用当天日期当 seed(5/8),同一天任务单全同
+- **plan_shape**(L/T/U/凹凸平面,语料凹凸率分档校准,治剪影单一)、**clutter_pile**(杂物堆)、**wear_path**(踩径)、wall_weathering+patch_pct(补丁)
+- **room_partition 分房生成器**(回刀二分+隔墙吸附开间+门树动线+BFS 内置可达校验,不可达 die;输出 rooms[] 直接喂 interior_rooms,window_hints 供外墙开窗对齐——**分房先于开窗**)。手册已接线
+- **accent_detailing 室内 palette**(挂毯/壁灯/蜡烛/书架墙/顶角线/盆栽;1.21 放不了 painting 实体,挂画用 wall_banner)
+- **roof_ornament 通用脊饰**(中鸱吻/哥特尖塔/日鬼瓦/欧脊冠风向标)
+- **风格卡二批 3 张**:desert_adobe/japanese_castle/gothic_cathedral(带 lottery+interview_prompts;产卡任务书已升 v3,在 docs/specs/)
+- **giant_tree 巨树原型**(空间殖民,干径 2×2/3×3、板根、验收绿,INDEX 标实验品;已知不足在 scratch/giant_tree/notes.md:主枝缺"平展再上扬"曲线、叶团葡萄串感)
+- **16 卡 interview_prompts**(每卡自带必问清单:rooms+结构决策点+skip_if);访谈手册已接线
+- **消耗播报**:会话终结时聊天栏播 token 账单(AgentRunner.broadcastTokenBill)
+- **B9 修复**:set_blocks_from_file 路径围栏(BlocksFilePlacer,洞在 bridge 不在 mod;测试用 -Daibuild.bridge.fileRoot 覆盖口)
+
+### 关键修复与事故教训(这轮全是干货)
+
+- **超时三层套娃**(访谈"1 分钟就自答"的真凶):kimi MCP 客户端 60s > bridge HTTP 30s(真凶) > mod 等待片 60s。已对齐:mod 45s < bridge 120s(默认+显式传参双保险) < kimi 180s(mcp.json toolTimeoutMs)
+- **选区残留 bug**:选区杖选区永久落盘从不消费,旧选区静默绑定后续建造、访谈跳过选址——已改一次性消费(AgentCommands.aibuild)。锚点取交接时玩家当前位置
+- **树叶消失**:树叶必须带 [persistent=true](garden_tree 已修,手册有铁律)
+- **手摆楼梯必歪**:staircase 卡(straight/L/U,facing 全自动)
+- **思考等级**:游戏 agent 之前跑 low(kimi 全局 [thinking] effort 盖掉模型默认)——已改 C:\Users\zengd\.kimi-code\config.toml 的 effort="high"(全局,注意它也影响交互 CLI)
+- **agent_model 配置**:`<游戏目录>/aibuild/config.json`(PCL 那份已是 kimi-code/k3-256k;dev server run/ 那份也改过)
+- **并发纪律**:账号并发上限 4——用户测试期间主 agent 并行子代理 ≤2
+- **部署纪律**:先查游戏 java 进程(命令行带 Mojang/natives,排除 gradle)为 0 才覆盖 jar;**mod jar 打包 bridge jar,改了 bridge 要先重建 mc-mcp-bridge 再重建 aibuild-mod**
+
+### A/B 实验 E9 结论(docs/experiments.md,数据在 scratch/ab_test/)
+
+8 跑同提示词(纯计划版,单次仅 ~15k 输入):1/3 阈值=非强坍缩;风格轴收敛(8/8 plains_cabin,有语义合理性),参数轴被抽签器注入真多样性。软抵抗实例:s29 builder 没按任务单盖(机器抽查必要性实锤)。**B 组(无抽签对照)未跑,可选**;lottery 权重校准=攒 lottery_log.jsonl 跑量回收,不占开工位
+
+### 外部资产(D:\建筑资产\)
+
+- **terrain/ 聚落引擎**(B10):根因已定位(采样把树叶当地表等 4 条),R6 已修第①步采样白名单(verify.py,9 测试过);KNOWN_ISSUES.md 有最新进展。**剩余 ②③④ 随聚落线重开**
+- **调研/**:13+1 篇全部有料(图片造法提炼.md 是 32 张参考图蒸馏)
+- **验证/**:verify.py 工具链(bridge 直连,灌入/渲染/校验);**陈列馆已灌进 PCL 世界**(-52,-60,248 起 255×187,39 零件,manifest 在 scratch/gallery/)
+- 交付清单-彻查版.md 是它全部产物的索引
+
+### 下一步(按序)
+
+1. **用户实机验证当前版**:重点分房器(内饰乱不乱/进不进得去)、抽签多样性(同提示词连造两栋)、新风格卡(天守阁/沙漠)
+2. R6 环境轴剩余:B10②③④(楼梯 facing/支撑/真 hmap 自检)+地形适配进推导链;纪律=真实灌入验证
+3. R8 巨树下一步:对照精灵树图片调主枝样条/叶团形态(scratch/giant_tree/notes.md 有清单)
+4. R9 聚落:最后
+5. git:当前全部已提交(f5acd0a)
