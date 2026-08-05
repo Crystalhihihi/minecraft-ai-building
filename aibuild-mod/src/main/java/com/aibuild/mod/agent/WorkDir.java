@@ -128,6 +128,14 @@ public final class WorkDir {
             "patterns/timber_structure.json",
             "patterns/staircase.py",
             "patterns/staircase.json",
+            "patterns/dome.py",
+            "patterns/dome.json",
+            "patterns/rose_window.py",
+            "patterns/rose_window.json",
+            "patterns/windmill_blade.py",
+            "patterns/windmill_blade.json",
+            "patterns/roof_curve.py",
+            "patterns/roof_curve.json",
             "patterns/stair_orientations.md",
             "patterns/INDEX.md",
             "patterns/validators/symmetry_check.py",
@@ -135,6 +143,7 @@ public final class WorkDir {
             "patterns/validators/support_check.py",
             "patterns/validators/slab_check.py",
             "patterns/validators/stair_corner_check.py",
+            "patterns/validators/walkability_check.py",
             "blocks.md");
 
     private WorkDir() {

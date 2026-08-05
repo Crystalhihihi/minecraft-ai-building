@@ -1,0 +1,22 @@
+{
+  "name": "dome",
+  "description": "Dome (穹顶) generator: layer-sliced shell/solid dome in 3 profiles — hemisphere (半球, 接墙竖直), paraboloid (缓凸浅穹, 高约 0.7R), onion (洋葱头, 中部鼓出 1.35R 再收尖, 高约 1.5R). Every layer's circle comes from patterns/ellipse.py circle_ring/disc (圆算法单一来源, 禁止各写一份); 算法 = Wiki Curved roofs 逐层切片法 r(y)=round(sqrt(R²-y²)) 及其变体. hollow=true 只出壳体环(内壁空, 环内每格有同层侧邻, 不悬空), false 每层实心盘; 顶层永远实心盘收口. rim 在底层外加一圈 radius+1 檐口环.",
+  "when_to_use": "圆厅/神庙/清真寺/俄式洋葱顶/观测台顶; desert_adobe 穹顶、gothic_cathedral 洗礼堂顶。origin = 底圆心格, y = 穹顶底圈层(坐在墙顶/鼓座上)。半径 <3 看不出曲线, 只当小团块用; 大穹顶(R≥8)建议 hollow=true 省料且可进人。",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "底圆心格; y = 底圈层(与墙顶/鼓座同层)"},
+    "radius": {"type": "int", "range": "2-15", "default": 6, "notes": "底半径(格); 直径=2R+1, 全奇数"},
+    "profile": {"type": "enum", "values": ["hemisphere", "paraboloid", "onion"], "default": "hemisphere", "notes": "hemisphere=半球; paraboloid=缓凸浅穹(0.7R 高); onion=洋葱头(1.5R 高带鼓腹)"},
+    "material": {"type": "block id", "default": "minecraft:smooth_quartz", "notes": "壳体材质"},
+    "hollow": {"type": "bool", "default": true, "notes": "true=壳体(省料可进人); false=实心(小穹顶装饰用)"},
+    "rim": {"type": "bool", "default": true, "notes": "底层外加一圈 radius+1 檐口环(与墙顶的过渡线脚)"}
+  },
+  "pitfalls": [
+    "origin 的 y 必须是穹顶底圈层 —— 穹顶坐在墙顶/鼓座上, 脚本不提供支撑墙; 墙要先用 round_plan/墙体卡立好",
+    "onion 鼓腹超出底半径(~1.35R) —— 两侧会比墙体外挑, 直径按 2.7R 留净空, 别贴别的体量放",
+    "radius<3 的穹顶只是一团方块, 别指望曲线感; 想要小顶饰请用 helm_roof",
+    "hollow=true 的壳靠环内侧邻互相拉住(support_check 认可), 但别在壳上再压重物 —— 壳内是空的",
+    "rim 环比底圈大 1 格 —— 若墙顶外沿没有一圈挑檐位置, 设 rim=false 避免悬挑环贴空"
+  ],
+  "validators": ["support_check", "slab_check"],
+  "example": "python patterns/dome.py --params '{\"origin\":[100,80,100],\"radius\":6,\"profile\":\"hemisphere\"}' --out dome1.json && python patterns/dome.py --params '{\"origin\":[130,80,100],\"radius\":5,\"profile\":\"onion\",\"material\":\"minecraft:copper_block\"}' --out dome2.json"
+}

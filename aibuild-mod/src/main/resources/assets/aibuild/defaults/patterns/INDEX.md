@@ -42,11 +42,14 @@
 | mansard_roof | 孟莎屋顶(四向陡坡+顶部平台,大体量) |
 | helm_roof | 盔顶(方塔四山墙,楼梯只两向+中缝半砖) |
 | xieshan_roof | 歇山顶(下段四坡收肩+上段双坡垂直山花;东亚通用句法,只沿 z 收分) |
+| dome | 穹顶(hemisphere/paraboloid/onion 三 profile;ellipse 圆切片;顶部实芯收口) |
+| roof_curve | 分段曲线屋顶(六段式举折:classic_chinese/gentle/steep 段表+段界斜率混淆;实芯脊) |
 | chimney | 烟囱(1×1/1×2/2×2 柱身+检修台泛水圈+campfire 冒烟/活板门压顶) |
 | dougong | 斗拱(檐下柱位层叠出挑承托,斗座+倒放楼梯拱+顶枋;东亚通用句法) |
 | crenellation | 垛口/女儿墙 |
 | buttress | 扶壁 |
 | arch_window | 拱窗 |
+| rose_window | 哥特玫瑰窗(辐条+外圈+玻璃填充,嵌墙 air 开凿;ellipse 复用) |
 | window_trim | 窗套(凸 0/1) |
 | pilaster | 壁柱 |
 | facade_depth | 立面纵深(三段式:基座放脚/墙身线脚壁龛/檐口封檐+交接专章;profile 机制,统计校准) |
@@ -54,6 +57,7 @@
 | road_segment | 路段 |
 | terraform_pad | 场地整平 |
 | quadruped_statue | 四足雕像 |
+| windmill_blade | 风车叶片(4 叶 X/+ 形,骨架+可选半砖蒙布;旋转角脚本推导) |
 | mirror_build | 镜像建造 |
 | furniture | 家具图鉴(床/桌/椅/凳/沙发/书架/橱柜/厨台/书桌/落地灯/花盆/长椅/抽屉柜/壁炉/钢琴,piece 参数选件) |
 | balcony | 阳台(cantilever 挑板/recessed 凹进;support 托臂/立柱;railing 四材质) |
@@ -91,3 +95,4 @@
 | stair_corner_check | 围合框架转角必须是 corner shape |
 | symmetry_check | 对称性 |
 | collision_check | 重叠冲突 |
+| walkability_check | 可进入性(门口 flood-fill,2 格净空能否走到每个家具前;治"有内饰人进不去") |

@@ -1,0 +1,18 @@
+{
+  "name": "roof_curve",
+  "description": "Segmented curved roof (分段曲线屋顶): discretizes an arbitrary-curvature slope into named run:rise segments (六段式屋面曲线法: s4=4:1, s3=3:1, s2=2:1 shallow treads / s1=1:1 45° stairs / d2=1:2 stacked pairs), ordered 起步区(檐口最缓,长)→缓冲区(中段,主要切换)→冲刺区(近脊最陡,短). Segment boundaries get automatic slope blending (斜率混淆: 交界±1步互插邻段步距,纯增量置换,总高不变,消除屋面骨折); every profile keeps adjacent-segment rise ratio ≤2. Solid-core ridge + step-in follow gable_roof convention (E8: no floating slab ridge). Ratios are conservative integers estimated from tutorial images — re-calibrate if the original text page surfaces.",
+  "when_to_use": "Any curved-profile gable roof: Chinese 举折/卷棚, elven organic curves, or any style whose roof silhouette must accelerate eave→ridge instead of a straight 45° pitch. Place walls first; origin = wall footprint NW corner, y = first layer ABOVE the top wall block. For spans where a hard two-pitch kink is acceptable (or required, e.g. pre-唐破风 Japanese), use gambrel_roof instead. ALL stair facing/half derived by the script — never hand-edit (禁止手改方向状态).",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "world coords of the wall footprint corner the roof sits on; y = roof base layer"},
+    "width": {"type": "int", "range": "3-31", "default": 9, "notes": "wall footprint along x"},
+    "depth": {"type": "int", "range": "3-31", "default": 11, "notes": "wall footprint along z (the slope span); span/2 must be ≥ max(4, profile segment count)"},
+    "axis": {"type": "\"x\"|\"z\"", "default": "x", "notes": "ridge direction; the gable ends face the OTHER axis"},
+    "profile": {"type": "enum", "range": "classic_chinese|gentle|steep", "default": "classic_chinese", "notes": "baked segment tables: classic_chinese=[s4 30%, s2 30%, s1 25%, d2 15%] 中式举折加速曲线; gentle=[s4 40%, s3 35%, s2 25%] 大跨低顶缓曲线; steep=[s2 35%, s1 40%, d2 25%] 小体量高脊陡曲线. Segments/counts are baked — do NOT pass raw ratios"},
+    "overhang": {"type": "int", "range": "0-2", "default": 1, "notes": "eaves past the wall line"},
+    "material": {"type": "block id", "default": "minecraft:spruce_stairs", "notes": "any *_stairs; tread slabs derive as material.replace('_stairs','_slab')"},
+    "ridge_material": {"type": "block id", "default": "minecraft:spruce_slab", "notes": "slab used on the ridge row"},
+    "ridge_support": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "solid core column under the ridge (odd span) — never leave the ridge floating"},
+    "end_fill": {"type": "block id|\"\"", "default": "", "notes": "wall material to fill the curved gable-end walls inside the footprint; empty = open gables"}
+  },
+  "example": "python patterns/roof_curve.py --params '{\"origin\":[100,83,100],\"width\":9,\"depth\":11,\"profile\":\"classic_chinese\",\"material\":\"minecraft:dark_oak_stairs\",\"end_fill\":\"minecraft:stone_bricks\"}' --out roof.json"
+}
