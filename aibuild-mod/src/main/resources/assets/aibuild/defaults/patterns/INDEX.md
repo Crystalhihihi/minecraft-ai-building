@@ -28,6 +28,8 @@
 | brick_townhouse | 砖石联排屋(窄面宽多层+窗列对位+烟囱阵),面宽 5~9 |
 | farm_estate | 农场庄园(主屋+折线顶谷仓+场院围栏+梯田),场院 21×21 起 |
 | suzhou_garden | 苏州园林(中式) |
+| chinese_palace | 中式殿堂/官式建筑(歇山顶+斗拱+高台基+中轴对称),主殿 9×13~15×21 |
+| elven_tree | 精灵树居(有机白壁+圆平面+活树干贯穿),主室直径 7~11 |
 
 ## 模式卡 patterns/(均有同名 .py 生成器)
 
@@ -39,12 +41,16 @@
 | gambrel_roof | 折线屋顶(下陡上缓,谷仓/荷兰殖民式) |
 | mansard_roof | 孟莎屋顶(四向陡坡+顶部平台,大体量) |
 | helm_roof | 盔顶(方塔四山墙,楼梯只两向+中缝半砖) |
+| xieshan_roof | 歇山顶(下段四坡收肩+上段双坡垂直山花;东亚通用句法,只沿 z 收分) |
 | chimney | 烟囱(1×1/1×2/2×2 柱身+检修台泛水圈+campfire 冒烟/活板门压顶) |
+| dougong | 斗拱(檐下柱位层叠出挑承托,斗座+倒放楼梯拱+顶枋;东亚通用句法) |
 | crenellation | 垛口/女儿墙 |
 | buttress | 扶壁 |
 | arch_window | 拱窗 |
 | window_trim | 窗套(凸 0/1) |
 | pilaster | 壁柱 |
+| facade_depth | 立面纵深(三段式:基座放脚/墙身线脚壁龛/檐口封檐+交接专章;profile 机制,统计校准) |
+| timber_structure | 木构梁架(三角屋架 3 种/托臂/45°斜撑/梁端收分/暴露节奏;间距校准 2-5) |
 | road_segment | 路段 |
 | terraform_pad | 场地整平 |
 | quadruped_statue | 四足雕像 |
@@ -53,12 +59,20 @@
 | balcony | 阳台(cantilever 挑板/recessed 凹进;support 托臂/立柱;railing 四材质) |
 | railing | 护栏/栏杆(fence/wall/pane/trapdoor+楼梯扶手+桥栏;转角自动推导) |
 | wall_weathering | 墙壁肌理(掺比 preset/基座深浅分层/壁柱线脚分格/垂藤做旧) |
+| accent_detailing | 点缀学(碎件依附结构缝/成组 2~3/密度随面宽;palette=风格白名单 L4a:medieval/japanese/elven/industrial;seed 确定性) |
 | interior_rooms | 房间陈设模板(bedroom/kitchen/living/dining/study/corridor;碰撞+通道自动校验) |
+| staircase | 室内楼梯(straight/L/U 三形态+扶手+梯腹;facing=上行方向全自动推导,治手摆楼梯放歪) |
 | fountain | 喷泉(圆/方,1~3 层,楼梯/半砖压边,中心墙柱) |
 | flower_field | 花海/花境(single/stripes/gradient/meadow;小径穿插;边缘渐稀) |
 | terrace_farm | 梯田(层高差 1、宽 2~4,田埂压边,zigzag 层间下灌) |
 | plaza | 广场铺装(同心圆/放射/棋盘/镶边;中心点缀位;灯椅节奏) |
 | garden_tree | 景观树(橡/桦/樱/杉×3 体量;确定性;贴面分枝+镂空叶团) |
+| round_plan | 圆环墙/收分圆塔(taper 逐层内收;solid 实心/空心;cap 封盘;圆塔/灯塔/精灵圆屋) |
+| altar | 祭坛(多层台座+顶饰) |
+| settlement | 聚落布局(产 scene 空间计划非方块;grid/radial/organic/park) |
+| scene_load | scene 计划重建为方块(pattern 构件调生成器,style 地块产占位建筑;可选地形适配+碰撞避让) |
+
+> 公共模块:`patterns/ellipse.py`(圆/椭圆栅格化 circle_ring/ellipse_ring/disc,**单一来源**——后续 dome/rose_window 等新卡必须复用,禁止各写一份);`patterns/contract_check.py` 为卡-代码契约校验工具(开发期用,不进世界工作目录)。
 
 ## 规则文档
 

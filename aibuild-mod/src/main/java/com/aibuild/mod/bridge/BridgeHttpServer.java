@@ -710,7 +710,7 @@ public final class BridgeHttpServer {
     /** Renders ask_player questions to the chat bar with clickable option buttons. */
     private void broadcastQuestions(AgentSession s, JsonArray questions) {
         server.getPlayerList().broadcastSystemMessage(Component.literal("[aibuild] #" + s.no()
-                + " AI 提问(点选项按钮 = 快速回答;或 /aichat 自由输入;「跳过」= 不问直接造):"), false);
+                + " AI 提问(点选项 = 快速回答;自由回答:聊天栏输入 /aichat 你的回答;「跳过」= 不问直接造):"), false);
         int qi = 0;
         for (JsonElement el : questions) {
             if (!el.isJsonObject()) {

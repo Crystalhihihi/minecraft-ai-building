@@ -1,0 +1,89 @@
+{
+  "style_id": "chinese_palace",
+  "name": "Chinese Palace (中式殿堂/官式建筑)",
+  "use_for": "Chinese palace halls, temples, pavilions (殿/堂/亭/台), official East-Asian ceremonial buildings; grand hip-and-gable roofs + bracket clusters + high stone platform. Differs from suzhou_garden (园林小筑, 自由松散): this card is the FORMAL ceremonial hall — axial symmetry, raised platform, gabled-hipped roof, dougong under the eaves.",
+  "palette_stats": "知识直写+公开案例 (GrabCraft 无中式殿堂类目): 官式殿堂核心=深瓦(深灰/墨绿)大屋顶 + 白/汉白玉台基 + 红/赭墙面 + 深色木柱枋. 参考公开中式古建案例配色. 屋顶深色系(deepslate_tile=青灰瓦, blackstone=墨瓦, dark_oak=木色简化), 墙 red_concrete/red_terracotta(朱红), 柱/枋 spruce_log/dark_oak_log, 台基 stone_bricks/quartz(汉白玉须弥座感).",
+  "proportions": {
+    "height_to_width_ratio": "0.9:1 ~ 1.3:1 (walls only) — 横向舒展的官式比例, 忌高瘦",
+    "storey_height": "4-5 (interior clear, 殿堂高于民居)",
+    "wall_thickness": 1,
+    "typical_footprint": "主殿 9x13 ~ 15x21; 亭/堂 5x5~9x9; 开间(柱距) 3-4 是标准节奏",
+    "door_height": "3 (殿堂大门) 或 2 (侧门)",
+    "platform": "台基高 2-4 (须弥座式: 底放脚+束腰+上枋), 全殿座其上, 台阶正对主门"
+  },
+  "materials": {
+    "platform": [
+      "minecraft:stone_bricks",
+      "minecraft:quartz_block",
+      "minecraft:smooth_quartz",
+      "minecraft:chiseled_stone_bricks"
+    ],
+    "platform_mix": "70% stone_bricks / 20% chiseled_stone_bricks(束腰) / 10% quartz+smooth_quartz(压边), deterministic per-position; 上浅下深: 底层 quartz 少、stone_bricks 多",
+    "platform_use": "台基/须弥座: stone_bricks 主体 + chiseled 束腰装饰 + quartz 压边(汉白玉感); 上浅下深",
+    "walls": [
+      "minecraft:red_concrete",
+      "minecraft:red_terracotta",
+      "minecraft:orange_terracotta"
+    ],
+    "walls_mix": "80% red_concrete / 15% red_terracotta / 5% orange_terracotta, deterministic per-position (patterns/wall_weathering.py 掺比手法, 不用其改旧 preset); 朱墙不掺杂色, 只同色系深浅",
+    "walls_use": "朱红墙面(官式正色); red_concrete 主墙, terracotta 掺比做旧(见 wall_weathering), 忌大面积鲜艳红滥用——用赭/橙过渡",
+    "columns": [
+      "minecraft:spruce_log",
+      "minecraft:dark_oak_log",
+      "minecraft:stripped_spruce_log"
+    ],
+    "columns_mix": "70% spruce_log / 20% dark_oak_log(柱头额枋重点) / 10% stripped_spruce_log, deterministic per-position; log 轴向由脚本按柱列方向推导",
+    "columns_use": "殿柱+额枋(横梁): 深色木, 柱径 1-2, log 轴向由脚本推导; 柱列外露或半嵌墙(回廊感)",
+    "roof": [
+      "minecraft:deepslate_tile_stairs",
+      "minecraft:deepslate_tile_slab",
+      "minecraft:blackstone_stairs",
+      "minecraft:dark_oak_stairs"
+    ],
+    "roof_mix": "70% deepslate_tile_stairs / 20% blackstone_stairs(檐口/脊端加重) / 10% dark_oak_stairs(budget 简化), deterministic per-position; 屋面以深灰瓦为绝对主体, 忌杂色",
+    "roof_use": "深瓦大屋顶: deepslate_tile=青灰瓦首选, blackstone=更墨的墨瓦, dark_oak=木色简化方案; 屋脊深灰收边",
+    "accent": [
+      "minecraft:gold_block",
+      "minecraft:sea_lantern",
+      "minecraft:spruce_fence",
+      "minecraft:red_wool"
+    ],
+    "accent_mix": "点缀件按位置选件不掺比: 脊端兽=gold_block(1-2处), 檐下灯=sea_lantern, 檐下细格=spruce_fence; red_wool 仅作祭祀帘/旗帜点缀, 全立面不超过 2 处",
+    "accent_use": "金/铜仅点脊端兽+檐角(1-2 处, 不能多); lantern 挂檐下; fence 做檐下细格/栏杆(railing)"
+  },
+  "roof": {
+    "type": "歇山顶 (patterns/xieshan_roof.py) 主选 — 庄严四坡底+垂直山花顶, 中式殿堂灵魂; 庑殿(patterns/hip_roof.py)用于更宏大殿宇; 亭/堂用 gable_roof",
+    "slope": "45 度自动(两坡面收分); 歇山顶只沿 z 收, x 保持全宽",
+    "overhang": "1-2 — 深檐+斗拱是中式瓦顶特色, 檐下必有斗拱承托",
+    "ridge_support": "实芯梁(patterns/xieshan_roof.py ridge_support), 脊端可加小兽(gold 1 处)",
+    "dougong": "檐下斗拱排 (patterns/dougong.py), 沿柱列, count=开间数 spacing=开间距 depth=2 — 这是中式殿堂的承托骨架, 无斗拱=光秃檐口"
+  },
+  "windows": {
+    "pattern": "对称格窗, 少而整; 殿堂窗位固定(柱间), 忌随机散窗",
+    "size": "宽 2-3 × 高 2, 或连续格窗列",
+    "material": ["minecraft:glass_pane"],
+    "frame": "深色木格: dark_oak_trapdoor 竖梃 2-3 根 + spruce_slab 上下枠 — 中式格窗, 不用洋风拱窗"
+  },
+  "details": {
+    "base": "台基必须完整落地(platform 底放脚 2 层 + 束腰 + 上枋), 殿墙坐台基上, 墙绝不悬空",
+    "staircase": "主门正中石阶 3-5 级, 阶两侧斜面(或两侧分阶); 台阶材质=台基石",
+    "lighting": "lantern 对称挂檐下两侧, 忌 wall_torch 上墙(洋风)",
+    "weathering": "patterns/wall_weathering.py preset=stone_brick_aged 只用于台基(gradient=true 上浅下深); 红墙保持端庄, vine_pct=0",
+    "interior": "殿堂内部=大空间+对称柱列, 主位(神龛/宝座)居中; patterns/interior_rooms.py 大living改造, 内部绝不能空壳",
+    "landscape": "殿前中轴对称: 庭院=patterns/plaza.py 对称铺装 + garden_tree species=cherry 对称两株 + 石灯/香炉点缀; 忌自然式错落",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 3, "projection": 1, "material": "minecraft:spruce_log", "note": "殿柱=壁柱, 凸出墙面 1 格成柱列节奏"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_log", "note": "格窗框, 深色木勾勒"},
+      "string_course": {"enabled": true, "material": "minecraft:spruce_log", "note": "额枋(柱顶横梁线)是中式立面骨架, 必配斗拱"}
+    }
+  },
+  "pitfalls": [
+    "用陡峭 45 度以上人字顶 — 中式殿堂=歇山/庑殿的瓦顶+深檐+斗拱, 陡坡尖顶是欧式哥特",
+    "光秃檐口无斗拱 — 檐下没有 dougong 承托排=现代平房感, 中式殿堂翻车第一源",
+    "台基缺失或墙悬空 — 殿堂必须坐高台基(2-4), 墙脚必须落地, 悬空墙=验收打回",
+    "红墙全平面 — 必须柱列(凸出)+额枋+格窗做立面分层, 纯红墙=朱色砖盒",
+    "窗用拱窗/圆窗 — 中式用方格格窗, 拱窗是洋风(西洋/哥特)",
+    "金/朱滥用 — gold 只点脊端/檐角 1-2 处, 大面积金=俗; 红靠赭/橙过渡不做纯色大片"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
+}

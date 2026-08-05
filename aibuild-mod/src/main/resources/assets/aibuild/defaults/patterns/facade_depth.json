@@ -1,0 +1,39 @@
+{
+  "name": "facade_depth",
+  "description": "Facade depth (立面纵深) three-part treatment + junction chapter, GEOMETRY ONLY around an existing wall box. 三段式: (1) 基座放脚 — footing ring protrudes 1 past the wall line for base_height layers, top course 收分 as upside-down stairs with backs INWARD (outer corners); optional apron (散水) slab ring one cell further out. (2) 墙身 — string-course ledge rings every string_course_every layers (upside-down stairs, backs OUTWARD, inner corners) + recess panels (壁龛): 1-deep air carve into the principal facade with a sill ledge below each. (3) 檐口封檐 — cornice overhang ring (default 1: 98.9% of GrabCraft samples; 2 = rare deep eave, stepped inner half=top + outer half=bottom) + fascia slab row sealing the eave edge. 交接专章: 墙-地面 = 放脚+散水 (本卡); 墙-屋顶 = 檐口出挑+封檐板 (本卡, 屋顶本身归 gable/hip_roof); 屋顶-烟囱泛水圈 = 调 chimney.py 的 ledge ring, 禁止重复造; 建筑-场地挡土墙/踏步 = terraform_pad/terrace_farm, 本卡只到散水.",
+  "when_to_use": "Any rectangular building whose elevations read flat — this card adds the Z-axis relief (base/body/cornice) that the 'AI look' lacks. Run AFTER the walls stand: origin = wall footprint north-west corner, y = ground layer, facing = principal facade. Materials here are single trim blocks; the wall body's 材质掺比/做旧 is wall_weathering's job, vertical pier rhythm is pilaster's, window openings are window_trim/arch_window's — do not recreate them via recess_panels.",
+  "profiles": {
+    "medieval_townhouse": "base 2 石脚 + 线脚每4层 + 出挑1 + 散水; relief 0.23 (凹凸率中位)",
+    "modern_flat": "base 1 + 无线脚 + 净檐口出挑1 + 无散水; relief 0.10",
+    "sakura_shinkabe": "base 1 石基 + 木檐口出挑1 + 散水; relief 0.18 (小房档)",
+    "east_asian_formal": "台基 2 + 深檐出挑2 (~1% 变体) + 散水; relief 0.20"
+  },
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "墙体外包盒西北角;y=地面层"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "主立面朝向;壁龛只开在主立面;朝向/转角状态全由脚本推导"},
+    "width": {"type": "int", "range": "3-31", "default": 9, "notes": "墙体沿 x 宽"},
+    "depth": {"type": "int", "range": "3-31", "default": 7, "notes": "墙体沿 z 深"},
+    "height": {"type": "int", "range": "4-32", "default": 6, "notes": "墙高;檐口占顶层"},
+    "profile": {"type": "enum", "values": ["medieval_townhouse", "modern_flat", "sakura_shinkabe", "east_asian_formal"], "default": "medieval_townhouse", "notes": "L3 参数预烘焙;下列参数传 null=继承 profile,显式传值=单参数覆盖"},
+    "base_height": {"type": "int", "range": "0-4", "default": "profile", "notes": "基座放脚层数"},
+    "cornice_overhang": {"type": "int", "range": "0-2", "default": "profile(=1)", "notes": "檐口出挑;98.9% 样本=1,2 为深檐变体"},
+    "string_course_every": {"type": "int", "range": "0-8", "default": "profile", "notes": "线脚间隔层数;0=关"},
+    "recess_panels": {"type": "int", "range": "0-(width-1)//3", "default": "null=由 relief_budget 推导", "notes": "主立面壁龛数(2宽+1间隔);需 height>=base_height+4"},
+    "relief_budget": {"type": "number", "range": "0-0.5", "default": "profile(0.1-0.23)", "notes": "凹凸率预算,仅推导默认壁龛数;校准自层图统计(中位0.23,小房0.18/大房0.28)"},
+    "apron": {"type": "bool", "default": "profile", "notes": "散水半砖环(建筑-场地收边)"},
+    "base_material": {"type": "block id", "default": "profile", "notes": "放脚实心料"},
+    "trim_stairs": {"type": "block id (*_stairs)", "default": "profile", "notes": "放脚收分/线脚/檐口/壁龛窗台共用楼梯料"},
+    "fascia_slab": {"type": "block id (*_slab)", "default": "profile", "notes": "封檐板半砖料"},
+    "apron_slab": {"type": "block id (*_slab)", "default": "profile", "notes": "散水半砖料"}
+  },
+  "pitfalls": [
+    "分工边界:本卡只管 Z 轴几何纵深——材质掺比/渐变/藤蔓归 wall_weathering,竖向壁柱节奏归 pilaster,门窗洞口归 window_trim/arch_window;别拿 recess_panels 仿壁柱,别在本卡输出里掺材质",
+    "屋顶-烟囱泛水圈已在 chimney.py(ledge ring),建筑-场地挡土墙/踏步在 terraform_pad/terrace_farm——调用现成卡,重复造必打架",
+    "出挑别超过 2:层图统计 98.9% 是 1 格,2 已是深檐变体;想要更深请改屋顶卡的 overhang,不是在檐口叠环",
+    "relief_budget 是统计校准的凹凸率预算,不是越大越好:大房上限 0.43,超过即成碎立面;小房 0.18 档别硬塞 3 个壁龛",
+    "线脚/檐口环是悬挑件,靠墙体侧向支撑——必须先有墙再跑本卡;验收 support_check 要把墙体文件传给 base 参数",
+    "所有 facing/half/shape 由脚本推导(放脚 backs inward=outer corner,线脚/檐口 backs outward=inner corner),禁止手改输出里的方向状态"
+  ],
+  "validators": ["support_check", "slab_check"],
+  "example": "python patterns/facade_depth.py --params '{\"origin\":[100,64,100],\"facing\":\"south\",\"width\":9,\"depth\":7,\"height\":6,\"profile\":\"medieval_townhouse\"}' --out depth.json"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "round_plan",
+  "description": "Circular-plan tower/wall (圆环墙/收分圆塔): stacked single-cell rings shrinking by `taper` per layer — taper=0 straight cylinder, 1 classic tower, 2+ steep cone. Each ring is a connected circle via patterns/ellipse.py circle_ring (共用圆栅格化, 禁止各写一份). `solid=true` fills the interior disc each layer so tapered rings never float (a tapered ring's new diagonal cells would hang over the layer below); `solid=false` keeps a hollow ring — use with taper=0. Optional `cap` disc seals the top. All geometry script-derived (禁止手改方向状态).",
+  "when_to_use": "圆塔/圆堡/穹顶塔身/灯塔/精灵圆屋/中世纪圆塔; 圆环柱廊(taper=0+solid=false)。origin = 底层圆心格, y = 地面层。elven_tree 圆屋主体用 solid=true(实心承重), 空心圆环墙用于柱廊/围合。搭配 crenellation/roof 放顶部。",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "底层圆心格; y = 地面层"},
+    "radius": {"type": "int", "range": "2-15", "default": 4, "notes": "底层半径(格); 直径=2r+1"},
+    "height": {"type": "int", "range": "2-16", "default": 6, "notes": "墙层数"},
+    "taper": {"type": "int", "range": "0-3", "default": 1, "notes": "每层半径缩减; 0=直筒 1=经典塔 2-3=陡锥"},
+    "material": {"type": "block id", "default": "minecraft:smooth_quartz", "notes": "环墙材质"},
+    "solid": {"type": "bool", "default": true, "notes": "true=每层实心盘(收分塔支撑必需); false=空心环(配 taper=0)"},
+    "cap": {"type": "bool", "default": true, "notes": "顶部封盘; false=开口留做垛口/屋顶"},
+    "cap_material": {"type": "block id", "default": "minecraft:smooth_quartz", "notes": "顶盖材质(\"\"=不封)"}
+  },
+  "pitfalls": [
+    "收分塔(taper>0)必须 solid=true — 空心环收分时新对角块会悬空, support_check 必打回",
+    "空心圆环墙只配 taper=0 — 要空心又收分=悬空; 想收分请换 solid=true 实心塔",
+    "radius 别小于 2 — 半径 1 的环只剩单格, 不是圆墙",
+    "origin 必须取圆心格(y=地面) — 偏移圆心则整塔偏心, 落地不稳",
+    "cap=false 顶部是开口 — 若顶上要放屋顶/垛口, 别另盖实心盘冲突; 让接的卡自己封"
+  ],
+  "validators": ["support_check", "slab_check"],
+  "example": "python patterns/round_plan.py --params '{\"origin\":[100,64,100],\"radius\":4,\"height\":6,\"taper\":1}' --out tower.json && python patterns/round_plan.py --params '{\"origin\":[120,64,100],\"radius\":3,\"height\":5,\"taper\":0,\"solid\":false}' --out colonnade.json"
+}

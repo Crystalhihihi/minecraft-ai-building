@@ -1,0 +1,83 @@
+{
+  "style_id": "elven_tree",
+  "name": "Elven Treehouse (精灵树居)",
+  "use_for": "Elven/fantasy tree dwellings, living-tree homes, enchanted forest houses, white-stone tree-bound structures. Differs from tree_house (树屋=树枝间搭木屋) and sakura_japanese (日式=几何木构): this card is the ORGANIC white-stone hall grown AROUND a living trunk — curved walls, round openings, branches growing through the structure.",
+  "palette_stats": "知识直写+公开案例 (GrabCraft 无精灵/奇幻类目): 精灵树居核心=白/乳白石材(光泽感) + 深木树干/枝 + 少量金色/琉璃点缀. 参考奇幻建筑公开案例配色. 白墙 smooth_quartz/quartz_block/calcite 或白色混凝土, 树干 dark_oak/oak_log, 叶团 garden_tree 复用.",
+  "proportions": {
+    "height_to_width_ratio": "1.2:1 ~ 1.8:1 (walls only) — 树居宜挺拔, 纵向生长感, 忌横向矮胖",
+    "storey_height": "3-4 (interior clear, 圆形平面内净空更需高)",
+    "wall_thickness": 1,
+    "typical_footprint": "圆形/椭圆形: 主室直径 7-11, 树居整体 7x7 ~ 13x13; 依树干偏心",
+    "door_height": 2,
+    "trunk_axis": "生活树干偏心贯穿(不在正中), 楼梯沿干旋上 — 树是结构的脊柱, 不是装饰"
+  },
+  "materials": {
+    "walls": [
+      "minecraft:smooth_quartz",
+      "minecraft:quartz_block",
+      "minecraft:calcite",
+      "minecraft:quartz_bricks"
+    ],
+    "walls_mix": "70% smooth_quartz / 20% quartz_block / 5% quartz_bricks(柱列/腰线) / 5% calcite(局部亮面), deterministic per-position; 白色保持纯净, 忌掺杂色",
+    "walls_use": "白石材主墙(精灵的典雅); smooth_quartz 主面 + quartz_bricks 腰线/柱 + calcite 局部亮面; 忌纯白 flat, 用砖缝/柱列做肌理",
+    "trunk": [
+      "minecraft:dark_oak_log",
+      "minecraft:oak_log",
+      "minecraft:stripped_dark_oak_log"
+    ],
+    "trunk_mix": "75% dark_oak_log(主干) / 15% oak_log(枝) / 10% stripped_dark_oak_log(露心部分), deterministic per-position; log 轴向按干/枝方向脚本推导",
+    "trunk_use": "生活树干+枝: dark_oak_log 主干(深色与白墙对比), log 轴由脚本沿干推导; 枝从墙面穿出再被白墙包覆(共生感)",
+    "roof": [
+      "minecraft:dark_oak_stairs",
+      "minecraft:dark_oak_slab",
+      "minecraft:oak_stairs"
+    ],
+    "roof_mix": "80% dark_oak_stairs(曲面主体) / 15% dark_oak_slab(收口/渐变) / 5% oak_stairs(亮色局部), deterministic per-position; 曲面顶保持流动的深木色",
+    "roof_use": "有机曲面顶: 逐层内收的圆顶/曲线顶, 用 stairs+slab 渐进退; 不是直角坡, 是流动的曲面收拢",
+    "accent": [
+      "minecraft:sea_lantern",
+      "minecraft:gold_block",
+      "minecraft:glowstone",
+      "minecraft:spruce_fence"
+    ],
+    "accent_mix": "点缀件按位置选件不掺比: 檐口/墙面嵌灯=sea_lantern+glowstone(蓝白冷光), 树冠露金=gold_block(1-2处); spruce_fence 做枝端围栏",
+    "accent_use": "海晶灯(蓝白辉光)嵌墙面/檐口 — 精灵的冷光感; gold 仅点饰; 藤蔓/苔藓做旧树根附近"
+  },
+  "roof": {
+    "type": "有机曲面顶: 圆塔身用 patterns/round_plan.py (radius=直径一半, taper=1~2 收分, solid=true) 逐层内收; 顶部圆顶/穹壳由 round_plan 收拢 + cap 封顶",
+    "curve_syntax": "曲线句法: ①圆平面 = patterns/round_plan.py 圆环墙(共用 patterns/ellipse.py 圆栅格化), ②曲面墙靠 taper 每层半径 -1 渐进收分, ③圆顶收拢处实芯封口(cap 或最后一圈整砖); 所有几何脚本推导, 禁止手改",
+    "overhang": "1 — 曲面檐口轻出挑, 檐口嵌 sea_lantern 冷光",
+    "ridge_support": "圆顶收拢处实芯(round_plan cap 封盘/最后一圈整砖), 禁止空心尖顶",
+    "note": "无直角 gable/hip — 精灵树居的屋顶是流动的 round_plan 曲面, 直角坡=翻车"
+  },
+  "windows": {
+    "pattern": "圆窗/拱窗不规则错落, 依树干和曲面布置, 忌对称矩形窗列",
+    "size": "圆窗直径 2-3, 或 1x2 竖窗",
+    "material": ["minecraft:glass_pane"],
+    "frame": "深木圆框: dark_oak 半砖+楼梯围圆(圆栅格参考 patterns/ellipse.py 圆环), 或 window_trim 改造为曲; 窗内嵌 sea_lantern 透光",
+    "pattern_script": "patterns/window_trim.py 改造为圆窗; arch_window 用于弧形窗"
+  },
+  "details": {
+    "base": "树居落地: 圆塔身(patterns/round_plan.py)坐地, 根须状放脚(原木+苔藓绕根部 1-2 层), 白墙从树根包起, 墙绝不悬空",
+    "trunk_through": "树干从地面贯穿全楼: 每层留树干位(1-2 格通高, 圆心偏心), 房间绕干布置 — 这是树居的灵魂, 没干=普通白楼",
+    "balcony": "枝干上的平台: patterns/railing.py 围枝端 + 原木走道, 树冠处可加 garden_tree 叶团",
+    "lighting": "sea_lantern/glowstone 嵌墙/嵌顶, 冷蓝白辉光; 忌火把上墙(土)",
+    "weathering": "树根/接地处 vine/moss 少量做旧(gradient), 白墙主体保持纯净(精灵的优雅)",
+    "interior": "圆形房间绕干: 楼梯沿干旋上, 房间 = 卧室/书房/工坊绕干, 圆平面内部按圆布置(用 round_plan 的 disc 内径规划); patterns/interior_rooms.py 圆形改造, 内部绝不能空壳",
+    "landscape": "树居在巨树群: 周边 garden_tree species=oak/cherry 数株 + flower_field scheme=meadow 花丛 + plaza 蜿蜒石径; 忌对称几何庭院(那是人类的)",
+    "depth": {
+      "pilaster": {"enabled": true, "spacing": 3, "projection": 0, "material": "minecraft:quartz_bricks", "note": "白墙柱列在曲面内(不凸出), 砖缝柱列即精灵柱式"},
+      "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_log", "note": "深木圆窗框"},
+      "string_course": {"enabled": true, "material": "minecraft:quartz_bricks", "note": "白墙腰线, 随曲面分段"}
+    }
+  },
+  "pitfalls": [
+    "用直角坡屋顶 — 精灵树居是流动曲面顶, 直角 gable/hip 秒变人类农舍",
+    "树干只是装饰 — 干必须贯通全楼作结构脊柱, 只在外面贴根木=假树居",
+    "白色满铺无肌理 — 纯白 flat 面是精灵风大忌, 必须 quartz_bricks 柱列/腰线/砖缝分层",
+    "对称矩形窗 — 精灵用圆窗/拱窗不规则错落, 对称窗列是洋式宫殿",
+    "圆形平面却用方形房间硬切 — 曲面墙内房间按曲面布置, 方形切块破坏有机感",
+    "顶部空心尖顶 — 曲面顶收拢处必须实芯封口, 空心=验收 support_check 打回"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "accent_detailing",
+  "description": "Accent scattering (点缀学): a THIN generator that sprinkles small accent groups onto the outer face of an EXISTING wall — never emits the wall itself. Position grammar (位置语法): every piece attaches to a structural seam — corner columns / wall interior seams (door-window edges) / under-eave row / column base; pieces come in groups of 2-3 cells (never isolated singles); group count scales with facade width. Hard L4a/L4b split: palette = per-style whitelist (L4a, the only place pieces are chosen — NO global all-style accent list); the scatter algorithm (L4b) only decides distribution. Attachment states (vine face, banner/button facing, trapdoor hinge, lantern hanging) are derived from `facing` by the script — never hand-edit the output.",
+  "when_to_use": "After a facade is built (wall_weathering/window_trim done) and it still reads bare: corners, door/window edges, under-eave, column bases get 2-3-cell accent groups. origin/facing/width/height MUST match the target wall's own card call (origin = bottom-left cell seen from outside, y = base layer; facing = outward normal); accents land one cell off the face. Style card picks `palette` — medieval 藤蔓/旗帜/铁栏/灯笼, japanese 竹帘/石灯笼/苔藓, elven 海晶灯/金饰/藤蔓, industrial 铁栏/按钮/管道. Cross-style palettes are exactly the failure this card exists to prevent (日式灯笼挂进中世纪塔楼).",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "目标立面外视左下角格;y=基座层——与发墙那张卡的 origin 一致"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "立面外法线;藤蔓面/旗帜按钮朝向/活板门铰链全由此推导"},
+    "width": {"type": "int", "range": "3-64", "default": 9, "notes": "目标墙宽"},
+    "height": {"type": "int", "range": "3-64", "default": 6, "notes": "目标墙高"},
+    "surface": {"type": "[\"wall\"|\"corner\"|\"eave\"|\"column_base\", ...]", "default": "全选", "notes": "允许依附的结构缝,可多选;无檐下结构就别开 eave"},
+    "density": {"type": "int", "range": "0-24", "default": 0, "notes": "点缀组数;0=auto≈width/3(密度随面宽);民居 auto,要塞 2-4,别超 width/2"},
+    "palette": {"type": "enum", "values": ["medieval", "japanese", "elven", "industrial"], "default": "medieval", "notes": "L4a 风格白名单(见 palettes 节);风格卡选定,LLM 不自造清单"},
+    "seed": {"type": "int", "default": 7, "notes": "随机种子;同参同输出,换 seed 换分布"}
+  },
+  "palettes": {
+    "medieval": "vine 转角/墙边短藤条(2-3 格) + red_wall_banner 门边旗(竖对) + iron_bars 横排 + lantern 檐下挂(hanging)与柱脚座灯",
+    "japanese": "bamboo_trapdoor 竹帘(贴墙竖板排,hinge 朝墙) + 石灯笼(stone_brick_wall 座+lantern 叠,柱脚) + moss_carpet 苔藓脚线",
+    "elven": "sea_lantern 檐下/转角壁灯 + gold_block 转角金饰柱础 + vine 藤蔓",
+    "industrial": "iron_bars 横排 + stone_button 墙面按钮组 + 管道感 iron_bars 立管(转角柱脚起 2-3 格)"
+  },
+  "pitfalls": [
+    "本卡是薄生成器:只出点缀块,不含墙本身——必须先发墙再撒点,origin/facing/width/height 与墙卡一致,否则点缀悬空或埋进墙里",
+    "lantern_hang/sea_lamp(eave)假设 y=height 层有屋檐/顶棚块可挂;无出檐的平顶别开 eave,改用 column_base 座灯",
+    "与 wall_weathering 的分工:vine_pct 是大面积做旧垂藤,本卡藤蔓是结构缝成组短藤——两张卡别同时拉满,否则整面墙爬满",
+    "成组 2-3 不孤立是硬规则(生成器保证);想再加零星单件属于自由发挥,正是本卡要消灭的翻车",
+    "跨风格 palette 是大忌:禁止把 industrial 按钮撒进 elven 立面;palette 只能来自风格卡,没有第五套全局通用清单",
+    "support_check 豁免说明:vine/banner/button/candle/lantern/sea_lantern/moss_carpet 在验收器白名单;iron_bars/trapdoor/stone_brick_wall/gold_block 靠侧贴墙或贴地判定——验收时 --params 的 base 必须给目标墙文件,单跑点缀文件会误报悬空"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/accent_detailing.py --params '{\"origin\":[100,64,100],\"facing\":\"south\",\"width\":9,\"height\":6,\"surface\":[\"wall\",\"corner\",\"eave\",\"column_base\"],\"palette\":\"medieval\"}' --out accents.json && python patterns/accent_detailing.py --params '{\"origin\":[100,64,120],\"facing\":\"east\",\"width\":11,\"height\":7,\"surface\":[\"corner\",\"column_base\"],\"palette\":\"japanese\",\"seed\":42}' --out accents2.json"
+}

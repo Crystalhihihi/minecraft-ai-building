@@ -1,0 +1,25 @@
+{
+  "name": "altar",
+  "description": "Central altar / ceremonial dais (大祭坛/中心地标): layered square platforms (tiers) rising to a shrine column, with an optional top feature (flame/column/crystal) and a stair descending the `facing` edge. Designed as the focal node of plazas, park centers, and settlement centerpieces. Solid tiers guarantee support; deterministic, all geometry script-derived including the stair facing (禁止手改方向状态).",
+  "when_to_use": "广场/公园/聚落的中心地标节点 — 大祭坛、纪念碑、仪式高台。origin = 底座中心格, y = 地面层, facing = 台阶方向。常由 settlement 作为 centerpiece 引用, 或独立放在 plaza 中心。size 越大越庄严, tiers 控制层叠感。",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "底座中心格; y = 地面层"},
+    "size": {"type": "int", "range": "5-15", "default": 9, "notes": "底座宽(自动取奇数); 越大越庄严"},
+    "tiers": {"type": "int", "range": "2-5", "default": 3, "notes": "层叠平台数; 层数多=更正式"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "台阶方向; 台阶面朝该方向下坡(脚本推导, 禁止手改)"},
+    "material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "平台主体"},
+    "trim_material": {"type": "block id", "default": "minecraft:chiseled_stone_bricks", "notes": "顶台/边带点缀料"},
+    "accent": {"type": "block id", "default": "minecraft:gold_block", "notes": "柱顶饰(用金/发光料, 1 处不滥)"},
+    "top": {"type": "enum", "values": ["flame", "column", "crystal"], "default": "flame", "notes": "柱顶饰: flame=篝火(campfire), column=黑石柱, crystal=紫水晶"},
+    "stair_material": {"type": "block id (*_stairs)", "default": "minecraft:stone_brick_stairs", "notes": "台阶料; facing 由脚本按 facing 推导, 禁止手改"}
+  },
+  "pitfalls": [
+    "顶饰必须有支撑 — 柱顶的金/水晶块下方要实芯(柱身), 悬空=验收打回",
+    "size 别过小 — 小于 5 没有层叠祭坛感, 变一根柱",
+    "tiers 层间要实芯 — 每层平台下方补一层实体, 否则中空塌陷",
+    "台阶只一条( facing 侧) — 对称多台阶是宫殿门不是祭坛, 别滥加",
+    "gold 只点 1 处柱顶 — 大面积金=俗, 祭坛庄严靠形体不靠金色"
+  ],
+  "validators": ["support_check", "slab_check"],
+  "example": "python patterns/altar.py --params '{\"origin\":[100,64,100],\"size\":9,\"tiers\":3,\"facing\":\"south\",\"top\":\"flame\"}' --out altar.json"
+}

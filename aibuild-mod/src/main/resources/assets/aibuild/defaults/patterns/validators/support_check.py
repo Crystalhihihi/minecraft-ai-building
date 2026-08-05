@@ -89,6 +89,15 @@ def check(p):
                 # stair slopes rest on the step below-downhill (y-1, -facing)
                 if (x - dx, y - 1, z - dz) in solid:
                     return True
+        # 45-degree knee brace (斜撑): a stair/log sitting on a diagonal
+        # strut is legal when BOTH diagonal ends are connected — one
+        # neighbour up-hill (y+1) and one down-hill (y-1) along the same
+        # horizontal axis. Without this a mid-strut block with air below
+        # and no same-y neighbour is misjudged as floating.
+        if "_stairs" in name or "_log" in name:
+            for dx, dz in ((1, 0), (0, 1)):
+                if (x + dx, y + 1, z + dz) in solid and (x - dx, y - 1, z - dz) in solid:
+                    return True
         return False
 
     floaters = []

@@ -49,6 +49,8 @@ public final class WorkDir {
             "styles/brick_townhouse.json",
             "styles/farm_estate.json",
             "styles/suzhou_garden.json",
+            "styles/chinese_palace.json",
+            "styles/elven_tree.json",
             "patterns/gable_roof.py",
             "patterns/gable_roof.json",
             "patterns/hip_roof.py",
@@ -105,6 +107,27 @@ public final class WorkDir {
             "patterns/plaza.json",
             "patterns/garden_tree.py",
             "patterns/garden_tree.json",
+            "patterns/ellipse.py",
+            "patterns/xieshan_roof.py",
+            "patterns/xieshan_roof.json",
+            "patterns/dougong.py",
+            "patterns/dougong.json",
+            "patterns/round_plan.py",
+            "patterns/round_plan.json",
+            "patterns/altar.py",
+            "patterns/altar.json",
+            "patterns/settlement.py",
+            "patterns/settlement.json",
+            "patterns/scene_load.py",
+            "patterns/scene_load.json",
+            "patterns/facade_depth.py",
+            "patterns/facade_depth.json",
+            "patterns/accent_detailing.py",
+            "patterns/accent_detailing.json",
+            "patterns/timber_structure.py",
+            "patterns/timber_structure.json",
+            "patterns/staircase.py",
+            "patterns/staircase.json",
             "patterns/stair_orientations.md",
             "patterns/INDEX.md",
             "patterns/validators/symmetry_check.py",
@@ -330,17 +353,17 @@ public final class WorkDir {
             `<name>.py` (zero-dependency, runs with plain `python`) plus a
             `<name>.json` parameter card (params, ranges, when_to_use). For
             these elements you MUST run the matching script instead of
-            free-handing the shape:
+            free-handing the shape. FIRST read `patterns/INDEX.md` (the
+            catalogue — every card has a one-line use_for) and pick the
+            cards your build needs. Frequent ones:
 
-            - gable / hip roof          -> gable_roof.py / hip_roof.py
-            - crenellation (castle top) -> crenellation.py
-            - buttress                  -> buttress.py
-            - arched window             -> arch_window.py
-            - road / path segment       -> road_segment.py
-            - building pad / terrace    -> terraform_pad.py
-            - quadruped statue          -> quadruped_statue.py
-            - pilaster / window trim    -> pilaster.py / window_trim.py
-            - mirroring a symmetric half-> mirror_build.py
+            - roofs: gable/hip/gambrel/mansard/helm/xieshan -> *_roof.py; + dormer.py / chimney.py
+            - structure: buttress.py / pilaster.py / timber_structure.py (trusses, brackets)
+            - facade: window_trim.py / arch_window.py / facade_depth.py (base/string/cornice) / accent_detailing.py (ornaments, palette = your style family)
+            - walls: wall_weathering.py (material mixing/aging)
+            - interior: furniture.py / interior_rooms.py
+            - landscape: garden_tree.py / flower_field.py / terrace_farm.py / plaza.py / fountain.py
+            - site: road_segment.py / terraform_pad.py / quadruped_statue.py / mirror_build.py (symmetric halves)
 
             Workflow: read the .json card -> choose params (origin = world
             coords of the element, sizes tuned to your build and the terrain,
@@ -371,9 +394,13 @@ public final class WorkDir {
               — it must exit 0 (no overlap); place only then.
             - FACADE DEPTH: a flat unbroken wall is the #1 "AI look" giveaway.
               Cornices / string courses / window surrounds / pilasters are
-              pattern work too: use pilaster.py and window_trim.py with the
+              pattern work too: run facade_depth.py (base footing / string
+              course / cornice / recess panels — pick the profile your style
+              implies) plus pilaster.py and window_trim.py with the
               `details.depth` values from your style card instead of
-              freehanding (or skipping) them.
+              freehanding (or skipping) them; finish with accent_detailing.py
+              for small ornaments at structural seams (corners / eaves /
+              column bases, groups of 2-3).
             - VALIDATORS: `patterns/validators/` holds deterministic
               self-check scripts (symmetry_check.py, collision_check.py,
               support_check.py). They read the same JSON block files as the
@@ -384,7 +411,13 @@ public final class WorkDir {
               `facing` is the direction it ASCENDS toward — the tall back side
               faces uphill / against the wall, the step faces the walker.
               State each stair row's facing in plan.md; never emit stairs
-              without facing. A top slab `[type=top]` must have a block
+              without facing. Interior staircases (any flight between floors)
+              are pattern work: run `staircase.py` — hand-placed flight
+              stairs are the #1 orientation bug in real builds. LEAVES: any
+              `*_leaves` block you place MUST carry `[persistent=true]` —
+              bare leaf blocks use natural-generation semantics and decay
+              away from logs (observed in real builds: decorative leaves
+              vanish within minutes). A top slab `[type=top]` must have a block
               directly below it (or it renders floating); vertical stacks
               keep y continuous (no skipping). Before placing any script
               output containing slabs, run
@@ -529,14 +562,34 @@ public final class WorkDir {
               and a slow player is normal; NEVER wrap up just because the
               player has not answered yet. Only 跳过 / 随便 / 你定 ends the
               interview early (mark undecided items "AI 定" then).
+            - QUESTION 1 IS ALWAYS THE DEPTH QUESTION: "这轮访谈要多细?"
+              with options [快速(~3问: 只问非问不可的, 其余 AI 定)] /
+              [标准(推荐: 正常弧, 含结构选择)] / [细致(问到满意:
+              结构/材料/细节逐项过)]. Then HONOUR the tier: 快速 = ask only
+              what is genuinely unknowable (style if the description leaves
+              it open, site) + the final confirmation; 标准 = the normal arc
+              below; 细致 = walk the structural decision points one by one,
+              materials and detail preferences included. Depth controls
+              question COUNT, never question quality — even 快速 must end
+              with the final confirmation.
             - Think FIRST about what is genuinely ambiguous: style, size,
               function (who lives/works there), interior level, special
               requests. Do NOT ask about things the description already
               settles — the more specific the request, the fewer you ask.
+            - STRUCTURAL DETAIL questions are what make the interview worth
+              having: once the style is settled, derive 1-3 questions from
+              THAT building type's real decision points — e.g. castle: does
+              the rampart get a walkable wall-walk? are watchtowers pure
+              decoration or connected and climbable? gatehouse / moat?
+              house: balcony / loft / basement? These choices decide whether
+              the result is a shell or a considered structure — an interview
+              that only asks style/size/interior is a FAILED interview for
+              any non-trivial request.
             - Question count is YOUR call (typically 2-6). If the player's
               free-text answer raises NEW ambiguities, ask a follow-up about
               THOSE — keep going until you actually understand the request
-              (hard cap: ~8 questions total).
+              (hard cap: ~8 questions in 标准 tier, ~12 in 细致; 快速 stays
+              at ~3).
             - Recommended question arc: style / function / detail questions
               FIRST; the SIZE question SECOND-TO-LAST (sensible size options
               depend on the chosen style and function — asking size early is
@@ -544,6 +597,13 @@ public final class WorkDir {
               has NO `bounds` (a wand selection means the site is already
               chosen — never ask then). Site options: 玩家附近 / AI 自己选
               (plus 你定 if unsure).
+            - FINAL STEP before writing the brief: ask ONE confirmation
+              question summarizing everything you understood (style / size /
+              function / interior / structural choices / site) with options
+              like [开工] / [我要补充]. Write intake_brief.md and exit ONLY
+              after the player answers that confirmation (跳过/随便/你定
+              counts as confirmation). Ending the interview without it is
+              FORBIDDEN — it is the player's veto against misunderstanding.
             - READ LIGHT: `patterns/INDEX.md` already contains the style menu
               (card name + one-line use_for) — that is ALL you need to compose
               options. Do NOT read every styles/*.json: at most read the ONE
@@ -570,6 +630,7 @@ public final class WorkDir {
             - 体量: <大致 footprint/高度, or "AI 定">
             - 功能: <房间/用途, or "AI 定">
             - 内饰: <全内饰/只主房间/不要内饰, or "AI 定">
+            - 结构: <风格相关的结构选择(如城墙走廊/哨塔连通/阳台/阁楼), or "AI 定">
             - 选址: <玩家附近 / AI 自己选; task.json 已有 bounds 则写 "已圈定选区">
             - 其他: <玩家明确的特殊要求; 无则写 "无">
             ```

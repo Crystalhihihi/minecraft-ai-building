@@ -1,0 +1,26 @@
+{
+  "name": "xieshan_roof",
+  "description": "Chinese hip-and-gable roof (歇山顶): a lower 4-slope hip section whose four corners recede inward (斜肩), then an upper gable section whose two end faces become VERTICAL gable walls (山花). Ridge runs along x; all slope/ridge blocks recede only along z while x stays at full wall width. All stair facing + corner shapes are script-derived (禁止手改方向状态). 东亚通用句法: 四坡收肩+双坡山花适用于东亚大屋顶家族(中式殿堂/日式天守/韩式楼阁), japanese_castle 等后续风格卡可直接引用本卡做收分主体.",
+  "when_to_use": "东亚官式/城楼主屋顶 (chinese_palace / japanese_castle), 需要庄严四坡底+垂直山花顶的过渡屋顶; 大跨横宽(footprint 横向 9-15)主殿首选; 小体量民居可用 gable_roof。origin = 墙 footprint 的西北角, y = 墙顶第一层。hip_height 控制四坡斜肩厚度(越大斜肩越厚), 山花用 end_fill 填充, 空则敞开。japanese_castle 用本卡做各层收分屋顶(减小 width/depth 叠加多层)。",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "墙 footprint 西北角格; y = 屋顶基层(墙顶上一层)"},
+    "width": {"type": "int", "range": "5-31", "default": 9, "notes": "沿 x 的墙跨(屋脊方向); 横向跨度"},
+    "depth": {"type": "int", "range": "5-31", "default": 13, "notes": "沿 z 的墙跨(坡向); 纵向跨度, 决定坡高"},
+    "height": {"type": "int", "range": "0-16", "default": 0, "notes": "0 = 自动45度(由 z 跨推); 显式更大则更缓(已实测生效), 最小为自动45度(更陡不可用stairs)"},
+    "hip_height": {"type": "int", "range": "1-4", "default": 2, "notes": "下段四坡斜肩层数; 2-3 是中式殿堂端庄感, 太大像四坡顶"},
+    "overhang": {"type": "int", "range": "0-2", "default": 1, "notes": "出檐 past 墙线"},
+    "material": {"type": "block id (*_stairs)", "default": "minecraft:deepslate_tile_stairs", "notes": "屋面楼梯; facing 朝屋脊由脚本推导; 中式瓦色用深灰系(deepslate/brick/blackstone)"},
+    "ridge_material": {"type": "block id (*_slab)", "default": "minecraft:deepslate_tile_slab", "notes": "屋脊/封檐半砖; 收脊处用 type=top(脚本推导)"},
+    "ridge_support": {"type": "block id", "default": "minecraft:deepslate_tiles", "notes": "屋脊下实芯梁(禁止悬空半砖脊)"},
+    "end_fill": {"type": "block id|\"\"", "default": "minecraft:deepslate_tiles", "notes": "山花(垂直山墙)填充料; 空=敞开山花"}
+  },
+  "pitfalls": [
+    "x 方向不能收分 — 歇山只沿 z 收, x 保持全宽, 否则侧面塌成一线不是歇山",
+    "斜肩高度(hip_height)别超过屋高一半 — 过大就从歇山退化成正四坡顶, 过小(1)没有收肩感",
+    "山墙必须用实芯 fill 落地, 别留悬空 — 山花从坡面升起处要压在坡面上",
+    "屋脊实芯梁 + 半砖收顶是必须 — 空心脊在验收 support_check 一定翻车",
+    "坡面朝向一律朝屋脊(北坡 facing south 南坡 facing north), 脚本已推导, 手改=漏水"
+  ],
+  "validators": ["support_check", "slab_check", "stair_corner_check"],
+  "example": "python patterns/xieshan_roof.py --params '{\"origin\":[100,80,100],\"width\":9,\"depth\":13,\"hip_height\":2,\"material\":\"minecraft:deepslate_tile_stairs\",\"end_fill\":\"minecraft:deepslate_tiles\"}' --out roof.json"
+}

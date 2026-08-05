@@ -1,0 +1,21 @@
+{
+  "name": "scene_load",
+  "description": "Multi-paradigm settlement scene loader (聚落加载): consumes a scene plan (settlement.py) and rebuilds blocks. PATTERN entries (roads/paths/plaza/altar/tree/flower) run their generator. STYLE entries (building cards, no generator) get a deterministic PLACEHOLDER building (box + gable roof) so the settlement has full geometry, while the real card reference stays in `pending`. Optional post-processing (borrowed from emreulsy procedural village gen): terrain adaptation (lift each piece onto a heightmap surface + cobblestone foundation pad on uneven ground) and collision avoidance (skip pieces overlapping placed blocks, record in pending). Deterministic: same scene + same terrain = same blocks.",
+  "when_to_use": "把 settlement.py 产出的 scene 计划重建为完整方块 (道路/广场/祭坛/树/花 + 占位建筑); 可给 `terrain` 高度图做地形适配, 给 `collision` 开碰撞避免。style 卡地块生成占位建筑(可预览), 真实建筑由 LLM 按卡替换。",
+  "params": {
+    "scene": {"type": "file", "default": "settlement.json", "notes": "scene 计划文件路径"},
+    "out": {"type": "file", "default": "scene_blocks.json", "notes": "输出方块 JSON 路径"},
+    "terrain": {"type": "file|null", "default": "null", "notes": "高度图文件(heights 2D 或 cells 稀疏); 给则垫到地表+地基"},
+    "collision": {"type": "bool", "default": "false", "notes": "true=跳过与已建块重叠的构件, 记 pending(collision)"},
+    "pad_material": {"type": "block id", "default": "minecraft:cobblestone", "notes": "不平整地形的地基垫层方块"}
+  },
+  "pitfalls": [
+    "占位建筑只是预览 — 真实风格建筑由 LLM 按卡替换, 替换时先清掉占位块",
+    "terrain 高度图格式: {\"heights\":[[..]],\"base_y\":N} 或 {\"cells\":{\"x,z\":h}}; 不认格式会静默不用地形",
+    "collision 开时重叠构件被跳过 — 该构件进 pending(collision), 不是 bug 是设计",
+    "道路交叉口同格铺两次会去重(保留第一个) — 正常, 不是错误",
+    "pattern 构件依赖对应 .py 在同目录 — 缺生成器该构件进 pending(generator_error)"
+  ],
+  "validators": [],
+  "example": "python patterns/settlement.py --params '{\"rows\":2,\"cols\":2,\"mode\":\"grid\",\"centerpiece\":\"altar\"}' --out town.json && python patterns/scene_load.py --params '{\"scene\":\"town.json\",\"collision\":true}' --out town_blocks.json  (地形适配需另备高度图: terrain 参数指向 verify sample 产的 hmap.json, 文件缺失会报错, 不给 terrain 则平地重建)"
+}

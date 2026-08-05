@@ -116,6 +116,12 @@ public final class AgentCommands {
             src.sendFailure(Component.literal("[aibuild] " + e.getMessage()));
             return 0;
         }
+        if (bounds != null) {
+            // Selections are one-shot: consume on use so a stale wand selection
+            // never silently binds the next build to an old site.
+            selections.clear(ownerOf(src));
+            note += " (selection consumed; re-select for the next build)";
+        }
         String finalNote = note;
         src.sendSuccess(() -> Component.literal("[aibuild] " + finalNote), false);
         return 1;

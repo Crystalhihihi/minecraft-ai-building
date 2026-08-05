@@ -1,21 +1,25 @@
 {
   "name": "garden_tree",
-  "description": "Handcrafted landscape tree (景观树) with 4 species silhouettes x 3 sizes, fully deterministic (same params = same tree). Oak: branched round crown, branches climb as face-connected staircases with tip blobs, large gets 2x2 trunk + buttress roots. Birch: tall slim trunk + elongated canopy + side tufts. Cherry: low fork, two slanted stems, wide flat airy pink canopy. Spruce: conical tapering tiers with cut corners. Canopies are carved ellipsoid blobs — never vanilla solid balls. Exists to end the 'sapling-grown random tree' look in designed landscapes.",
-  "when_to_use": "Park/plaza/garden/avenue trees where the silhouette must be DESIGNED, not random. origin = trunk base cell (min corner of the trunk), y = ground layer the trunk stands on. Use small for courtyards, medium for streets/gardens, large for park landmarks. For an avenue, repeat with the same species+size along a road_segment.",
-  "use_for": "公园/广场/庭园/行道树;oak=通用庭荫树,birch=纤秀节点树,cherry=春日花树(中式/日式园),spruce=锥形背景树/雪地",
+  "description": "Handcrafted landscape tree (景观树) with 4 species silhouettes x 3 sizes, fully deterministic (same params = same tree). Oak: branched round crown, branches climb as face-connected staircases with tip blobs, large gets 2x2 trunk + buttress roots. Birch: tall slim trunk + elongated canopy + side tufts. Cherry: low fork, two slanted stems, wide flat airy pink canopy. Spruce: conical tapering tiers with cut corners. Canopies are carved ellipsoid blobs — never vanilla solid balls. Upgrade params (defaults = legacy behavior): branching=2/3 forks each branch tip into two child staircases (2-3 levels); taper slims trunk/branch tips log->fence->slab cap; variant=willow drapes leaf strands from the crown rim, variant=buttress_root flares stepped roots around the base. Upgrade-mode trees self-prune any leaf not face-connected to the skeleton.",
+  "when_to_use": "Park/plaza/garden/avenue trees where the silhouette must be DESIGNED, not random. origin = trunk base cell (min corner of the trunk), y = ground layer the trunk stands on. Use small for courtyards, medium for streets/gardens, large for park landmarks. For an avenue, repeat with the same species+size along a road_segment. branching/taper/variant add close-up craftsmanship for hero trees (入口/地标); plain rows keep the defaults.",
+  "use_for": "公园/广场/庭园/行道树;oak=通用庭荫树,birch=纤秀节点树,cherry=春日花树(中式/日式园),spruce=锥形背景树/雪地;branching=3+taper=近景古树,willow=湖畔垂枝,buttress_root=热带板根",
   "params": {
     "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "树干基部格(2x2 粗干时为最小角);y = 地面层"},
     "species": {"type": "enum", "values": ["oak", "birch", "cherry", "spruce"], "default": "oak", "notes": "橡木圆冠/白桦瘦高/樱花宽冠/云杉锥形"},
-    "size": {"type": "enum", "values": ["small", "medium", "large"], "default": "medium", "notes": "体量;oak large 自动 2x2 干+板根"}
+    "size": {"type": "enum", "values": ["small", "medium", "large"], "default": "medium", "notes": "体量;oak large 自动 2x2 干+板根"},
+    "branching": {"type": "int", "values": [0, 2, 3], "default": 0, "notes": "分枝级数;0=现有贴面阶梯,2/3=枝端再分叉成 2 条子枝(递归);仅 oak/cherry 有枝可分叉,birch/spruce 无侧枝是物种特征"},
+    "taper": {"type": "bool", "default": false, "notes": "锥度收细:干上 1/3 换 fence、细干顶端加 slab 盖;每段枝后半换 fence"},
+    "variant": {"type": "enum", "values": ["none", "willow", "buttress_root"], "default": "none", "notes": "willow=冠缘垂下叶绦(spruce 不适用,保持干净锥形);buttress_root=基部四向阶梯板根(内格外翘一格,外格落地)"}
   },
   "pitfalls": [
     "树形完全由 origin 哈希定:同一参数同一棵树,想要'另一棵同种树'就挪一格 origin,不要手改输出",
     "枝干是贴面阶梯(横一格竖一格),验收器不会报悬空;别为'顺滑'手删阶梯里的竖格,删了就真悬空",
     "叶团表面有哈希镂空,是手工树的'呼吸感',不是缺块;镂空率按树种调好(cherry 最疏),别补成实心球",
-    " birch/spruce 没有侧枝是物种特征;birch 的秀气靠瘦干+侧叶团,别给它加 oak 的分枝逻辑",
+    "birch/spruce 没有侧枝是物种特征,branching 对它们无效;birch 的秀气靠瘦干+侧叶团,别给它加 oak 的分枝逻辑",
     "树冠半径最大 4:要更大的'古木'就种 2-3 棵 large 挨近,别指望单棵树盖 10 格",
-    "树干落地那格 y 必须是地表;种在半空或埋干都是 origin 没对地形(先 terraform_pad)"
+    "树干落地那格 y 必须是地表;种在半空或埋干都是 origin 没对地形(先 terraform_pad)",
+    "taper 的 fence 段是收细不是镂空,别在 fence 段之间塞回 log;oak large 的 2x2 粗干 taper 只换 fence 不加 slab 盖(粗干没有'尖顶')"
   ],
   "validators": ["support_check"],
-  "example": "python patterns/garden_tree.py --params '{\"origin\":[100,64,100],\"species\":\"cherry\",\"size\":\"large\"}' --out tree.json && python patterns/garden_tree.py --params '{\"origin\":[120,64,100],\"species\":\"oak\",\"size\":\"large\"}' --out tree2.json"
+  "example": "python patterns/garden_tree.py --params '{\"origin\":[100,64,100],\"species\":\"cherry\",\"size\":\"large\"}' --out tree.json && python patterns/garden_tree.py --params '{\"origin\":[120,64,100],\"species\":\"oak\",\"size\":\"large\",\"branching\":3,\"taper\":true,\"variant\":\"buttress_root\"}' --out tree2.json"
 }

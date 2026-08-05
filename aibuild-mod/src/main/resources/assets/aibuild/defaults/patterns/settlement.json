@@ -1,0 +1,31 @@
+{
+  "name": "settlement",
+  "description": "Multi-paradigm settlement layout planner (聚落布局): produces a SCENE PLAN (JSON, not blocks) — building lots + road/path network + optional center node (plaza/altar). Four layout modes: grid (orthogonal roads, urban/classical), radial (concentric plaza rings + spoke lots, medieval city), organic (jittered winding roads, countryside), park (tiered path rings + planted trees/flowers + central altar). LLM chooses the layout mode + which cards fill the lots; the planner places them and emits a savable scene. Deterministic from seed. Consumed by scene_load.py.",
+  "when_to_use": "生成建筑群/村庄/公园的空间计划 (而非单栋); 多风格卡按布局范式组合。origin = 聚落西北角/中心, y = 地面层。先定路网与地块, 再分配建筑卡。mode 选 grid/radial/organic/park。产出 scene 可保存复现 (见 调研/scene-format.md)。",
+  "params": {
+    "scene_id": {"type": "string", "default": "settlement", "notes": "场景名, 用于保存/归档"},
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "聚落西北角格(grid/organic)或中心(radial/park); y = 地面层"},
+    "mode": {"type": "enum", "values": ["grid", "radial", "organic", "park"], "default": "grid", "notes": "布局范式: 正交/辐射/有机/公园"},
+    "rows": {"type": "int", "range": "1-8", "default": 3, "notes": "地块行数 (grid/organic)"},
+    "cols": {"type": "int", "range": "1-8", "default": 3, "notes": "地块列数 (grid/organic)"},
+    "cell": {"type": "int", "range": "3-16", "default": 8, "notes": "地块宽(格) (grid/organic/radial间距参考)"},
+    "road_width": {"type": "int", "range": "1-4", "default": 2, "notes": "路/小径宽"},
+    "rings": {"type": "int", "range": "2-6", "default": 3, "notes": "环数 (radial/park)"},
+    "size": {"type": "int", "range": "10-32", "default": 16, "notes": "公园外径 (park)"},
+    "lots": {"type": "[[card,facing],...]", "default": "[]", "notes": "每地块建筑卡+朝向; 空则自动"},
+    "default_card": {"type": "style_id", "default": "medieval_house", "notes": "未指定地块的默认建筑卡"},
+    "centerpiece": {"type": "enum", "values": ["none", "plaza", "altar"], "default": "plaza", "notes": "中心节点: 无/广场/大祭坛"},
+    "center_card": {"type": "pattern", "default": "plaza", "notes": "广场中心用的模式卡"},
+    "altar_params": {"type": "object", "default": "{}", "notes": "祭坛额外参数(size/tiers/top等)"},
+    "park_building": {"type": "style_id", "default": "=default_card", "notes": "park 外环建筑卡(如 chinese_palace); 中环保持树/花"},
+    "seed": {"type": "int", "default": 0, "notes": "确定性种子; 同 seed 同布局"}
+  },
+  "pitfalls": [
+    "scene 是计划不是方块 — 别当 set_blocks 用, 要方块走 scene_load.py",
+    "地块尺寸(cell)必须能放下建筑 — 过小建筑越界, 参照卡内 typical_footprint",
+    "风格卡无生成器 — scene_load 会生成占位建筑, 真实建筑由 LLM 按卡替换(pending)",
+    "要改布局重跑 settlement 改参数, 别手改 scene — 保持确定性"
+  ],
+  "validators": [],
+  "example": "python patterns/settlement.py --params '{\"rows\":3,\"cols\":3,\"cell\":8,\"mode\":\"grid\",\"centerpiece\":\"altar\"}' --out town.json && python patterns/settlement.py --params '{\"mode\":\"park\",\"size\":20}' --out park.json"
+}

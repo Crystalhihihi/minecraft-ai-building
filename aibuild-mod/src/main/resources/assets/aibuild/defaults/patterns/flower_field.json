@@ -1,30 +1,34 @@
 {
   "name": "flower_field",
-  "description": "Parametric flower field / bedding (花海/花境): ground layer (grass, dirt-path lanes optional) + flowers at y+1 with deterministic per-column hash. Color schemes: single (单色), stripes (条带, band_width rows per color), gradient (渐变, palette sweeps the width), meadow (混色撒点). density controls coverage; edge_fade thins the border band so the field feathers out (边缘收束) instead of ending hard; tall flowers (sunflower/lilac/rose_bush/peony) emit both halves.",
-  "when_to_use": "Park flower beds, meadow drifts around builds, roadside ribbon planting, garden color blocks. origin = min corner, y = the GROUND layer (the script lays its own grass/path ground at y and flowers at y+1 — place y on top of the terrain surface or run terraform_pad first). For small formal beds use scheme=single/stripes with edge_fade=0; for wild meadows use meadow + gap_fill=grass.",
-  "use_for": "公园花坛/路边花带/郊野花海/庭院色块;条带花境(stripes)、渐变花坡(gradient)、野花草甸(meadow)",
+  "description": "Parametric flower field / bedding (花海/花境): ground layer (grass, dirt-path lanes optional) + flowers at y+1 with deterministic per-column hash. Color schemes: single (单色), stripes (条带, band_width rows per color), gradient (渐变, palette sweeps the width), meadow (混色撒点). density controls coverage; edge_fade thins the border band so the field feathers out (边缘收束) instead of ending hard; tall flowers (sunflower/lilac/rose_bush/peony) emit both halves. Upgrade params (defaults = legacy behavior): undergrowth=true switches to the 地被三层法 — each column is hashed into flower / grass tuft (20% tall_grass) / fern / empty layers by the companion ratio (花:草:蕨:空, density still scales total cover); scatter>0 drops cobblestone stones and fallen-oak-log deadwood (散置石/枯木) on columns that stayed empty.",
+  "when_to_use": "Park flower beds, meadow drifts around builds, roadside ribbon planting, garden color blocks. origin = min corner, y = the GROUND layer (the script lays its own grass/path ground at y and flowers at y+1 — place y on top of the terrain surface or run terraform_pad first). For small formal beds use scheme=single/stripes with edge_fade=0; for wild meadows use meadow + undergrowth + a touch of scatter; gap_fill=grass remains the legacy soft-fill path.",
+  "use_for": "公园花坛/路边花带/郊野花海/庭院色块;条带花境(stripes)、渐变花坡(gradient)、野花草甸(meadow+undergrowth+scatter)",
   "params": {
     "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "最小角;y = 地面层(花在 y+1)"},
     "width": {"type": "int", "range": "4-32", "default": 12, "notes": "沿 x"},
     "depth": {"type": "int", "range": "4-32", "default": 12, "notes": "沿 z"},
     "scheme": {"type": "enum", "values": ["single", "stripes", "gradient", "meadow"], "default": "meadow", "notes": "单色/条带/渐变/混色撒点"},
     "flowers": {"type": "[flower id...]", "default": ["minecraft:poppy", "minecraft:dandelion", "minecraft:cornflower", "minecraft:azure_bluet"], "notes": "调色板,顺序即条带/渐变顺序;暖色组 poppy+red_tulip+orange_tulip,粉白组 pink_tulip+white_tulip+oxeye_daisy+azure_bluet"},
-    "density": {"type": "float", "range": "0.1-1.0", "default": 0.6, "notes": "覆盖率;花坛 0.8-1.0,野花草甸 0.4-0.6"},
+    "density": {"type": "float", "range": "0.1-1.0", "default": 0.6, "notes": "覆盖率;花坛 0.8-1.0,野花草甸 0.4-0.6;undergrowth 模式下缩放整体覆盖"},
     "band_width": {"type": "int", "range": "1-4", "default": 2, "notes": "stripes 每条行数"},
     "path": {"type": "enum", "values": ["none", "cross", "grid"], "default": "none", "notes": "小径穿插:cross=十字穿心,grid=每 4 格一条"},
     "edge_fade": {"type": "int", "range": "0-3", "default": 1, "notes": "边缘收束带宽度,带内密度 x0.25;规整花坛设 0"},
     "ground_material": {"type": "block id", "default": "minecraft:grass_block", "notes": "地面;花盆栽床可用 podzol/coarse_dirt"},
     "path_material": {"type": "block id", "default": "minecraft:dirt_path", "notes": "小径"},
-    "gap_fill": {"type": "enum", "values": ["grass", "none"], "default": "grass", "notes": "空格补 short_grass(草甸感)还是留空(规整花坛)"}
+    "gap_fill": {"type": "enum", "values": ["grass", "none"], "default": "grass", "notes": "空格补 short_grass(草甸感)还是留空(规整花坛);undergrowth=true 时由 companion 的空层接管"},
+    "undergrowth": {"type": "bool", "default": false, "notes": "地被三层法:花层/草丛层(20% tall_grass)/蕨层/空层,每格按 companion 比例哈希归类"},
+    "companion": {"type": "string 花:草:蕨:空", "default": "6:3:1:0", "notes": "四层比例,非负整数,仅 undergrowth=true 生效;花坛 8:2:0:0,草甸 5:3:1:1,蕨阴角落 2:2:4:2"},
+    "scatter": {"type": "float", "range": "0-0.5", "default": 0.0, "notes": "散置密度:空格子上落鹅卵石/倒伏枯木(oak_log 横放);草甸 0.05-0.15,规整花坛保持 0"}
   },
   "pitfalls": [
     "花在 y+1,地面在 y:origin 的 y 必须落在地表,垫高了整片花悬空,埋低了花被土吞",
     "高花(sunflower/lilac/rose_bush/peony)是两格方块,脚本自动补上半;别把高花配进低矮镶边(压在树下/屋檐下会穿模)",
-    "density 1.0 + gap_fill=none 是纯花地毯,近看呆板;草甸务必 0.4-0.6 + gap_fill=grass",
+    "density 1.0 + gap_fill=none 是纯花地毯,近看呆板;草甸用 undergrowth+companion 5:3:1:1,或老路 0.4-0.6 + gap_fill=grass",
     "渐变/条带方向固定(gradient 沿 x 扫色,stripes 沿 z 成行);想换方向就换 origin/width/depth 的朝向,不要手改输出",
     "path 格子不种花且地面换 path_material;cross 在偶数宽度时偏左半格,属于正常",
-    "别混用超过 5 种花——GrabCraft 语料里好看的公园花坛都是 2-4 种成组"
+    "别混用超过 5 种花——GrabCraft 语料里好看的公园花坛都是 2-4 种成组",
+    "scatter 只落在空格上,不会顶掉花/草/蕨;枯木是横放 oak_log,别配进温室/室内花坛"
   ],
   "validators": ["support_check"],
-  "example": "python patterns/flower_field.py --params '{\"origin\":[100,64,100],\"width\":16,\"depth\":12,\"scheme\":\"stripes\",\"flowers\":[\"minecraft:red_tulip\",\"minecraft:orange_tulip\",\"minecraft:white_tulip\"],\"path\":\"cross\"}' --out field.json && python patterns/flower_field.py --params '{\"origin\":[140,64,100],\"width\":20,\"depth\":20,\"scheme\":\"meadow\",\"density\":0.5,\"edge_fade\":2}' --out meadow.json"
+  "example": "python patterns/flower_field.py --params '{\"origin\":[100,64,100],\"width\":16,\"depth\":12,\"scheme\":\"stripes\",\"flowers\":[\"minecraft:red_tulip\",\"minecraft:orange_tulip\",\"minecraft:white_tulip\"],\"path\":\"cross\"}' --out field.json && python patterns/flower_field.py --params '{\"origin\":[140,64,100],\"width\":20,\"depth\":20,\"scheme\":\"meadow\",\"undergrowth\":true,\"companion\":\"5:3:1:1\",\"scatter\":0.1,\"edge_fade\":2}' --out meadow.json"
 }

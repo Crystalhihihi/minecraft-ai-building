@@ -776,7 +776,16 @@ public final class AgentSessionManager {
             }
             s.status = AgentSession.Status.RUNNING;
             promoteSharedStyles(s); // interviewer-authored draft cards → shared library
-            BlockPos anchor = s.anchor != null ? s.anchor : server.overworld().getRespawnData().pos();
+            // 访谈可能聊了许久——s.anchor 是 /aibuild 那一刻的旧位置;选址说"玩家附近"
+            // 时锚的应是此刻的玩家。无在线玩家(RCON)时退回原锚点/出生点。
+            BlockPos anchor = s.anchor;
+            var online = server.getPlayerList().getPlayers();
+            if (!online.isEmpty()) {
+                anchor = online.get(0).blockPosition();
+            }
+            if (anchor == null) {
+                anchor = server.overworld().getRespawnData().pos();
+            }
             broadcast("[aibuild] #" + s.no() + " 访谈完成,建造 agent 开工");
             launch(s, anchor, s.gate().currentBounds());
         } catch (IOException | RuntimeException e) {

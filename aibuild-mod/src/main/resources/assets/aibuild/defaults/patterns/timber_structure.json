@@ -1,0 +1,15 @@
+{
+  "name": "timber_structure",
+  "description": "Exposed timber frame (木构梁架): three truss syntaxes (简支 truss_simple / 带立柱 truss_kingpost / 简化锤梁 truss_hammerbeam), corbel 托臂, and 45-degree knee brace 斜撑. Includes beam-end taper (梁端收分), post-beam bolster pads (梁柱交接垫块), and purlins spaced for the exposed-truss rhythm (stats-calibrated spacing 2-5).",
+  "when_to_use": "Timber-framed styles (medieval_house / sakura_japanese / chinese_palace) when roof trusses, eave brackets, or post-beam braces should show. Trusses: run once per truss position, `spacing` apart along the ridge run; origin = left wall-head at wall-TOP layer. corbel/brace: origin = the attach column base on the wall face, facing = outward from the wall. All log-axis/stair states are script-derived — never hand-edit them in the output (禁止手改方向状态).",
+  "params": {
+    "kind": {"type": "\"truss_simple\"|\"truss_kingpost\"|\"truss_hammerbeam\"|\"corbel\"|\"brace\"", "default": "truss_simple", "notes": "truss = full A-frame; kingpost adds center post+bolsters; hammerbeam drops the tie beam mid-span; corbel = stacked eave bracket; brace = 45-deg knee brace"},
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "truss: left wall-head at wall top; corbel/brace: wall-face attach column base"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "truss: gable-end direction (span rotates with it); corbel/brace: outward from the wall"},
+    "span": {"type": "int", "range": "3-15 truss | 2-4 corbel/brace", "default": 7, "notes": "tie-beam length; for corbel = projection courses, brace = reach"},
+    "spacing": {"type": "int", "range": "2-5", "default": 4, "notes": "trusses only: purlin length toward the next truss; GrabCraft stats 柱距 2格35%/3格15%/4格35%"},
+    "material": {"type": "block id", "default": "minecraft:spruce_log", "notes": "any *_log (stripped ok); matching *_stairs are derived automatically"}
+  },
+  "validators": ["support_check", "slab_check"],
+  "example": "python patterns/timber_structure.py --params '{\"origin\":[100,80,100],\"kind\":\"truss_kingpost\",\"facing\":\"east\",\"span\":7,\"spacing\":4,\"material\":\"minecraft:dark_oak_log\"}' --out timber.json"
+}

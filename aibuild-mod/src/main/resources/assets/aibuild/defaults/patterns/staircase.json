@@ -1,0 +1,17 @@
+{
+  "name": "staircase",
+  "description": "Indoor staircase (室内楼梯) with derived stair orientation: straight / L (转角带平台) / U (双跑折返带平台). facing = 上行方向 (the iron rule: stair facing = uphill/high side), all half=bottom, landings are solid full blocks (整砖平台, no slab seams), last step flush with the upper floor plate.",
+  "when_to_use": "Any interior floor-to-floor connection. Motivation: hand-placed interior stairs are the #1 orientation failure in real builds (实测: AI 手摆室内楼梯朝向必翻车) — always run this generator instead of placing stairs by hand. origin = 底层第一级踏步格 (y = 底层地板行走面, its block sits on the floor at y-1); the script guarantees the top step surface lands exactly on 上楼板面 (origin.y+floors). DIRECTION STATES ARE DERIVED — never hand-edit facing in the output; change params and re-run (禁止手改方向状态).",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "底层第一级踏步所在格; y = 底层地板行走面高度 (地板方块在 y-1)"},
+    "facing": {"type": "north|south|east|west", "default": "north", "notes": "上行方向; 每级踏步 stair 的 facing 都由它推导 (facing=高侧/上行)"},
+    "shape": {"type": "straight|l|u", "default": "straight", "notes": "straight=直跑; l=90°转角带 W×W 整砖平台 (固定向左转, 用 origin/facing 选位); u=180°折返带 1×2W 整砖平台"},
+    "width": {"type": "int", "range": "1-2", "default": 1, "notes": "并排踏步数, 向 facing 右手边展开"},
+    "floors": {"type": "int", "range": "2-8", "default": 4, "notes": "爬升总高(格) = 层净高+1 (到楼板面); 层高3 -> 4, 层高4 -> 5; 每步升1格, 踏步数=floors"},
+    "material": {"type": "block id", "default": "minecraft:oak_stairs", "notes": "any minecraft:*_stairs; 平台/梯腹填实自动推导同系整砖 (木-> planks, stone_brick-> stone_bricks ...)"},
+    "railing": {"type": "none|fence|wall", "default": "none", "notes": "扶手: 梯段外缘与踏步同高的 fence/wall (贴邻踏步); 平台边缘不装 (室内平台靠墙)"},
+    "railing_material": {"type": "block id|\"\"", "default": "", "notes": "空=自动推导 (木-> 同种 fence, 石-> 同种 wall, 无对应 wall 时 fallback cobblestone_wall/iron_bars)"},
+    "underside": {"type": "bool", "default": true, "notes": "true=梯腹填实到地面; false=踏步下留空做储物 (踏步逐级互承, L/U 平台柱仍填实, 不悬空)"}
+  },
+  "example": "python patterns/staircase.py --params '{\"origin\":[100,64,100],\"facing\":\"north\",\"shape\":\"l\",\"width\":2,\"floors\":4,\"material\":\"minecraft:spruce_stairs\",\"railing\":\"fence\"}' --out stairs.json"
+}
