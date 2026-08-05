@@ -56,6 +56,18 @@
 - render 背景加天空/地面(GL 渲染现在是黑底)
 - 选区杖自定义贴图(现为木棍外观)
 
+## B9. 安全(外部工具链彻查发现,2026-08-05)
+
+- **bridge 任意文件读取洞(外部 agent 声称,待核实)**:其变更清单点名"set_blocks_from_file 一类端点可读写任意路径";项目侧未修。重开方式:grep BridgeHttpServer 端点表,凡带文件路径参数的端点全部校验路径必须落在世界 aibuild/ 目录内
+- **RCON 弱密码常开**:`aibuild-mod/run/server.properties` enable-rcon=true 且 rcon.password=aibuild;外部工具脚本(验证/bridge.py)含同款密码明文。开发服务端专用、本机使用风险可控,但若绑非 127.0.0.1 或仓库外传,立即收口(改密码或关 RCON)
+- **bridge.json token 明文落盘**:`<世界>/aibuild/bridge.json` 含 master+全部 session token;mod 只绑 127.0.0.1,本地任意进程可读——接受现状,但别再把它复制进外部目录
+
+## B10. 外部产地形引擎(D:\建筑资产\terrain/,2026-08-05 彻查完毕)
+
+- 判决:**salvageable,但非主线**。根因=高度图采样把树叶/花草当地表(verify.py probe 首个非空气即地表)+ 楼梯 facing 只看走向不比较高低侧(违反 stair_orientations.md facing=高侧)+ selfcheck 在合成地形上循环论证
+- 最小修复 4 步:①采样改实心方块白名单 ②楼梯 facing 比较两侧高度取高侧 ③路/广场块下补支撑(抄 terraform_pad 向下 3 格+过渡带) ④自检改跑真实 hmap+断言 facing=高侧
+- 重开前提:用户明确要做聚落/路网时;修复后必须真实灌入逐段验证,不信本地自检
+
 ## B7. worker 会话缺 ReadMediaFile(E6 发现,2026-07-31)
 
 - **现象**:mod 派生的 worker 会话(kimi -p ... --output-format stream-json)工具集里没有 ReadMediaFile;explore/coder 子代理同样没有;模型本身多模态正常(MCP 返回的渲染图可见,渲染自检不受影响)。E6 对照组 agent 只能靠 PIL 像素分析+装 playwright chrome 绕道看图
