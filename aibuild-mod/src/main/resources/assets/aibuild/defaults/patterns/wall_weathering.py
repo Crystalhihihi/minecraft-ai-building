@@ -18,6 +18,10 @@ material slab — the four build-circle techniques, all parameterized:
    (course_material; *_log axis derived from the wall direction — 禁止手填).
 4. 藤蔓做旧 (aging): vine_pct probability per column of a vine strip
    hanging down the front face (vine face state derived from `facing`).
+5. 修补痕迹 (patch): patch_pct > 0 replaces 1-2 small rectangles wholesale
+   with patch_material (木补砖墙类; "" = auto: 预设基座主材 — 同风格族异材).
+   Default 0 = off, and the patch pass then draws ZERO rng — old callers'
+   output is byte-identical (向后兼容).
 
 Conventions: origin = bottom-LEFT cell of the facade (seen from outside),
 y = base layer; facing = the outward normal. u runs along the wall to the
@@ -106,6 +110,8 @@ DEFAULTS = {
     "course_rows": [],             # y-offsets of string-course rows (beam rows)
     "course_material": "minecraft:spruce_log",  # *_log -> axis derived from wall direction
     "vine_pct": 10,                # 0-50, per-column chance of a hanging vine strip
+    "patch_pct": 0,                # 0-30, % of facade area patched with a different material (0=off)
+    "patch_material": "",          # "" = auto: preset base_palette primary (同族异材)
     "seed": 7
 }
 
@@ -179,6 +185,24 @@ def build(p):
                 factor = (1.0 - v / max(1, height - 1)) if gradient else 1.0
                 cells[(u, v)] = pick(rng, pal, factor)
 
+    # repair patches: 1-2 small rectangles wholly swapped to a repair material
+    # (修补痕迹). Runs only when patch_pct > 0 — zero rng draws when off, so
+    # legacy callers keep byte-identical output.
+    patch_pct = float(p["patch_pct"])
+    if patch_pct > 0:
+        pmat = str(p["patch_material"]) or base_palette[0][0]
+        n_patch = 1 if rng.random() < 0.5 else 2
+        target_each = max(2, width * height * patch_pct / 100.0 / n_patch)
+        for _ in range(n_patch):
+            pw = max(1, min(4, round(target_each ** 0.5 * 1.3)))
+            ph = max(1, min(3, round(target_each / pw)))
+            pw, ph = min(pw, width), min(ph, height)
+            u0 = rng.randint(0, width - pw)
+            v0 = rng.randint(0, height - ph)
+            for u in range(u0, u0 + pw):
+                for v in range(v0, v0 + ph):
+                    cells[(u, v)] = pmat
+
     # aging: vine strips hanging down the front face (whitelisted for support)
     for u in range(width):
         if rng.random() * 100 >= vine_pct:
@@ -221,6 +245,11 @@ def validate(p):
                 {"course_rows": "ints in 0..%d" % (height - 1)})
     if not 0 <= float(p["vine_pct"]) <= 50:
         die("vine_pct out of range", {"vine_pct": "0-50"})
+    if not 0 <= float(p["patch_pct"]) <= 30:
+        die("patch_pct out of range", {"patch_pct": "0-30 (0=off)"})
+    pm = str(p["patch_material"])
+    if pm and not pm.startswith("minecraft:"):
+        die("patch_material must be a minecraft: block id", {"patch_material": "minecraft:oak_planks"})
     if len(p["origin"]) != 3:
         die("origin must be [x,y,z]", {"origin": "[100,64,100]"})
 

@@ -72,5 +72,46 @@
     "外露光源 — 火把灯笼上墙是现代风灾难,用藏光",
     "内部空壳 — 白墙+空房间=毛坯房,interior_rooms 必须跟"
   ],
+  "lottery": {
+    "axes": {
+      "roof_type": {"options": [
+        {"id": "flat_parapet", "weight": 70, "source": "prior"},
+        {"id": "single_slope", "weight": 20, "source": "prior"},
+        {"id": "butterfly", "weight": 10, "source": "prior"}
+      ]},
+      "massing": {"options": [
+        {"id": "l_shaped", "weight": 45, "source": "prior"},
+        {"id": "staggered_boxes", "weight": 35, "source": "prior"},
+        {"id": "single_box", "weight": 20, "source": "prior"}
+      ]},
+      "primary_palette": {"options": [
+        {"id": "white_concrete_dominant", "weight": 60, "source": "gc:modern-houses:n=297"},
+        {"id": "quartz_dominant", "weight": 25, "source": "gc:modern-houses:n=297"},
+        {"id": "gray_dominant", "weight": 15, "source": "prior"}
+      ]},
+      "accent_wood": {"options": [
+        {"id": "birch_planks", "weight": 45, "source": "gc:modern-houses:n=297"},
+        {"id": "oak_planks", "weight": 35, "source": "gc:modern-houses:n=297"},
+        {"id": "dark_oak_planks", "weight": 20, "source": "prior"}
+      ]},
+      "window_system": {"options": [
+        {"id": "ribbon", "weight": 55, "source": "prior"},
+        {"id": "full_glazing", "weight": 45, "source": "prior"}
+      ]},
+      "balcony": {"options": [
+        {"id": "balcony_cantilever", "weight": 50, "source": "prior"},
+        {"id": "none", "weight": 50, "source": "prior"}
+      ]},
+      "base": {"options": [
+        {"id": "raised_1", "weight": 55, "source": "prior"},
+        {"id": "pilotis", "weight": 25, "source": "prior"},
+        {"id": "flush", "weight": 20, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"roof_type": "flat_parapet"}, "then": {"terrace_railing": true}},
+      {"if": {"massing": "single_box"}, "then": {"contrast_palettes_min": 2}}
+    ]
+  },
   "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
 }

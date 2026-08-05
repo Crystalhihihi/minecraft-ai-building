@@ -77,5 +77,40 @@
     "叶团实心球 — 树冠要镂空留缝,实心绿叶球一眼假(garden_tree 规则)",
     "无入口平台 — 梯子顶墙进出,功能和观感双输"
   ],
+  "lottery": {
+    "axes": {
+      "trunk_species": {"options": [
+        {"id": "jungle_log", "weight": 50, "source": "gc:tree-houses:n=26"},
+        {"id": "oak_log", "weight": 40, "source": "gc:tree-houses:n=26"},
+        {"id": "spruce_log", "weight": 10, "source": "gc:tree-houses:n=26"}
+      ]},
+      "wall_planks": {"options": [
+        {"id": "oak_planks", "weight": 50, "source": "gc:tree-houses:n=26"},
+        {"id": "jungle_planks", "weight": 40, "source": "gc:tree-houses:n=26"},
+        {"id": "spruce_planks", "weight": 10, "source": "prior"}
+      ]},
+      "layout": {"options": [
+        {"id": "single_hut", "weight": 60, "source": "prior"},
+        {"id": "multi_hut_bridge", "weight": 40, "source": "prior"}
+      ]},
+      "access": {"options": [
+        {"id": "ladder", "weight": 40, "source": "prior"},
+        {"id": "spiral_stairs", "weight": 35, "source": "prior"},
+        {"id": "vine", "weight": 25, "source": "prior"}
+      ]},
+      "roof_type": {"options": [
+        {"id": "gable_roof", "weight": 75, "source": "prior"},
+        {"id": "shed_canopy", "weight": 25, "source": "prior"}
+      ]},
+      "support": {"options": [
+        {"id": "angled_braces", "weight": 80, "source": "prior"},
+        {"id": "ground_posts", "weight": 20, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"layout": "multi_hut_bridge"}, "then": {"bridge_railing": "fence"}},
+      {"if": {"trunk_species": "jungle_log"}, "then": {"leaves": "jungle_leaves"}}
+    ]
+  },
   "validators": ["support_check", "slab_check", "collision_check"]
 }

@@ -50,5 +50,31 @@
       "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:spruce_stairs", "corner_material": "minecraft:spruce_log", "sill_material": "minecraft:spruce_slab"},
       "string_course": {"enabled": false, "material": "minecraft:oak_log", "note": "the horizontal oak_log frame beams ARE the string course"}
     }
+  },
+  "lottery": {
+    "axes": {
+      "footprint": {"options": [
+        {"id": "5x7", "weight": 35, "source": "prior"},
+        {"id": "7x9", "weight": 45, "source": "prior"},
+        {"id": "9x11", "weight": 20, "source": "prior"}
+      ]},
+      "wall_mix": {"options": [
+        {"id": "oak_pure", "weight": 45, "source": "prior"},
+        {"id": "oak_spruce_80_20", "weight": 55, "source": "prior"}
+      ]},
+      "porch": {"options": [
+        {"id": "porch_front_2deep", "weight": 55, "source": "prior"},
+        {"id": "none", "weight": 45, "source": "prior"}
+      ]},
+      "chimney": {"options": [
+        {"id": "chimney_cobble_1x1", "weight": 60, "source": "prior"},
+        {"id": "none", "weight": 40, "source": "prior"}
+      ]},
+      "window_size": {"options": [
+        {"id": "1x2", "weight": 60, "source": "prior"},
+        {"id": "2x2", "weight": 40, "source": "prior"}
+      ]}
+    },
+    "rules": []
   }
 }

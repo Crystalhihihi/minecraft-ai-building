@@ -77,5 +77,50 @@
     "内部空壳 — 壳→分房→门窗→陈设顺序不可颠倒(interior_layout.md)",
     "石基和木墙之间无过渡 — 用 string_course 梁线收边"
   ],
+  "lottery": {
+    "axes": {
+      "roof_type": {"options": [
+        {"id": "gable_steep", "weight": 80, "source": "gc:medieval-houses:n=299"},
+        {"id": "hip", "weight": 19, "requires": {"plot": "corner"}, "source": "prior"},
+        {"id": "flat", "weight": 1, "source": "prior"}
+      ]},
+      "wall_system": {"options": [
+        {"id": "wood_panelled", "weight": 60, "source": "prior"},
+        {"id": "timber_framed", "weight": 40, "source": "prior"}
+      ]},
+      "jetty": {"options": [
+        {"id": "jetty_front", "weight": 80, "source": "prior"},
+        {"id": "none", "weight": 20, "source": "prior"}
+      ]},
+      "pilaster_spacing": {"options": [
+        {"id": "2", "weight": 35, "source": "gc:medieval-houses:n=247"},
+        {"id": "3", "weight": 15, "source": "gc:medieval-houses:n=247"},
+        {"id": "4", "weight": 35, "source": "gc:medieval-houses:n=247"}
+      ]},
+      "dormers": {"options": [
+        {"id": "dormers_gable", "weight": 55, "source": "prior"},
+        {"id": "none", "weight": 45, "source": "prior"}
+      ]},
+      "chimney": {"options": [
+        {"id": "chimney_1x1", "weight": 55, "source": "prior"},
+        {"id": "chimney_1x2", "weight": 15, "source": "prior"},
+        {"id": "none", "weight": 30, "source": "prior"}
+      ]},
+      "balcony": {"options": [
+        {"id": "none", "weight": 70, "source": "prior"},
+        {"id": "balcony_front", "weight": 30, "source": "prior"}
+      ]},
+      "roof_material": {"options": [
+        {"id": "spruce_stairs", "weight": 75, "source": "prior"},
+        {"id": "dark_oak_stairs", "weight": 25, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"roof_type": "hip"}, "forbid": ["dormers_gable"]},
+      {"if": {"roof_type": "flat"}, "forbid": ["dormers_gable", "chimney_1x2"]},
+      {"if": {"wall_system": "wood_panelled"}, "then": {"pilaster": false}},
+      {"if": {"wall_system": "timber_framed"}, "then": {"weathering_preset": "plaster_timber"}}
+    ]
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
 }

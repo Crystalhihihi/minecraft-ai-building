@@ -79,5 +79,47 @@
     "仓库开大窗 — kura 防火无窗, 只 1x1 高窗",
     "樱花树实心球 — cherry_leaves 也要镂空(garden_tree 规则), 粉球一眼假"
   ],
+  "lottery": {
+    "axes": {
+      "roof_type": {"options": [
+        {"id": "hip_roof", "weight": 70, "source": "prior"},
+        {"id": "gable_roof", "weight": 30, "source": "prior"}
+      ]},
+      "variant": {"options": [
+        {"id": "classic_white", "weight": 60, "source": "prior"},
+        {"id": "sakura_cherry", "weight": 40, "source": "prior"}
+      ]},
+      "roof_material": {"options": [
+        {"id": "deepslate_tile_stairs", "weight": 70, "source": "prior"},
+        {"id": "blackstone_stairs", "weight": 20, "source": "prior"},
+        {"id": "dark_oak_stairs", "weight": 10, "source": "prior"}
+      ]},
+      "building_type": {"options": [
+        {"id": "house", "weight": 70, "source": "prior"},
+        {"id": "kura_storehouse", "weight": 15, "source": "prior"},
+        {"id": "teahouse", "weight": 15, "source": "prior"}
+      ]},
+      "engawa": {"options": [
+        {"id": "engawa_wrap", "weight": 75, "source": "prior"},
+        {"id": "none", "weight": 25, "source": "prior"}
+      ]},
+      "tiers": {"options": [
+        {"id": "single", "weight": 75, "source": "prior"},
+        {"id": "double_eave", "weight": 25, "requires": {"plot": "large"}, "source": "prior"}
+      ]},
+      "window_style": {"options": [
+        {"id": "horizontal_lattice", "weight": 70, "source": "prior"},
+        {"id": "high_1x1", "weight": 30, "source": "prior"}
+      ]},
+      "accent_red": {"options": [
+        {"id": "minimal_1_2_spots", "weight": 85, "source": "prior"},
+        {"id": "shrine_grade", "weight": 15, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"building_type": "kura_storehouse"}, "forbid": ["horizontal_lattice"]},
+      {"if": {"variant": "sakura_cherry"}, "then": {"garden_tree_species": "cherry"}}
+    ]
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
 }

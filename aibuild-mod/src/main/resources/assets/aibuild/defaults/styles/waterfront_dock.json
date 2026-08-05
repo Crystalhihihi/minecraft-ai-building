@@ -47,5 +47,39 @@
       "window_trim": {"enabled": false, "projection": 0, "material": "minecraft:spruce_trapdoor", "corner_material": "", "sill_material": ""},
       "string_course": {"enabled": false, "material": "minecraft:spruce_slab", "note": "slab edging strip along the deck rim plays this role"}
     }
+  },
+  "lottery": {
+    "axes": {
+      "deck_width": {"options": [
+        {"id": "width_3", "weight": 30, "source": "prior"},
+        {"id": "width_4", "weight": 45, "source": "prior"},
+        {"id": "width_5", "weight": 25, "source": "prior"}
+      ]},
+      "deck_height": {"options": [
+        {"id": "height_1", "weight": 55, "source": "prior"},
+        {"id": "height_2", "weight": 45, "source": "prior"}
+      ]},
+      "pile_spacing": {"options": [
+        {"id": "spacing_3", "weight": 50, "source": "prior"},
+        {"id": "spacing_4", "weight": 50, "source": "prior"}
+      ]},
+      "shelter": {"options": [
+        {"id": "shelter_none", "weight": 70, "source": "prior"},
+        {"id": "gable_roof_shelter", "weight": 30, "source": "prior"}
+      ]},
+      "mooring_spacing": {"options": [
+        {"id": "mooring_4", "weight": 50, "source": "prior"},
+        {"id": "mooring_6", "weight": 50, "source": "prior"}
+      ]},
+      "railing": {"options": [
+        {"id": "railing_fence_gaps", "weight": 80, "source": "prior"},
+        {"id": "railing_none", "weight": 20, "source": "prior"}
+      ]},
+      "water_steps": {"options": [
+        {"id": "landing_steps", "weight": 60, "source": "prior"},
+        {"id": "no_steps", "weight": 40, "source": "prior"}
+      ]}
+    },
+    "rules": []
   }
 }

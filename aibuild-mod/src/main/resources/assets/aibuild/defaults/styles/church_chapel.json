@@ -68,5 +68,45 @@
     "屋顶太缓 — 教堂坡要陡, 缓坡像谷仓",
     "内饰塞满 — 教堂=长椅+祭坛+光, 放床放桌是灾难"
   ],
+  "lottery": {
+    "axes": {
+      "body_material": {"options": [
+        {"id": "white_concrete", "weight": 65, "source": "gc:churches:n=16"},
+        {"id": "bricks", "weight": 25, "source": "gc:churches:n=16"},
+        {"id": "quartz_block", "weight": 10, "source": "prior"}
+      ]},
+      "plan": {"options": [
+        {"id": "single_hall", "weight": 45, "source": "prior"},
+        {"id": "nave_plus_aisles", "weight": 35, "source": "prior"},
+        {"id": "cruciform", "weight": 20, "source": "prior"}
+      ]},
+      "bell_tower": {"options": [
+        {"id": "front_corner", "weight": 45, "source": "prior"},
+        {"id": "detached", "weight": 25, "source": "prior"},
+        {"id": "none", "weight": 30, "source": "prior"}
+      ]},
+      "spire": {"options": [
+        {"id": "helm_roof", "weight": 50, "source": "prior"},
+        {"id": "tapered_cone", "weight": 50, "source": "prior"}
+      ]},
+      "stained_glass": {"options": [
+        {"id": "stained_2_3_colors", "weight": 65, "source": "prior"},
+        {"id": "clear", "weight": 35, "source": "prior"}
+      ]},
+      "rose_window": {"options": [
+        {"id": "rose_window_front", "weight": 55, "source": "prior"},
+        {"id": "none", "weight": 45, "source": "prior"}
+      ]},
+      "roof_material": {"options": [
+        {"id": "deepslate_tile_stairs", "weight": 50, "source": "prior"},
+        {"id": "dark_oak_stairs", "weight": 30, "source": "prior"},
+        {"id": "blackstone_stairs", "weight": 20, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"bell_tower": "none"}, "forbid": ["helm_roof", "tapered_cone"]},
+      {"if": {"body_material": "bricks"}, "then": {"frame": "stone_bricks"}}
+    ]
+  },
   "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
 }

@@ -3,7 +3,8 @@ package com.aibuild.bridge;
 /** Command line configuration for the bridge. */
 public record BridgeConfig(String baseUrl, String token, int httpTimeoutMs) {
 
-    public static final int DEFAULT_HTTP_TIMEOUT_MS = 30_000;
+    /** Long tools (ask_player 45 s wait slices, GL renders) blow past a 30 s default. */
+    public static final int DEFAULT_HTTP_TIMEOUT_MS = 120_000;
 
     public static BridgeConfig parse(String[] args) {
         Integer port = null;

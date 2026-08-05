@@ -326,6 +326,7 @@ public final class AgentSessionManager {
                 AiBuildMod.LOGGER.warn("[aibuild] terrain summary generation failed; continuing without terrain.json", e);
             }
             runnerFor(s).startNew();
+            broadcast("[aibuild] #" + s.no() + " 建造中——请勿手动改动建造区域内的方块(要调整就 /aichat 告诉它;AI 发现方块被改会反复渲染找错,卡的是你自己)");
         } catch (IOException | RuntimeException e) {
             s.status = AgentSession.Status.FAILED;
             s.lastError = "spawn failed: " + e.getMessage();
@@ -499,6 +500,17 @@ public final class AgentSessionManager {
     public AgentSession defaultSession() {
         synchronized (this) {
             return latestRunning();
+        }
+    }
+
+    /** Newest session regardless of status (tooling backdoor target), or null when none exist. */
+    public AgentSession latestAny() {
+        synchronized (this) {
+            AgentSession last = null;
+            for (AgentSession s : sessions.values()) {
+                last = s;
+            }
+            return last;
         }
     }
 

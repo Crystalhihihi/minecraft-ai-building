@@ -98,6 +98,7 @@ public final class BridgeHttpServer {
         http.createContext("/tools/get_block", ex -> handle(ex, "POST", this::getBlock));
         http.createContext("/tools/search_blocks", ex -> handle(ex, "POST", this::searchBlocks));
         http.createContext("/tools/propose_site", ex -> handle(ex, "POST", this::proposeSite));
+        http.createContext("/tools/confirm_site", ex -> handle(ex, "POST", this::confirmSite));
         http.createContext("/tools/get_terrain_summary", ex -> handle(ex, "POST", this::getTerrainSummary));
         http.createContext("/tools/analyze_site", ex -> handle(ex, "POST", this::analyzeSite));
         http.createContext("/tools/get_region_summary", ex -> handle(ex, "POST", this::getRegionSummary));
@@ -493,6 +494,37 @@ public final class BridgeHttpServer {
     }
 
     /**
+     * confirm_site (master token only): directly confirm bounds on the newest
+     * session — the tooling backdoor for manual block pours (gallery / large
+     * scenes), where spawning an AI session just to unlock writes is absurd.
+     * Volume cap still applies.
+     */
+    private JsonObject confirmSite(HttpExchange ex, AgentSession session) throws Exception {
+        String header = ex.getRequestHeaders().getFirst("X-Aibuild-Token");
+        if (!masterToken.equals(header)) {
+            throw new ApiError(403, error("confirm_site requires the master token"));
+        }
+        AgentSession s = session != null ? session : sessions.latestAny();
+        if (s == null) {
+            throw new ApiError(409, error("no session exists in this world — run /aibuild once first"));
+        }
+        JsonObject body = readJsonBody(ex);
+        SiteGate.Bounds b = SiteGate.Bounds.of(vec3(body, "min"), vec3(body, "max"));
+        if (b.volume() > SiteGate.MAX_VOLUME) {
+            throw badRequest("volume " + b.volume() + " exceeds limit of " + SiteGate.MAX_VOLUME);
+        }
+        SiteGate.Bounds finalB = b;
+        return onMainThread(() -> {
+            s.gate().confirmDirect(finalB);
+            JsonObject res = new JsonObject();
+            res.addProperty("status", "confirmed");
+            res.addProperty("session", s.no());
+            res.addProperty("bounds", finalB.describe());
+            return res;
+        });
+    }
+
+    /**
      * analyze_site: read-only site-selection scout (master token works with no
      * running session, like get_terrain_summary). Per 16x16 candidate tile:
      * ground mean/stddev, cut+fill estimate, water share, tree count, and the
@@ -647,8 +679,11 @@ public final class BridgeHttpServer {
         server.getPlayerList().broadcastSystemMessage(msg, false);
     }
 
-    /** ask_player: one wait slice per request — the agent re-calls to keep waiting. */
-    private static final long ASK_WAIT_SLICE_MS = 60_000L;
+    /** ask_player: one wait slice per request — the agent re-calls to keep waiting.
+     * 45 s, comfortably under the kimi MCP client tool timeout (default 60 s):
+     * a 60 s slice raced the client timeout and the agent saw errors instead of
+     * "waiting", which made it give up waiting and rush ahead (实测翻车). */
+    private static final long ASK_WAIT_SLICE_MS = 45_000L;
     /** Caps so a confused agent cannot flood the chat bar. */
     private static final int ASK_MAX_OPTIONS = 6;
 
@@ -686,7 +721,7 @@ public final class BridgeHttpServer {
         JsonObject res = new JsonObject();
         if (first == null) {
             res.addProperty("status", "waiting");
-            res.addProperty("text", "玩家暂未回复(已等 60 秒)。继续调用 ask_player(同一问题)等待即可——"
+            res.addProperty("text", "玩家暂未回复(已等 45 秒)。继续调用 ask_player(同一问题)等待即可——"
                     + "等待没有次数上限,玩家去忙/想问题很正常,绝不能因为等待而自行收尾;"
                     + "只有玩家说「跳过/随便/你定」才能提前结束访谈。");
             return res;

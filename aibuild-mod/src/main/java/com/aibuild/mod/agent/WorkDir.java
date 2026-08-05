@@ -136,6 +136,13 @@ public final class WorkDir {
             "patterns/windmill_blade.json",
             "patterns/roof_curve.py",
             "patterns/roof_curve.json",
+            "patterns/plan_shape.py",
+            "patterns/plan_shape.json",
+            "patterns/clutter_pile.py",
+            "patterns/clutter_pile.json",
+            "patterns/wear_path.py",
+            "patterns/wear_path.json",
+            "patterns/lottery.py",
             "patterns/stair_orientations.md",
             "patterns/INDEX.md",
             "patterns/validators/symmetry_check.py",
@@ -277,7 +284,13 @@ public final class WorkDir {
         argv.add(String.valueOf(port));
         argv.add("--token");
         argv.add(token);
+        argv.add("--http-timeout-ms");
+        argv.add("120000");
         server.add("args", argv);
+        // Long-running tools (ask_player waits, GL renders) exceed the kimi
+        // client's 60 s default MCP tool timeout — raise it per-server.
+        server.addProperty("toolTimeoutMs", 180000);
+        server.addProperty("startupTimeoutMs", 30000);
         JsonObject servers = new JsonObject();
         servers.add("aibuild", server);
         JsonObject root = new JsonObject();
@@ -299,7 +312,12 @@ public final class WorkDir {
             OVERRIDE your own judgement (style, size, function, interior). When
             it names a style_id, `styles/<id>.json` is MANDATORY reading — do
             not pick a different card. A style card DRAFT authored by the
-            interviewer during intake counts as that mandatory card.
+            interviewer during intake counts as that mandatory card. The brief
+            may also carry a `- 任务单:` build_order block (the anti-preference
+            lottery draw): its axes / params / texture_seed are FIXED inputs
+            with the same authority as the interview answers — implement them
+            exactly (feed texture_seed to the seeded generators); override an
+            axis only on a hard bounds/terrain conflict and say why in plan.md.
 
             ## Coordinates
 
@@ -314,7 +332,17 @@ public final class WorkDir {
               handed down by the player. Every block you place must be inside it;
               out-of-bounds blocks are recorded as failed (`out_of_bounds`).
             - If `task.json` has NO `bounds`: your FIRST tool call must be
-              `propose_site(min, max)` (volume <= 262144, i.e. at most 64x64x64).
+              `propose_site(min, max)` (volume <= 2097152, i.e. at most 128x128x128).
+              Size the site to the style card's typical_footprint PLUS margin
+              for roof overhang, jetty, terrain transition and landscaping —
+              a cramped site produces a cramped build; an oversized proposal
+              costs nothing (the player trims at confirmation).
+            - THEMES WITH A HOST TREE (tree_house / elven_tree): never hang
+              rooms on a vanilla tree — vanilla oaks cap you at ~7 blocks and
+              guarantee a cramped hut. GENERATE the host tree yourself
+              (garden_tree at large size, or several fused) with a trunk
+              footprint big enough to build into, and propose the site to fit
+              THE TREE, not the other way round.
               Pick the site from `terrain.json` (see below), near the anchor unless
               the task says otherwise. A `[访谈确认]` 选址 line settles this:
               玩家附近 = propose near the anchor; AI 自己选 = scout freely with
@@ -398,9 +426,12 @@ public final class WorkDir {
               the walls are fully placed (all wall jobs done, failed == 0).
               Keep >= 1 air block between interior pieces and wall blocks.
               Record the wall positions in plan.md before decorating. Before
-              placing interiors, optionally run
+              placing interiors, run
               `python patterns/validators/collision_check.py --params '{"a":"walls.json","b":"furniture.json"}'`
-              — it must exit 0 (no overlap); place only then.
+              — it must exit 0 (no overlap); place only then. AFTER placing
+              interiors you MUST run walkability_check (door → every furniture
+              piece, 2-block clearance): a room you cannot walk into is a
+              failed room — fix the layout and re-check until it passes.
             - FACADE DEPTH: a flat unbroken wall is the #1 "AI look" giveaway.
               Cornices / string courses / window surrounds / pilasters are
               pattern work too: run facade_depth.py (base footing / string
@@ -463,7 +494,15 @@ public final class WorkDir {
               ZERO game lag, and is enough to verify shapes and proportions.
             - FINAL verification: use `mode:"gl"` (if available) for the true
               textured view. GL renders cause a brief hitch on the player's
-              game — keep GL renders few and meaningful.
+              game — keep GL renders few and meaningful, and keep the GL
+              volume SMALL (<= ~24^3; render the facade or a corner, not the
+              whole district): client freeze scales with volume.
+            - PLAYER EDITS: if blocks you already placed turn out changed or
+              missing (the player is editing the area mid-build), do NOT
+              enter a render-compare-rerender loop hunting the diff — note it
+              in plan.md and ask_player ONCE ("你改了 X 区域,要我配合修改
+              还是忽略继续?"). Render storms burn the player's quota and
+              lag their game for zero progress.
 
             Before you declare the build finished you MUST:
 
@@ -630,7 +669,15 @@ public final class WorkDir {
 
             ## When you are done
 
-            Write `intake_brief.md` in this directory with this structure:
+            FIRST, once the style is settled (existing card or your draft):
+            draw this build's parameters with the anti-preference lottery —
+            `python patterns/lottery.py --params '{"style":"<style_id>","seed":<any int>}' --out build_order.json`
+            and paste the resulting build_order block VERBATIM into
+            intake_brief.md as a `- 任务单:` line. The drawn axes (roof type /
+            wall system / trims / seeds) are FIXED for the builder — never
+            re-pick them yourself, never second-guess the dice.
+
+            THEN write `intake_brief.md` in this directory with this structure:
 
             ```
             # 访谈纪要

@@ -1,0 +1,24 @@
+{
+  "name": "plan_shape",
+  "description": "Plan-shape generator (平面形状): emits each storey's wall OUTLINE (单层周界格) as a marker layer for the build AI to raise walls from — fixes the 'all plans are rectangles' failure. Shapes: rect / L / T / U (主体+翼楼矩形拼合, wing size preset + side from seed) / rect_bump (矩形带凹凸, notches until concavity hits the calibrated tier: footprint<=238 cells -> 0.10~0.28, larger -> 0.17~0.43; GrabCraft 299-plan stats, scratch/phase9/gc_probe/stats_details.md 二b). All orientation script-derived (禁止手改方向状态).",
+  "when_to_use": "Any house/hall plan before raising walls; pick shape by体量与风格 (L=农舍/庄园, T=对称宅邸, U=内院, rect_bump=大体量自然凹凸). origin = 平面包围盒西北角格, y = 一层墙基层. 上层周界悬空是平面标记不是结构, support_check 不适用. 每层周界同形, 层距 +4 (3墙+1楼板); 收分/jetty 用别的卡.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "包围盒西北角格(正面左后角); y=一层墙基层"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "正面朝向; 平面随其整体旋转"},
+    "width": {"type": "int", "range": "5-31", "default": 9, "notes": "正面宽(x)"},
+    "depth": {"type": "int", "range": "5-31", "default": 7, "notes": "进深(z)"},
+    "shape": {"type": "enum", "values": ["rect", "L", "T", "U", "rect_bump"], "default": "rect", "notes": "平面形式; L/T/U=主体+翼楼拼合"},
+    "wing": {"type": "enum", "values": ["small", "medium", "large"], "default": "medium", "notes": "翼楼尺寸档=占比0.25/0.35/0.45; 仅 L/T/U 用"},
+    "storeys": {"type": "int", "range": "1-4", "default": 2, "notes": "层数; 每层输出一条周界"},
+    "material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "轮廓标记材(无方向整方块); 起墙时按风格卡替换"},
+    "seed": {"type": "int", "default": 7, "notes": "翼楼侧向/凹凸位置目标的随机源; 同参同输出"}
+  },
+  "pitfalls": [
+    "翼楼朝向/侧向由 seed 推导演出 — 想换侧向改 seed, 禁止手摆输出格",
+    "rect_bump 的凹凸率分档按 stats: 小体量(<=238格)0.10~0.28, 大体量0.17~0.43; 别手动超 0.43, 那是废墟不是民居",
+    "轮廓材只是标记 — 起墙必须按风格卡换成真实墙材, 别把 stone_bricks 标记当墙留下",
+    "width/depth <5 拼不出翼楼; 要更小体量直接用 rect"
+  ],
+  "validators": [],
+  "example": "python patterns/plan_shape.py --params '{\"origin\":[100,64,100],\"shape\":\"L\",\"width\":11,\"depth\":9,\"wing\":\"medium\",\"seed\":5}' --out planL.json && python patterns/plan_shape.py --params '{\"origin\":[140,64,100],\"shape\":\"rect_bump\",\"width\":13,\"depth\":11,\"storeys\":2,\"seed\":9}' --out planB.json"
+}

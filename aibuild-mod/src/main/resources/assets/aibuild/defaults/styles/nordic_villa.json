@@ -54,5 +54,36 @@
       "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_planks", "corner_material": "minecraft:smooth_stone", "sill_material": "minecraft:smooth_stone_slab"},
       "string_course": {"enabled": false, "material": "minecraft:smooth_stone", "note": "the dark roof coping band is the only horizontal accent"}
     }
+  },
+  "lottery": {
+    "axes": {
+      "massing_shape": {"options": [
+        {"id": "rect", "weight": 50, "source": "prior"},
+        {"id": "l_shape", "weight": 35, "source": "prior"},
+        {"id": "t_shape", "weight": 15, "source": "prior"}
+      ]},
+      "accent_wall": {"options": [
+        {"id": "spruce_planks", "weight": 60, "source": "prior"},
+        {"id": "dark_oak_planks", "weight": 25, "source": "prior"},
+        {"id": "spruce_log", "weight": 15, "source": "prior"}
+      ]},
+      "coping_material": {"options": [
+        {"id": "dark_oak_planks", "weight": 60, "source": "prior"},
+        {"id": "smooth_stone", "weight": 40, "source": "prior"}
+      ]},
+      "corner_window": {"options": [
+        {"id": "corner_window_yes", "weight": 55, "source": "prior"},
+        {"id": "corner_window_no", "weight": 45, "source": "prior"}
+      ]},
+      "parapet": {"options": [
+        {"id": "flat_coping", "weight": 70, "source": "prior"},
+        {"id": "stepped_parapet", "weight": 30, "source": "prior"}
+      ]},
+      "terrace": {"options": [
+        {"id": "terrace_yes", "weight": 70, "source": "prior"},
+        {"id": "terrace_no", "weight": 30, "source": "prior"}
+      ]}
+    },
+    "rules": []
   }
 }

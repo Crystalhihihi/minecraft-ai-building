@@ -55,5 +55,39 @@
       "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_stairs", "corner_material": "minecraft:stripped_spruce_log", "sill_material": "minecraft:spruce_slab"},
       "string_course": {"enabled": true, "material": "minecraft:dark_oak_planks", "note": "the accent trim band at floor/slab level"}
     }
+  },
+  "lottery": {
+    "axes": {
+      "roof_material": {"options": [
+        {"id": "dark_oak_stairs", "weight": 60, "source": "prior"},
+        {"id": "spruce_stairs", "weight": 40, "source": "prior"}
+      ]},
+      "stilt_height": {"options": [
+        {"id": "stilt_low", "weight": 35, "source": "prior"},
+        {"id": "stilt_mid", "weight": 45, "source": "prior"},
+        {"id": "stilt_tall", "weight": 20, "source": "prior", "requires": {"terrain": "steep_slope"}}
+      ]},
+      "stilt_bracing": {"options": [
+        {"id": "cross_brace", "weight": 55, "source": "prior"},
+        {"id": "brace_none", "weight": 45, "source": "prior"}
+      ]},
+      "balcony": {"options": [
+        {"id": "balcony_deep", "weight": 45, "source": "prior"},
+        {"id": "balcony_shallow", "weight": 40, "source": "prior"},
+        {"id": "balcony_none", "weight": 15, "source": "prior"}
+      ]},
+      "access": {"options": [
+        {"id": "stair_access", "weight": 70, "source": "prior"},
+        {"id": "ladder_access", "weight": 30, "source": "prior"}
+      ]},
+      "footing_pad": {"options": [
+        {"id": "stone", "weight": 50, "source": "prior"},
+        {"id": "cobbled_deepslate", "weight": 50, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"stilt_height": "stilt_mid"}, "forbid": ["brace_none"]},
+      {"if": {"stilt_height": "stilt_tall"}, "forbid": ["brace_none"]}
+    ]
   }
 }

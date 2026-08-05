@@ -1,0 +1,19 @@
+{
+  "name": "clutter_pile",
+  "description": "Yard clutter piles (杂物堆) — cures the '无菌感' of AI-built farmyards: small, casually-dumped stacks near doors/stables/fields. Four kinds: hay 干草堆 (hay_block 错落簇 3-5 底 + 1-2 压顶, axis seeded: 立轴为主个别倒放), wood 柴木堆 (横放原木两层交叉码, axis per layer script-derived, 旁边滚一根散的), firewood 劈柴垛 (spruce_log 单轴三排: 底满/中满/顶收, 一头抽走一根), crates 箱桶堆 (chest+barrel, chest facing 背离堆心由脚本推导, 禁止手填). Cluster shapes grown by seeded random walk — 小而像随手堆的, 不做对称雕塑. All stacks supported from below.",
+  "when_to_use": "Farmyard/dockside/alley dressing AFTER the buildings stand: 1-3 piles near entrances, stables, workshops. origin = 堆占地最小角格, y = 地面层. 别放室内、别成排等距摆 (那就又成雕塑了); 换位置改 origin, 换形态改 seed.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "堆占地最小角格(min x/z); y=地面层"},
+    "kind": {"type": "enum", "values": ["hay", "wood", "crates", "firewood"], "default": "hay", "notes": "hay=干草堆 wood=柴木堆 crates=箱桶堆 firewood=劈柴垛"},
+    "size": {"type": "enum", "values": ["small", "medium"], "default": "small", "notes": "小档 2-6 块, 中档 5-10 块; 杂物堆宁小勿大"},
+    "seed": {"type": "int", "default": 3, "notes": "簇形/轴向/朝向的随机源; 同参同输出"}
+  },
+  "pitfalls": [
+    "一处场地 1-3 堆就够, 每格都堆=新的无菌; 堆与堆别等距对齐",
+    "chest 朝向由脚本按堆心外推 — 想换朝向改 origin/seed 重跑, 禁止手改 facing",
+    "别放在 wear_path 路面上或门口正中央; 贴墙根/屋角最自然",
+    "medium 已是上限; 要更大的干草垛请用 terraform_pad 思路另起结构, 别把杂物堆放大成建筑"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/clutter_pile.py --params '{\"origin\":[100,64,100],\"kind\":\"hay\",\"size\":\"small\",\"seed\":3}' --out hay.json && python patterns/clutter_pile.py --params '{\"origin\":[104,64,100],\"kind\":\"crates\",\"size\":\"medium\",\"seed\":11}' --out crates.json"
+}

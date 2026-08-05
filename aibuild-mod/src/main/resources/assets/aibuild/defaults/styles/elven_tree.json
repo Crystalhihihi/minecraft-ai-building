@@ -79,5 +79,39 @@
     "圆形平面却用方形房间硬切 — 曲面墙内房间按曲面布置, 方形切块破坏有机感",
     "顶部空心尖顶 — 曲面顶收拢处必须实芯封口, 空心=验收 support_check 打回"
   ],
+  "lottery": {
+    "axes": {
+      "plan_form": {"options": [
+        {"id": "round_plan", "weight": 75, "source": "prior"},
+        {"id": "ellipse_plan", "weight": 25, "source": "prior"}
+      ]},
+      "roof_crown": {"options": [
+        {"id": "dome_onion", "weight": 40, "source": "prior", "requires": {"plot": "open"}},
+        {"id": "taper_cap", "weight": 35, "source": "prior"},
+        {"id": "dome_paraboloid", "weight": 25, "source": "prior"}
+      ]},
+      "wall_taper": {"options": [
+        {"id": "taper_1", "weight": 55, "source": "prior"},
+        {"id": "taper_2", "weight": 45, "source": "prior"}
+      ]},
+      "window_style": {"options": [
+        {"id": "round_window", "weight": 65, "source": "prior"},
+        {"id": "arch_window", "weight": 35, "source": "prior"}
+      ]},
+      "branch_balcony": {"options": [
+        {"id": "balcony_yes", "weight": 60, "source": "prior"},
+        {"id": "balcony_no", "weight": 40, "source": "prior"}
+      ]},
+      "crown_light": {"options": [
+        {"id": "sea_lantern", "weight": 60, "source": "prior"},
+        {"id": "glowstone", "weight": 40, "source": "prior"}
+      ]},
+      "surrounding_trees": {"options": [
+        {"id": "garden_tree_oak", "weight": 50, "source": "prior"},
+        {"id": "garden_tree_cherry", "weight": 50, "source": "prior"}
+      ]}
+    },
+    "rules": []
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
 }

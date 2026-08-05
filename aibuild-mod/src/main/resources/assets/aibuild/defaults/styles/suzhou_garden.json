@@ -66,5 +66,34 @@
       "window_trim": {"enabled": true, "projection": 1, "material": "minecraft:dark_oak_stairs", "corner_material": "minecraft:dark_oak_log", "sill_material": "minecraft:dark_oak_slab"},
       "string_course": {"enabled": false, "note": "use dark timber beam lines at column tops instead"}
     }
+  },
+  "lottery": {
+    "axes": {
+      "hall_roof": {"options": [
+        {"id": "hip_roof", "weight": 75, "source": "prior"},
+        {"id": "pointed_pavilion", "weight": 25, "source": "prior"}
+      ]},
+      "moon_gate": {"options": [
+        {"id": "moon_gate_yes", "weight": 65, "source": "prior"},
+        {"id": "moon_gate_no", "weight": 35, "source": "prior"}
+      ]},
+      "bridge_bends": {"options": [
+        {"id": "bends_3", "weight": 55, "source": "prior"},
+        {"id": "bends_5", "weight": 45, "source": "prior"}
+      ]},
+      "corridor": {"options": [
+        {"id": "corridor_yes", "weight": 70, "source": "prior"},
+        {"id": "corridor_no", "weight": 30, "source": "prior"}
+      ]},
+      "rockery_height": {"options": [
+        {"id": "rockery_low", "weight": 55, "source": "prior"},
+        {"id": "rockery_high", "weight": 45, "source": "prior"}
+      ]},
+      "accent_tree": {"options": [
+        {"id": "garden_tree_cherry", "weight": 60, "source": "prior"},
+        {"id": "garden_tree_spruce", "weight": 40, "source": "prior"}
+      ]}
+    },
+    "rules": []
   }
 }

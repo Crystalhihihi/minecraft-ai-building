@@ -73,5 +73,39 @@
     "围栏断头 — 围栏必须闭合或接到建筑/门柱, 半截围栏最出戏",
     "谷仓塞床 — 谷仓囤草不住人, 住人空间在主屋"
   ],
+  "lottery": {
+    "axes": {
+      "house_roof": {"options": [
+        {"id": "gable_roof", "weight": 95, "source": "prior"},
+        {"id": "gambrel_roof", "weight": 5, "source": "prior"}
+      ]},
+      "barn_roof": {"options": [
+        {"id": "gambrel_roof", "weight": 92, "source": "prior"},
+        {"id": "gable_roof", "weight": 8, "source": "prior"}
+      ]},
+      "base_height": {"options": [
+        {"id": "base_1", "weight": 45, "source": "gc:farm-buildings:n=53"},
+        {"id": "base_2", "weight": 55, "source": "gc:farm-buildings:n=53"}
+      ]},
+      "barn_door": {"options": [
+        {"id": "dark_oak_door", "weight": 60, "source": "prior"},
+        {"id": "fence_gate", "weight": 40, "source": "prior"}
+      ]},
+      "fields_layout": {"options": [
+        {"id": "terrace_farm", "weight": 40, "source": "prior", "requires": {"terrain": "slope"}},
+        {"id": "flat_field", "weight": 60, "source": "prior"}
+      ]},
+      "yard_garden": {"options": [
+        {"id": "flower_field_meadow", "weight": 70, "source": "prior"},
+        {"id": "garden_none", "weight": 30, "source": "prior"}
+      ]},
+      "yard_trees": {"options": [
+        {"id": "solitary_garden_tree", "weight": 45, "source": "prior"},
+        {"id": "orchard_row", "weight": 35, "source": "prior"},
+        {"id": "trees_none", "weight": 20, "source": "prior"}
+      ]}
+    },
+    "rules": []
+  },
   "validators": ["support_check", "slab_check", "collision_check"]
 }

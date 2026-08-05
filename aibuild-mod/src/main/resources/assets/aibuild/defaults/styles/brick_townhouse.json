@@ -71,5 +71,42 @@
     "砖面纯一色 — 必须 5-10% 色差掺旧, 纯红砖面像塑料",
     "顶层无老虎窗 — mansard/gable 屋顶层要住人就得开 dormer"
   ],
+  "lottery": {
+    "axes": {
+      "roof_type": {"options": [
+        {"id": "mansard_roof", "weight": 60, "source": "prior"},
+        {"id": "gable_roof", "weight": 40, "source": "prior"}
+      ]},
+      "wall_material": {"options": [
+        {"id": "bricks", "weight": 60, "source": "gc:brick-houses:n=30"},
+        {"id": "stone_bricks", "weight": 40, "source": "gc:stone-houses:n=50"}
+      ]},
+      "weathering_preset": {"options": [
+        {"id": "brick_townhouse", "weight": 65, "source": "prior"},
+        {"id": "stone_brick_aged", "weight": 35, "source": "prior"}
+      ]},
+      "dormers": {"options": [
+        {"id": "dormer_gabled", "weight": 80, "source": "prior"},
+        {"id": "dormer_shed", "weight": 12, "source": "prior"},
+        {"id": "dormer_none", "weight": 8, "source": "prior"}
+      ]},
+      "chimney_count": {"options": [
+        {"id": "chimney_1", "weight": 50, "source": "prior"},
+        {"id": "chimney_2", "weight": 50, "source": "prior"}
+      ]},
+      "ground_floor": {"options": [
+        {"id": "residential_stoop", "weight": 75, "source": "prior"},
+        {"id": "shopfront", "weight": 25, "source": "prior", "requires": {"plot": "commercial_street"}}
+      ]},
+      "footprint_tier": {"options": [
+        {"id": "narrow_2storey", "weight": 50, "source": "gc:medieval-houses:n=299"},
+        {"id": "wide_3storey", "weight": 50, "source": "gc:medieval-houses:n=299"}
+      ]}
+    },
+    "rules": [
+      {"if": {"wall_material": "stone_bricks"}, "then": {"weathering_preset": "stone_brick_aged"}},
+      {"if": {"roof_type": "mansard_roof"}, "forbid": ["dormer_none"]}
+    ]
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
 }

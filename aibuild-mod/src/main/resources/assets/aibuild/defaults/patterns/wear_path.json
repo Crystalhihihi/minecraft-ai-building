@@ -1,0 +1,20 @@
+{
+  "name": "wear_path",
+  "description": "Worn desire path (踩出来的路): two endpoints, one living path — the straight line is broken by 1-2 seeded perpendicular bends (直角折线=死气, 带弯=活; 弯的扰动 seed 确定性), Bresenham-rasterized so diagonals read naturally. 主材 dirt_path; wear=heavy 时中段 (t 0.25~0.75) 35% 掺 podzol/coarse_dirt (踩秃); edge_fade 收边: 贴边 1 圈 coarse_dirt/gravel (heavy 更密), 第 2 圈稀疏 coarse_dirt — 渐稀收边不硬切. Flat ground assumed (y=from[1]); 起伏地形先 terraform_pad.",
+  "when_to_use": "村庄/庄园/营地内建筑之间、门到门、田到屋的自然小径 — 任何'两点之间人来车往'的连接; 正式道路用 road_segment (带路拱边沟), 本卡是被踩出来的非正式路. from/to = 两端格 (3-64 格距), y=路面层.",
+  "params": {
+    "from": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "起点格; y=路面层(平地假设)"},
+    "to": {"type": "[x,y,z]", "default": "[12,64,3]", "notes": "终点格; 与 from 切比雪夫距离 3-64"},
+    "width": {"type": "int", "range": "1-2", "default": 1, "notes": "路面宽; 2=沿主走向加并行列"},
+    "wear": {"type": "enum", "values": ["light", "heavy"], "default": "light", "notes": "light=纯 dirt_path; heavy=中段掺 podzol/coarse_dirt + 收边更密"},
+    "seed": {"type": "int", "default": 7, "notes": "弯位/收边分布的随机源; 同参同输出"}
+  },
+  "pitfalls": [
+    "直角折线=死气 — 本卡的弯由 seed 推导; 想换弯形改 seed, 禁止手摆格",
+    "别用它铺正式街道 (那是 road_segment 的活); 踩出来的路宽度 1-2, 别加宽成大道",
+    "终点别停在墙里/水里; from/to 先确认两端是门口或空地",
+    "平地假设 — 跨越起伏地形先 terraform_pad 或分段沿等高线跑多次"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/wear_path.py --params '{\"from\":[100,64,100],\"to\":[116,64,109],\"width\":1,\"wear\":\"heavy\",\"seed\":5}' --out path.json && python patterns/wear_path.py --params '{\"from\":[100,64,120],\"to\":[108,64,131],\"width\":2,\"seed\":9}' --out path2.json"
+}

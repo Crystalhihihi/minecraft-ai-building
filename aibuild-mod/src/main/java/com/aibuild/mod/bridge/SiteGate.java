@@ -26,7 +26,7 @@ import net.minecraft.core.BlockPos;
  */
 public final class SiteGate {
     /** Selection / proposal volume limit (64^3), same source as the job block limit. */
-    public static final long MAX_VOLUME = 262144L;
+    public static final long MAX_VOLUME = 2097152L;
 
     public enum State { UNBOUND, AWAITING_PROPOSAL, PENDING_CONFIRMATION, CONFIRMED }
 
@@ -179,6 +179,16 @@ public final class SiteGate {
         }
         fireChange();
         return rejected;
+    }
+
+    /** Tooling backdoor (master token via /tools/confirm_site): jump straight to CONFIRMED. */
+    public void confirmDirect(Bounds b) {
+        synchronized (this) {
+            bounds = b;
+            proposal = null;
+            state = State.CONFIRMED;
+        }
+        fireChange();
     }
 
     /** Persistence hook, invoked after every mutation (outside the gate lock). */

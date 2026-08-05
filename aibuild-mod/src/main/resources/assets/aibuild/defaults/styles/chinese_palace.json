@@ -85,5 +85,47 @@
     "窗用拱窗/圆窗 — 中式用方格格窗, 拱窗是洋风(西洋/哥特)",
     "金/朱滥用 — gold 只点脊端/檐角 1-2 处, 大面积金=俗; 红靠赭/橙过渡不做纯色大片"
   ],
+  "lottery": {
+    "axes": {
+      "roof_type": {"options": [
+        {"id": "xieshan_roof", "weight": 70, "source": "prior"},
+        {"id": "hip_roof", "weight": 20, "source": "prior"},
+        {"id": "gable_roof", "weight": 10, "source": "prior"}
+      ]},
+      "roof_curve_profile": {"options": [
+        {"id": "roof_curve_classic_chinese", "weight": 80, "source": "prior"},
+        {"id": "roof_curve_gentle", "weight": 15, "source": "prior"},
+        {"id": "roof_curve_steep", "weight": 5, "source": "prior"}
+      ]},
+      "platform_height": {"options": [
+        {"id": "platform_2", "weight": 30, "source": "prior"},
+        {"id": "platform_3", "weight": 45, "source": "prior"},
+        {"id": "platform_4", "weight": 25, "source": "prior"}
+      ]},
+      "dougong": {"options": [
+        {"id": "dougong_depth_2", "weight": 80, "source": "prior"},
+        {"id": "dougong_depth_3", "weight": 15, "source": "prior"},
+        {"id": "dougong_none", "weight": 5, "source": "prior"}
+      ]},
+      "roof_material": {"options": [
+        {"id": "deepslate_tile_stairs", "weight": 70, "source": "prior"},
+        {"id": "blackstone_stairs", "weight": 20, "source": "prior"},
+        {"id": "dark_oak_stairs", "weight": 10, "source": "prior"}
+      ]},
+      "ridge_beast": {"options": [
+        {"id": "gold_1", "weight": 60, "source": "prior"},
+        {"id": "gold_2", "weight": 30, "source": "prior"},
+        {"id": "beast_none", "weight": 10, "source": "prior"}
+      ]},
+      "staircase": {"options": [
+        {"id": "central_stair", "weight": 80, "source": "prior"},
+        {"id": "side_split_stair", "weight": 20, "source": "prior"}
+      ]}
+    },
+    "rules": [
+      {"if": {"roof_type": "xieshan_roof"}, "forbid": ["dougong_none"]},
+      {"if": {"roof_type": "gable_roof"}, "then": {"platform_height": "platform_2"}}
+    ]
+  },
   "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
 }
