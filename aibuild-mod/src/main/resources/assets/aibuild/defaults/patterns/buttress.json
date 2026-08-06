@@ -1,13 +1,29 @@
 {
   "name": "buttress",
-  "description": "Stepped buttress (扶壁): a 1-wide pier against a wall face, deepest at ground and tapering to 1 block at the top (3-2-1 profile).",
-  "when_to_use": "Corners of towers/keeps/churches, or every 3-4 blocks along tall stone walls. Run once per buttress position. origin = the wall-face column it leans on, at ground level; the buttress grows OUTWARD from the wall.",
+  "description": "Buttress (扶壁), two variants from one generator. stepped (default): a 1-wide pier against a wall face, deepest at ground and tapering to 1 block at the top (3-2-1 profile). flying: flying buttress (飞扶壁) — a freestanding 1x1 pier 2-3 cells off the wall, a sloped arch arm springing from the pier top up to the wall attachment point (face-connected stepped diagonal via 3D Bresenham + L-corner inserts), plus an optional pinnacle (post+post+stair tip, roof_ornament gothic finial idiom) above the pier top.",
+  "when_to_use": "stepped: corners of towers/keeps/churches, or every 3-4 blocks along tall stone walls. flying: gothic_cathedral naves/choirs — one per bay along the high hall wall, carrying the vault thrust over the aisle. Run once per buttress position. origin = the wall-face column it leans on, at ground level; the buttress grows OUTWARD from the wall.",
+  "use_for": "墙体加固构件;stepped=城堡/教堂墙脚收分扶壁;flying=哥特主教堂高厅飞扶壁(隔间一个,配束柱高厅)",
   "params": {
+    "variant": {"type": "enum", "values": ["stepped", "flying"], "default": "stepped", "notes": "stepped=阶梯收分扶壁;flying=飞扶壁(墩+斜拱臂+可选尖塔)"},
     "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "wall-face column at ground level (the buttress itself is placed on the OUTER side)"},
     "side": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "direction the buttress sticks out from the wall"},
-    "height": {"type": "int", "range": "3-32", "default": 10, "notes": "usually wall height or wall height minus 1-2"},
-    "depth": {"type": "int", "range": "2-4", "default": 3, "notes": "base projection"},
+    "height": {"type": "int", "range": "3-32", "default": 10, "notes": "stepped only: usually wall height or wall height minus 1-2"},
+    "depth": {"type": "int", "range": "2-4", "default": 3, "notes": "stepped only: base projection"},
+    "wall_height": {"type": "int", "range": "4-48", "default": 12, "notes": "flying only: 拱臂在墙面的附着高度(拱臂顶端格 = origin.y + wall_height - 1,贴着墙面侧挨);取高厅墙顶或拱顶起拱点高度"},
+    "pier_dist": {"type": "int", "range": "2-4", "default": 3, "notes": "flying only: 墩离墙根格的格数,经典 2-3;越大拱臂越平缓"},
+    "pier_height": {"type": "int", "range": "2..wall_height-1", "default": 8, "notes": "flying only: 墩柱高;必须 < wall_height(脚本会夹取),越陡越哥特"},
+    "pinnacle": {"type": "bool", "default": true, "notes": "flying only: 墩顶小尖塔(post+post+楼梯收尖,柱件/楼梯由 material 推导: *_bricks→*_brick_wall/*_brick_stairs, *_planks→*_fence/*_stairs)"},
     "material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "usually the wall's primary material"}
   },
-  "example": "python patterns/buttress.py --params '{\"origin\":[100,64,100],\"side\":\"east\",\"height\":12,\"depth\":3}' --out buttress.json"
+  "pitfalls": [
+    "origin 是墙根格(墙面那一列),扶壁本身发在墙外侧——别把 origin 给成墩位;flying 的墩位 = origin 沿 side 方向 pier_dist 格,脚本自动算",
+    "flying 的拱臂顶端贴在墙面侧挨一格(k=1),不写进墙列(k=0)——若与真墙合并跑 collision_check 时墙列重叠为 0 属正常,别手动把拱臂往墙里塞",
+    "pier_height 必须小于 wall_height,否则拱臂没有升起角度(脚本夹取到 wall_height-1);墩和墙同高的'飞扶壁'是一根梁,不是拱",
+    "pier_dist 别贪大:2-3 最经典,4 是极限;再远拱臂太平,读成斜梁不是飞扶壁",
+    "墩脚从 origin.y(地面层)起连续落地——别把 origin.y 给成半空;台基上起扶壁时 origin.y 对齐台基顶面",
+    "pinnacle 的楼梯收尖朝向由 side 推导,禁止手改方向状态;material 不是 *_bricks/*_planks 家族时尖塔退回 material 本体贴",
+    "飞扶壁是隔间构件:沿高厅墙每开间(3-5 格)发一次,两侧对称;只发单侧会读成脚手架"
+  ],
+  "validators": ["support_check", "collision_check"],
+  "example": "python patterns/buttress.py --params '{\"origin\":[100,64,100],\"side\":\"east\",\"height\":12,\"depth\":3}' --out buttress.json && python patterns/buttress.py --params '{\"variant\":\"flying\",\"origin\":[100,64,100],\"side\":\"south\",\"wall_height\":12,\"pier_dist\":3,\"pier_height\":8,\"pinnacle\":true}' --out fly_buttress.json"
 }

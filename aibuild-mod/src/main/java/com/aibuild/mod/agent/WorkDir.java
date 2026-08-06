@@ -160,6 +160,7 @@ public final class WorkDir {
             "patterns/validators/slab_check.py",
             "patterns/validators/stair_corner_check.py",
             "patterns/validators/walkability_check.py",
+            "patterns/validators/flatness_check.py",
             "blocks.md");
 
     private WorkDir() {
@@ -481,6 +482,13 @@ public final class WorkDir {
             build free-hand what no pattern covers. Direction states in the
             output (stair facing/half/shape) are DERIVED by the scripts —
             never hand-edit them; fix params and re-run instead.
+            plan.md MUST map every signature element (rose window, spire,
+            antenna, flying buttress, carved gable, arch, tower...) to the
+            generator that produces it: `- element: rose_window.py --params
+            {...}`. An element no generator covers is marked `FREEHAND` and
+            gets a render self-check after placement. Freehanding an element
+            that HAS a generator is a build failure — the gothic west front
+            without rose_window.py is the reference incident.
 
             ## Symmetry, interiors, facade depth (MANDATORY)
 
@@ -517,13 +525,19 @@ public final class WorkDir {
               `details.depth` values from your style card instead of
               freehanding (or skipping) them; finish with accent_detailing.py
               for small ornaments at structural seams (corners / eaves /
-              column bases, groups of 2-3).
+              column bases, groups of 2-3). HARD GATE: after all exterior
+              detail is placed, run
+              `python patterns/validators/flatness_check.py --params '{"blocks":"<walls+detail>.json","min_area":40}'`
+              — every significant face must show relief; a flat face means
+              you skipped the detail pass on it. Detailing is NOT optional:
+              a build with bare walls is a failed build, same as an
+              unreachable room.
             - VALIDATORS: `patterns/validators/` holds deterministic
               self-check scripts (symmetry_check.py, collision_check.py,
-              support_check.py). They read the same JSON block files as the
-              generators, print a JSON diff report, and exit 0 = pass / 1 =
-              differences found. Run them in your shell BEFORE placing — they
-              catch coordinate drift for zero AI tokens.
+              support_check.py, flatness_check.py). They read the same JSON
+              block files as the generators, print a JSON diff report, and
+              exit 0 = pass / 1 = differences found. Run them in your shell
+              BEFORE placing — they catch coordinate drift for zero AI tokens.
             - STAIRS & SLABS (context states, not geometry): a stair's
               `facing` is the direction it ASCENDS toward — the tall back side
               faces uphill / against the wall, the step faces the walker.

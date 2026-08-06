@@ -50,7 +50,7 @@
 | chimney | 烟囱(1×1/1×2/2×2 柱身+检修台泛水圈+campfire 冒烟/活板门压顶) |
 | dougong | 斗拱(檐下柱位层叠出挑承托,斗座+倒放楼梯拱+顶枋;东亚通用句法) |
 | crenellation | 垛口/女儿墙 |
-| buttress | 扶壁 |
+| buttress | 扶壁(stepped 3-2-1 收分 / flying 飞扶壁:墩+斜拱臂+可选尖塔,哥特高厅隔间构件) |
 | arch_window | 拱窗 |
 | rose_window | 哥特玫瑰窗(辐条+外圈+玻璃填充,嵌墙 air 开凿;ellipse 复用) |
 | window_trim | 窗套(凸 0/1) |
