@@ -344,6 +344,21 @@ public final class WorkDir {
             masses by tier: 中=2, 大/超大/地标=3) and raise walls from its
             outline. Never substitute your own plan for the drawn one.
 
+            A multi-volume plan (cluster, or main+annex from the brief's 体块
+            line) assembles IN THIS ORDER:
+            1. plan_shape gives the masses; pick the door cells on the facing
+               walls (walk-level air cells, same y on both ends).
+            2. Run `connector.py` once per mass pair (main↔annex1,
+               main↔annex2) — it emits the bridge/corridor AND the door list
+               (`<out>.doors.json`).
+            3. Raise walls SKIPPING the door cells (2 high each) — an
+               unpunched door makes the corridor a dead end.
+            4. VALIDATE before finishing: collision_check (connector vs each
+               mass's walls) clean, AND walkability_check from the main
+               entrance with a require point inside EVERY mass passing — an
+               unreachable mass is a failed build, same as an unreachable
+               room.
+
             ## Coordinates
 
             - +x = east, -x = west; +y = up; +z = south, -z = north.

@@ -1,0 +1,27 @@
+{
+  "name": "connector",
+  "description": "Bridge/corridor generator (体块连接件): the junction piece of the composition system — connects two masses after plan_shape cluster lays them out. Three kinds: open (露天桥: 地板+栏杆) / covered (有顶连廊: +每3格立柱+y+3平板顶) / enclosed (封闭走廊: +墙带窗节奏+顶). Emits floor/railing/posts/roof; door cells (起墙留空, 2高) go to <out>.doors.json + stderr. Optional support posts to a given ground y.",
+  "when_to_use": "Whenever the drawn composition is cluster (or any two volumes need a link): run once per mass pair, between the two door cells on facing walls. frm/to 是墙面上的门洞格(走面层空气 y; 地板自动铺 y-1). 两格 y 必须相同 — 不同标高先在体块内部用楼梯解决, 本卡不做坡道. 同轴直连, 不同轴 L 弯(bend 选先横后纵). 桥/廊两端有门洞清单 — 起墙时那些格留空. 体块超过 2 个时逐对连(主体-附属1, 主体-附属2).",
+  "params": {
+    "frm": {"type": "[x,y,z]", "notes": "门洞格 A(体块墙面, 走面层空气格)"},
+    "to": {"type": "[x,y,z]", "notes": "门洞格 B; y 必须与 frm 相同"},
+    "kind": {"type": "enum", "values": ["open", "covered", "enclosed"], "default": "covered", "notes": "open=露天桥(高空/景观), covered=有顶连廊(默认), enclosed=封闭走廊(防风/正式)"},
+    "width": {"type": "int", "range": "1-2", "default": 2, "notes": "1=小径桥, 2=标准走廊"},
+    "bend": {"type": "enum", "values": ["xz", "zx"], "default": "xz", "notes": "L 弯顺序: xz=先横后纵; 选让拐角落在空处的那个"},
+    "floor": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "地板材, 按风格卡换"},
+    "railing": {"type": "block id", "default": "minecraft:spruce_fence", "notes": "栏杆材(fence/wall 类)"},
+    "post": {"type": "block id", "default": "minecraft:oak_log", "notes": "立柱材(covered 廊柱/支撑柱)"},
+    "wall": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "enclosed 墙材"},
+    "window": {"type": "block id", "default": "minecraft:glass_pane", "notes": "enclosed 窗材(每 3 格一窗)"},
+    "roof": {"type": "block id", "default": "minecraft:spruce_slab", "notes": "连廊顶材(平板顶, 要坡顶自行用屋顶包)"},
+    "support_ground_y": {"type": "int", "default": 0, "notes": ">0 时地板中线每 4 格一根立柱直达该标高(架空连廊必给); 0=不支撑"}
+  },
+  "pitfalls": [
+    "门洞清单(<out>.doors.json)的格起墙时必须留空 2 高 — 不掏门洞的连廊=断头路, walkability_check 必挂",
+    "栏杆不封桥头两端(进出用), 别把门洞两侧也当栏杆位补上",
+    "frm/to 不同 y 会直接 die — 先统一标高再连",
+    "support_ground_y 从 terrain.json 读真实地表, 别拍脑袋; 柱不到地=悬空"
+  ],
+  "validators": ["collision_check(连廊 vs 各体块墙)", "walkability_check(主门进, require 每个体块内部一点)"],
+  "example": "python patterns/connector.py --params '{\"frm\":[100,65,100],\"to\":[112,65,106],\"kind\":\"covered\",\"width\":2,\"support_ground_y\":60}' --out conn.json"
+}
