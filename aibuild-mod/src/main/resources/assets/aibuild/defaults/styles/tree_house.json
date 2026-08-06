@@ -75,7 +75,8 @@
     "大平层 — 树屋要小而散,多屋吊桥,单层超大必假",
     "无支撑悬浮 — 屋底必须有斜撑/索/柱的视觉交代",
     "叶团实心球 — 树冠要镂空留缝,实心绿叶球一眼假(garden_tree 规则)",
-    "无入口平台 — 梯子顶墙进出,功能和观感双输"
+    "无入口平台 — 梯子顶墙进出,功能和观感双输",
+    "宿主树必须用 giant_tree.py 生成(preset=ancient_oak 或 gnarled_twist; trunk=3; height 25-45), 禁止用 garden_tree 放大或原版树; 多平台簇群构图见 connector.py 配合"
   ],
   "lottery": {
     "axes": {

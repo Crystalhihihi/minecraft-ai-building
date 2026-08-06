@@ -77,7 +77,8 @@
     "白色满铺无肌理 — 纯白 flat 面是精灵风大忌, 必须 quartz_bricks 柱列/腰线/砖缝分层",
     "对称矩形窗 — 精灵用圆窗/拱窗不规则错落, 对称窗列是洋式宫殿",
     "圆形平面却用方形房间硬切 — 曲面墙内房间按曲面布置, 方形切块破坏有机感",
-    "顶部空心尖顶 — 曲面顶收拢处必须实芯封口, 空心=验收 support_check 打回"
+    "顶部空心尖顶 — 曲面顶收拢处必须实芯封口, 空心=验收 support_check 打回",
+    "宿主树必须用 giant_tree.py 生成(preset=spirit_candelabra 精灵烛冠/spiral 螺旋干; trunk=3; height 按体量档 35-60), 禁止用 garden_tree 放大或原版树; 形态卡参数见 docs/research/tree-forms.md F09"
   ],
   "lottery": {
     "axes": {

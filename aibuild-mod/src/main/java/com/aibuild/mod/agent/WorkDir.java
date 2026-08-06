@@ -335,9 +335,11 @@ public final class WorkDir {
             FAR away (200+ blocks out, or high-elevation topdown), THEN fill
             in detail. Size the site proposal generously for big tiers (roof
             overhang, landscape, landmark margin — a cramped site produces a
-            cramped landmark). 用途=观赏/地标 means the interior is symbolic
-            at most: spend the budget on silhouette and macro texture (large
-            material bands readable from distance), not on furniture.
+            cramped landmark). Interior default is FULL — only a brief that
+            explicitly says 内饰: 不要 (纯观赏外壳) skips furniture/rooms, and
+            even then accessibility stays (stairs to platforms/decks). 地标
+            with a normal brief gets both: silhouette first, interior still
+            built in full.
 
             If the build_order carries a `composition` axis, it is the plan
             shape — run `plan_shape.py` with `shape` = that value (cluster
@@ -379,10 +381,13 @@ public final class WorkDir {
               costs nothing (the player trims at confirmation).
             - THEMES WITH A HOST TREE (tree_house / elven_tree): never hang
               rooms on a vanilla tree — vanilla oaks cap you at ~7 blocks and
-              guarantee a cramped hut. GENERATE the host tree yourself
-              (garden_tree at large size, or several fused) with a trunk
-              footprint big enough to build into, and propose the site to fit
-              THE TREE, not the other way round.
+              guarantee a cramped hut. GENERATE the host tree yourself with
+              `giant_tree.py` (preset by theme: elven_tree →
+              spirit_candelabra, tree_house → ancient_oak or gnarled_twist;
+              trunk 3 for anything you build INTO), sized so the trunk/limbs
+              can carry the rooms, and propose the site to fit THE TREE, not
+              the other way round. garden_tree is only for courtyard-scale
+              ornamentals, never for hosts.
               Pick the site from `terrain.json` (see below), near the anchor unless
               the task says otherwise. A `[访谈确认]` 选址 line settles this:
               玩家附近 = propose near the anchor; AI 自己选 = scout freely with
@@ -694,11 +699,13 @@ public final class WorkDir {
               Fewer, better questions beat many.
             - Q1 IS ALWAYS THE PURPOSE QUESTION (unless the description
               settles it): "造来干嘛?" with options [住人/使用: 里面要能进能用] /
-              [观赏/地标: 远看为主, 里面不重要] / [混合: 外形壮观+里面可用] /
-              [AI 定]. The answer PRUNES the rest of the interview:
-              观赏/地标 → skip ALL room/interior questions (the brief gets
-              内饰: 象征性); 住人/使用 → rooms matter; 混合 → interior = main
-              floor only unless the player says otherwise.
+              [混合: 外形壮观+里面可用] / [纯观赏外壳: 明确不要内饰] / [AI 定].
+              DEFAULT IS FULL INTERIOR: unless the player explicitly picks
+              纯观赏外壳 (or says 不要内饰 in their own words), every build
+              gets a full interior — 住人/混合/AI 定 all keep the rooms and
+              interior questions. Only 纯观赏外壳 prunes them (the brief gets
+              内饰: 不要, and accessibility like stairs/viewing decks still
+              stays).
             - STYLE comes next when the description leaves it open: offer the
               menu from patterns/INDEX.md (card name + one-line use_for) as
               options. Skip when the description settles it.
@@ -707,18 +714,18 @@ public final class WorkDir {
               question and structural points are pre-vetted anchors; honour
               its skip_if). Ask AT MOST 3, with concrete options, and only
               those that survive pruning (purpose and size make most answers
-              obvious — a 超小 kiosk has no towers to connect; a 观赏 landmark
-              needs no wall-walk). A free-text answer that raises a NEW
+              obvious — a 超小 kiosk has no towers to connect; a 纯观赏外壳
+              build needs no wall-walk). A free-text answer that raises a NEW
               ambiguity earns ONE follow-up.
             - SIZE is second-to-last: six tiers worded by anchor, not numbers:
               [超小: 亭/摊/神龛级 (≤9×9)] / [小: 独户民居级 (~13×13)] /
               [中: 客栈/小教堂级 (~20×20)] / [大: 城堡主楼/大教堂级 (~35×35)] /
               [超大: 完整城堡/巨树级 (60+)] / [地标: 百米级天际线, 几公里外可见].
-              Recommend the tier fitting the card + purpose (a 观赏巨树 is
+              Recommend the tier fitting the card + purpose (a 地标巨树 is
               超大 or 地标, never 小; the card may carry a `size_tiers` range —
               steer inside it). 地标 carries build consequences (silhouette
-              first, far-view readability, symbolic interior) — record them
-              in the brief.
+              first, far-view readability) — record them in the brief; 地标
+              says NOTHING about interior (that's the purpose question's job).
             - SITE is LAST, and only when task.json has NO `bounds` (a wand
               selection means the site is already chosen — never ask then).
               Site options: 玩家附近 / AI 自己选 (plus 你定 if unsure).
@@ -767,12 +774,12 @@ public final class WorkDir {
             ```
             # 访谈纪要
             - 需求: <一句话总结玩家要造什么>
-            - 用途: <住人使用 / 观赏地标 / 混合, or "AI 定">
+            - 用途: <住人使用 / 混合 / 纯观赏外壳, or "AI 定">
             - 风格: <style_id from styles/, or "AI 定"> — <为什么>
             - 体量: <档位(超小/小/中/大/超大/地标) + 大致 footprint/高度, or "AI 定">
             - 体块: <体块编排提案(如 主楼+东翼+独立塔, 连廊相接), or "AI 定">
-            - 功能: <房间/用途, or "AI 定"; 观赏地标写 "象征性">
-            - 内饰: <全内饰/只主房间/象征性/不要内饰, or "AI 定">
+            - 功能: <房间/用途, or "AI 定"; 纯观赏外壳写 "无(外壳)">
+            - 内饰: <全内饰(默认)/只主房间/不要内饰(仅玩家明确说不要时), or "AI 定">
             - 结构: <风格相关的结构选择(如城墙走廊/哨塔连通/阳台/阁楼), or "AI 定">
             - 选址: <玩家附近 / AI 自己选; task.json 已有 bounds 则写 "已圈定选区">
             - 其他: <玩家明确的特殊要求; 无则写 "无">

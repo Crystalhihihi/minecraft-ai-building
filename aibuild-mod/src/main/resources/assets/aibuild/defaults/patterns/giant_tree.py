@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
 """giant_tree.py — space-colonization giant tree (巨树) generator. EXPERIMENTAL.
 
-Algorithm (Runions et al. 2007, voxel adaptation): scatter N attraction
-points inside an ellipsoid crown envelope (seeded RNG), then grow the
-skeleton from the trunk base — each iteration, every node that is the
-nearest neighbour of >=1 living points sprouts one child of length 1.0
-toward their mean direction (plus an upward tropism below the crown);
-points within kill distance are consumed. A leader hack keeps the bole
-rising until the crown envelope is reached, so the trunk stays straight.
-Branch calibre follows the pipe model via descendant-tip counts:
-thick limb (2-wide log beam) -> log -> fence twig, and the lower bole is a
-solid 2x2/3x3 trunk column up to the first fork. Tips (and unreached crown
-points near the skeleton) grow carved ellipsoid leaf blobs; a full-tree
-flood fill from the trunk base prunes anything not face-connected
-(断枝/浮叶剪掉), so the output is always one rooted piece. Buttress roots
-= 4-6 stepped fins around the base. Fully deterministic: same params +
-same seed = same tree; origin only translates. Stdlib only.
+v2 (2026-08-06, R8 对照精灵树参考图调优):
+- 主枝样条: 3-5 条显性主枝从冠底发出, "先平展再上扬"(仰角逐步抬升),
+  细枝在主枝周围局部空间殖民 — 治 v1 "灌木化"(大枝只在冠缘剧烈分叉)
+- 云片分层冠: 吸引点撒在每根主枝末端的扁椭球层盘 + 顶部盘(canopy_layers
+  控层数), 不再是单个椭球 — 治"叶团葡萄串"的远因
+- 干形: form=straight/curved/leaning(弯干=平滑蛇形漂移, 斜干=恒定偏向),
+  主干沿骨架走不再强制垂直; taper 收分(3x3→2x2 / 2x2→1x1 上部 40%)
+- 叶团沿枝成簇: 末端 + 末端的父节点都长叶团(链条簇), 不再是孤立球
 
-Output: {"blocks":[{x,y,z,block}...]}.
+v1 算法核心(Runions et al. 2007 空间殖民, 体素化)不变: 吸引点消耗/管模型
+枝径(desc-tip 计数)/板根阶梯鳍/镂空叶团/整树 flood-fill 剪不连通。
+Fully deterministic: same params + same seed = same tree; origin only translates.
+Stdlib only. Output: {"blocks":[{x,y,z,block}...]}.
 
 Usage:
-  python giant_tree.py --params '{"origin":[100,64,100],"height":22,"canopy_radius":8,"trunk":3,"seed":7}' [--out t.json]
+  python giant_tree.py --params '{"origin":[100,64,100],"height":22,"canopy_radius":8,"trunk":3,"seed":7,"form":"curved"}' [--out t.json]
 """
 import argparse, json, math, random, sys
 from pathlib import Path
@@ -30,21 +26,46 @@ from roof_common import die, write_out
 
 DEFAULTS = {
     "origin": [0, 64, 0],       # [x,y,z] trunk base min corner, y = ground layer
-    "height": 18,               # 10-30, total tree height in blocks
-    "canopy_radius": 6,         # 3-14, crown envelope horizontal radius
+    "height": 18,               # 10-60, total tree height in blocks
+    "canopy_radius": 6,         # 3-20, crown envelope horizontal radius
     "trunk": 2,                 # 2 = 2x2 bole | 3 = 3x3 bole
     "species": "oak",           # oak | dark_oak
     "seed": 0,                  # int; same seed = same tree
     "buttress": True,           # 板根: 4-6 stepped root fins around the base
     "leaf_density": 0.6,        # 0.1-1.0; scales tip blob size + carving
+    "form": "straight",         # straight | curved | leaning | spiral (干形)
+    "preset": "",               # 形态卡 id(PRESETS 之一); 给了就按卡填形态参数
+    "no_foliage": False,        # True = 纯骨架(枯立木); 正常树别动
+    "limbs": 0,                 # 主枝数 3-6; 0 = seed 自动
+    "canopy_layers": 2,         # 冠层盘数档 1-4 (1=旧椭球感, 2-4=云片分层)
+    "taper": True,              # 干柱收分: 上部 40% 缩一档
 }
 SPECIES = {"oak": ("minecraft:oak_log", "minecraft:oak_leaves", "minecraft:oak_fence"),
            "dark_oak": ("minecraft:dark_oak_log", "minecraft:dark_oak_leaves",
                         "minecraft:dark_oak_fence")}
+FORMS = ("straight", "curved", "leaning", "spiral")
+# 形态卡预设(scratch/giant_tree/tree_forms.json 调研固化, docs/research/tree-forms.md
+# 有每卡的形态依据与来源 URL)。preset 只填形态参数; height/canopy_radius/seed
+# 由调用方按体量档给, 显式参数永远覆盖预设。
+PRESETS = {
+    "ancient_oak":       {"form": "straight", "limbs": 5, "canopy_layers": 2, "leaf_density": 0.75},
+    "sky_pillar":        {"form": "straight", "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5},
+    "gnarled_twist":     {"form": "curved",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.35},
+    "leaning_river":     {"form": "leaning",  "limbs": 5, "canopy_layers": 1, "leaf_density": 0.6},
+    "banyan_court":      {"form": "straight", "limbs": 6, "canopy_layers": 2, "leaf_density": 0.8},
+    "umbrella_acacia":   {"form": "straight", "limbs": 4, "canopy_layers": 2, "leaf_density": 0.5},
+    "weeping_willow":    {"form": "straight", "limbs": 5, "canopy_layers": 1, "leaf_density": 0.4},
+    "cloud_disc":        {"form": "curved",   "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5},
+    "spirit_candelabra": {"form": "spiral",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.45},
+    "world_tree":        {"form": "straight", "limbs": 6, "canopy_layers": 3, "leaf_density": 0.6,
+                          "trunk": 3},
+    "dead_snag":         {"form": "curved",   "limbs": 5, "canopy_layers": 1, "leaf_density": 0.1,
+                          "no_foliage": True},
+}
 DIRS8 = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
 STEP, INFLUENCE, KILL = 1.0, 4.0, 1.6     # colonization radii (blocks)
 THICK_TIPS, LOG_TIPS = 8, 3               # descendant-tip calibre thresholds
-MAX_NODES, MAX_ITERS = 6000, 300
+MAX_NODES, MAX_ITERS = 12000, 500
 
 
 def h3(x, y, z, seed):
@@ -96,27 +117,126 @@ class Tree:
         self.nodes = [(self.c, 0.0, self.c)]            # float skeleton
         self.parent = [-1]
         self.children = [[]]
-        self.points, self.alive = self._scatter(h, r)
+        self.trunk_ids = [0]                            # 主干链(phase 1 记录)
+        self.limb_ends = []                             # 主枝末端节点 id
+        # 干形曲线参数(seed 推导)
+        self.lean_az = self.rng.uniform(0, 2 * math.pi)
+        self.curve_freq = self.rng.uniform(0.25, 0.4)
+        self.curve_phase = self.rng.uniform(0, 2 * math.pi)
+        self.points, self.alive = [], []
 
-    # ------------------------------------------------------- colonization --
-    def _scatter(self, h, r):
-        """N attraction points, uniform inside the crown ellipsoid (seeded)."""
-        vol = 4.0 / 3.0 * math.pi * r * r * self.ry
-        n = max(60, min(900, int(vol / 7)))
-        pts, alive = [], []
-        while len(pts) < n:
-            x = self.rng.uniform(-r, r)
-            y = self.rng.uniform(-self.ry, self.ry)
-            z = self.rng.uniform(-r, r)
-            if (x / r) ** 2 + (y / self.ry) ** 2 + (z / r) ** 2 > 1.0:
-                continue
-            pts.append((self.c + x, self.yc + y, self.c + z))
-            alive.append(True)
-        return pts, alive
+    # ------------------------------------------------------- trunk forms --
+    def _trunk_bias(self, y):
+        """干形水平偏向: straight=微抖; leaning=恒定偏向; curved=蛇形;
+        spiral=螺旋(Ori 精灵树同款扭转干, xz 同频相差 π/2)。"""
+        f = self.p["form"]
+        if f == "leaning":
+            bx, bz = math.cos(self.lean_az) * 0.22, math.sin(self.lean_az) * 0.22
+            return bx + self.rng.uniform(-0.06, 0.06), bz + self.rng.uniform(-0.06, 0.06)
+        if f == "curved":
+            a = 0.28 if y > 2 else 0.0                  # 基部 2 格保持垂直(接板根)
+            return (a * math.sin(y * self.curve_freq + self.curve_phase),
+                    a * math.cos(y * self.curve_freq * 0.7 + self.curve_phase))
+        if f == "spiral":
+            a = 0.34 if y > 2 else 0.0
+            return (a * math.sin(y * self.curve_freq + self.curve_phase),
+                    a * math.cos(y * self.curve_freq + self.curve_phase))
+        return self.rng.uniform(-0.12, 0.12), self.rng.uniform(-0.12, 0.12)
 
     def grow(self):
+        crown_bot = self.yc - self.ry
+        # ---- phase 1: 主干(leader 直到冠底), 应用干形偏向
+        while True:
+            lead = self.trunk_ids[-1]
+            lx, ly, lz = self.nodes[lead]
+            if ly >= crown_bot or len(self.nodes) >= MAX_NODES:
+                break
+            bx, bz = self._trunk_bias(ly)
+            ln = math.sqrt(bx * bx + 1.0 + bz * bz)
+            self._add(lead, (lx + bx / ln * STEP, ly + STEP / ln, lz + bz / ln * STEP))
+            self.trunk_ids.append(len(self.nodes) - 1)
+        # ---- phase 2: 显性主枝(先平展再上扬样条)
+        n_limbs = int(self.p["limbs"]) or self.rng.randint(3, 5)
+        n_limbs = max(3, min(6, n_limbs))
+        r = self.p["canopy_radius"]
+        az0 = self.rng.uniform(0, 2 * math.pi)
+        h = self.p["height"]
+        for i in range(n_limbs):
+            # 起叉高度: 0.35-0.55 树高(形态规律: 低位起叉才有巨木感),
+            # 映射到主干链上最近的节点
+            h_start = h * (0.35 + 0.2 * (i / max(1, n_limbs - 1)) + self.rng.uniform(-0.03, 0.03))
+            start_id = min(self.trunk_ids,
+                           key=lambda nid: abs(self.nodes[nid][1] - h_start))
+            az = az0 + i * (2 * math.pi / n_limbs) + self.rng.uniform(-0.2, 0.2)
+            el = self.rng.uniform(0.1, 0.2)             # 近平展起角
+            tilt = self.rng.uniform(0.05, 0.09)         # 上扬段每步仰角抬升
+            el_cap = self.rng.uniform(0.85, 1.15)
+            steps = max(3, int(r * self.rng.uniform(0.75, 0.95)))
+            flat = int(steps * self.rng.uniform(0.4, 0.6))  # 先平展行程
+            pos = self.nodes[start_id]
+            cur = start_id
+            for s in range(steps):
+                dx = math.cos(az) * math.cos(el)
+                dy = math.sin(el)
+                dz = math.sin(az) * math.cos(el)
+                pos = (pos[0] + dx * STEP, pos[1] + dy * STEP, pos[2] + dz * STEP)
+                self._add(cur, pos)
+                cur = len(self.nodes) - 1
+                if s >= flat:                           # 平展段保持低仰角
+                    el = min(el_cap, el + tilt)
+                az += self.rng.uniform(-0.05, 0.05)
+            # 层盘中心推到枝端外侧: 主枝平展段要留白可读, 叶盘长在枝端之外
+            self.limb_ends.append((cur, (dx, dy, dz), steps))
+        # ---- phase 3: 吸引点(云片层盘: 每主枝末端一盘 + 顶部盘)
+        self.points, self.alive = self._scatter()
+        # ---- phase 4: 空间殖民(细枝填充层盘)
+        self._colonize()
+
+    def _scatter(self):
+        """层盘撒点: 每主枝末端扁椭球盘(中心推到枝端外侧 0.3 行程,
+        主枝平展段留白可读); canopy_layers>=2 加顶部盘, >=3 每主枝中段加盘。
+        点数按总体积/7, 钳 60..1400。"""
+        r = self.p["canopy_radius"]
+        layers = int(self.p["canopy_layers"])
+        rl = max(2.0, r * 0.4)
+        hl = max(1.5, self.ry * 0.3)
+        discs = []
+        for li, ldir, steps in self.limb_ends:
+            x, y, z = self.nodes[li]
+            push = 0.3 * steps
+            cx, cy, cz = x + ldir[0] * push, y + ldir[1] * push, z + ldir[2] * push
+            discs.append((cx, cy, cz, rl, hl))
+            if layers >= 3:
+                mid = self.parent[li]
+                for _ in range(3):
+                    if mid in self.trunk_ids or mid <= 0:
+                        break
+                    mid = self.parent[mid]
+                mx, my, mz = self.nodes[mid]
+                discs.append((mx + ldir[0] * 1.5, my, mz + ldir[2] * 1.5, rl * 0.7, hl))
+        if layers >= 2:
+            discs.append((self.c, self.yc + self.ry * 0.4, self.c, r * 0.55, hl))
+        if layers == 1 and self.limb_ends:
+            discs = discs[:len(self.limb_ends)]
+        vol = sum(4.0 / 3.0 * math.pi * dr * dr * dh for _, _, _, dr, dh in discs)
+        n = max(60, min(1400, int(vol / 7)))
+        per = max(1, n // max(1, len(discs)))
+        pts, alive = [], []
+        for (cx, cy, cz, dr, dh) in discs:
+            cnt = 0
+            while cnt < per:
+                x = self.rng.uniform(-dr, dr)
+                y = self.rng.uniform(-dh, dh)
+                z = self.rng.uniform(-dr, dr)
+                if (x / dr) ** 2 + (y / dh) ** 2 + (z / dr) ** 2 > 1.0:
+                    continue
+                pts.append((cx + x, cy + y, cz + z))
+                alive.append(True)
+                cnt += 1
+        return pts, alive
+
+    def _colonize(self):
         di2, dk2 = INFLUENCE * INFLUENCE, KILL * KILL
-        crown_bot, crown_top = self.yc - self.ry, self.yc + self.ry
         for _ in range(MAX_ITERS):
             if len(self.nodes) >= MAX_NODES:
                 break
@@ -139,9 +259,9 @@ class Tree:
                                 if d2 <= di2 and (best is None or d2 < best[0]):
                                     best = (d2, ni)
                 if best is None:
-                    pending += 1                        # out of reach, for now
+                    pending += 1
                 elif best[0] <= dk2:
-                    self.alive[pi] = False              # consumed
+                    self.alive[pi] = False
                 else:
                     influ.setdefault(best[1], []).append(pi)
                     pending += 1
@@ -153,23 +273,11 @@ class Tree:
                                   self.points[pi][2] - z)
                     ln = math.sqrt(vx * vx + vy * vy + vz * vz) or 1.0
                     dx, dy, dz = dx + vx / ln, dy + vy / ln, dz + vz / ln
-                if y < crown_bot:
-                    dy += 0.15                          # upward tropism below crown
                 ln = math.sqrt(dx * dx + dy * dy + dz * dz) or 1.0
                 self._add(ni, (x + dx / ln * STEP, y + dy / ln * STEP,
                                z + dz / ln * STEP))
-            if influ:
-                continue
-            if pending == 0:
-                break                                   # every point consumed
-            lead = max(range(len(self.nodes)),          # leader hack: rise straight
-                       key=lambda i: (self.nodes[i][1], -i))
-            if self.nodes[lead][1] >= crown_top:
-                break                                   # crown top reached, give up
-            lx, ly, lz = self.nodes[lead]
-            jx, jz = self.rng.uniform(-0.12, 0.12), self.rng.uniform(-0.12, 0.12)
-            ln = math.sqrt(jx * jx + 1.0 + jz * jz)
-            self._add(lead, (lx + jx / ln * STEP, ly + STEP / ln, lz + jz / ln * STEP))
+            if not influ and pending == 0:
+                break
 
     def _add(self, parent, pos):
         self.nodes.append(pos)
@@ -191,24 +299,42 @@ class Tree:
     def put_wood(self, x, y, z, spec):
         self.wood[(x, y, z)] = spec
 
+    def _bole_section(self, cx, cz, y, size):
+        """以 (cx,cz) 浮点为中心的 size×size 水平截面(收分用)。"""
+        half = (size - 1) / 2.0
+        for ix in range(size):
+            for iz in range(size):
+                self.put_wood(rhu(cx - half) + ix, y, rhu(cz - half) + iz,
+                              "%s[axis=y]" % self.log)
+
     def rasterize(self):
         desc, clear_h = self.desc, self.clear_h
-        for y in range(clear_h + 1):                    # solid bole
-            for x in range(self.ts):
-                for z in range(self.ts):
-                    self.put_wood(x, y, z, "%s[axis=y]" % self.log)
+        # 主干: 沿骨架链逐格截面(可弯/斜); 收分按主干链的尾部 35%
+        # (与起叉点无关 — 起叉低不等于干变细)
+        trunk_set = set(self.trunk_ids)
+        span = max(1, len(self.trunk_ids))
+        for idx, nid in enumerate(self.trunk_ids):
+            x, y, z = self.nodes[nid]
+            size = self.ts if (not self.p["taper"] or idx < span * 0.65) \
+                else max(1, self.ts - 1)
+            self._bole_section(x, z, rhu(y), size)
         for i in range(1, len(self.nodes)):
+            if i in trunk_set:
+                continue                                # 主干已画
             pa = self.parent[i]
             a = tuple(rhu(v) for v in self.nodes[pa])
             b = tuple(rhu(v) for v in self.nodes[i])
             dx, dy, dz = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
             axis = "x" if abs(dx) >= abs(dy) and abs(dx) >= abs(dz) else \
                    ("y" if abs(dy) >= abs(dz) else "z")
-            below = rhu(self.nodes[i][1]) <= clear_h and rhu(self.nodes[pa][1]) <= clear_h
-            thick = not below and desc[i] >= THICK_TIPS
-            spec = self.fence if (not below and desc[i] < LOG_TIPS) else \
+            in_trunk_zone = rhu(self.nodes[i][1]) <= clear_h and rhu(self.nodes[pa][1]) <= clear_h \
+                and pa in trunk_set
+            thick = desc[i] >= THICK_TIPS
+            spec = self.fence if (not in_trunk_zone and desc[i] < LOG_TIPS) else \
                 "%s[axis=%s]" % (self.log, axis)
             for cell in vline(a, b):
+                if in_trunk_zone:
+                    continue                            # 主干区内由截面画过
                 self.put_wood(*cell, spec)
                 if thick:                               # 2-wide beam, widen sideways
                     bud = (cell[0], cell[1], cell[2] + 1) if axis == "x" else \
@@ -226,9 +352,11 @@ class Tree:
                 seen.add(d)
                 dirs.append(d)
         length, c = self.ts + 1, self.c
+        base = self.nodes[min(1, len(self.nodes) - 1)]
+        bcx, bcz = base[0], base[2]
         for ddx, ddz in dirs:
-            px = max(0, min(self.ts - 1, rhu(c + ddx * c)))
-            pz = max(0, min(self.ts - 1, rhu(c + ddz * c)))
+            px = rhu(bcx + ddx * c)
+            pz = rhu(bcz + ddz * c)
             axis = "x" if abs(ddx) >= abs(ddz) else "z"
             for k in range(1, length + 1):
                 hgt = max(1, length - k + 1)            # 3,2,1 (ts=2) / 4,3,2,1 (ts=3)
@@ -261,8 +389,12 @@ class Tree:
             r -= 1              # huge crown: slim blobs to stay within block budget
         carve = 0.30 - 0.18 * ld
         for i, ch in enumerate(self.children):
-            if not ch:                                  # terminal twig tip
+            if not ch and i not in self.trunk_ids:      # terminal twig tip
                 self.blob(*[rhu(v) for v in self.nodes[i]], r, carve)
+                pa = self.parent[i]                     # 父节点小团补链(更稀更薄,
+                if pa > 0 and pa not in self.trunk_ids:  # 防葡萄串也防糊死)
+                    self.blob(*[rhu(v) for v in self.nodes[pa]],
+                              max(1, r - 2), min(0.5, carve + 0.1))
         reach2 = (INFLUENCE + 1.5) ** 2                 # unreached points near wood
         for pi, pt in enumerate(self.points):
             if not self.alive[pi]:
@@ -306,7 +438,8 @@ def build(p):
     t.rasterize()
     if p["buttress"]:
         t.buttress()
-    t.foliage()
+    if not p.get("no_foliage"):
+        t.foliage()
     t.prune()
     return t.emit()
 
@@ -318,7 +451,7 @@ def validate(p):
         p["origin"] = [int(v) for v in p["origin"]]
     except (TypeError, ValueError):
         die("origin must be [x,y,z] ints", {"origin": "[100,64,100]"})
-    for key, lo, hi in (("height", 10, 30), ("canopy_radius", 3, 14)):
+    for key, lo, hi in (("height", 10, 60), ("canopy_radius", 3, 20)):
         try:
             p[key] = int(p[key])
         except (TypeError, ValueError):
@@ -333,6 +466,22 @@ def validate(p):
         die("trunk must be 2|3 (2x2|3x3)", {"trunk": [2, 3]})
     if p["species"] not in SPECIES:
         die("species must be one of %s" % (tuple(SPECIES),), {"species": list(SPECIES)})
+    if p["form"] not in FORMS:
+        die("form must be one of %s" % (FORMS,), {"form": list(FORMS)})
+    try:
+        p["limbs"] = int(p["limbs"])
+    except (TypeError, ValueError):
+        die("limbs must be 0-6 (0=auto)", {"limbs": 0})
+    if not 0 <= p["limbs"] <= 6:
+        die("limbs must be 0-6 (0=auto)", {"limbs": 0})
+    try:
+        p["canopy_layers"] = int(p["canopy_layers"])
+    except (TypeError, ValueError):
+        die("canopy_layers must be 1-4", {"canopy_layers": 2})
+    if not 1 <= p["canopy_layers"] <= 4:
+        die("canopy_layers must be 1-4", {"canopy_layers": 2})
+    if not isinstance(p["taper"], bool):
+        die("taper must be true|false", {"taper": True})
     try:
         p["seed"] = int(p["seed"])
     except (TypeError, ValueError):
@@ -354,10 +503,19 @@ def main():
     a = ap.parse_args()
     p = dict(DEFAULTS)
     try:
-        p.update(json.loads(a.params) if a.params.strip() else {})
+        user = json.loads(a.params) if a.params.strip() else {}
     except json.JSONDecodeError as e:
         die("--params is not valid JSON: %s" % e,
             {"example": '{"origin":[100,64,100],"height":22,"canopy_radius":8,"seed":7}'})
+    preset = user.get("preset")
+    if preset:
+        if preset not in PRESETS:
+            die("unknown preset '%s'" % preset, {"presets": sorted(PRESETS)})
+        p.update(PRESETS[preset])                       # 预设先填
+        user = {k: v for k, v in user.items() if k != "preset"}
+        p.update(user)                                  # 显式参数覆盖预设
+    else:
+        p.update(user)
     validate(p)
     write_out(build(p), a.out)
 

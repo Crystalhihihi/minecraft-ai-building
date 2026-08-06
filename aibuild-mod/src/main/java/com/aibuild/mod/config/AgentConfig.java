@@ -18,7 +18,7 @@ public record AgentConfig(String agentCommand, String agentModel, long idleTimeo
                           int maxConcurrentAgents, boolean intakeEnabled) {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private static final long DEFAULT_IDLE_TIMEOUT_MINUTES = 20;
+    private static final long DEFAULT_IDLE_TIMEOUT_MINUTES = 8;
     private static final long DEFAULT_HARD_TIMEOUT_MINUTES = 60;
     private static final long DEFAULT_TICK_BUDGET_MS = 10;
     private static final int DEFAULT_MAX_CONCURRENT_AGENTS = 4;

@@ -429,9 +429,32 @@ public final class AgentRunner {
                             + ". Blocks placed so far remain; /aichat can continue the session.");
             return;
         }
-        if (reason != null) { // idle/hard timeout — a deliberate kill, no self-heal
-            terminate(AgentSession.Status.FAILED, reason,
-                    "[aibuild] " + tag() + " agent stopped: " + reason + ". /aichat can continue the session.");
+        if (reason != null) { // idle/hard timeout — 看门狗判定卡死: 走自愈自动续跑
+            if (session.status() == AgentSession.Status.INTAKE) {
+                // 访谈不自愈(设计): 播报可手动续
+                terminate(AgentSession.Status.FAILED, reason,
+                        "[aibuild] " + tag() + " 访谈 agent 卡死被看门狗终止: " + reason + " — /aichat 可续");
+                return;
+            }
+            int attempt;
+            synchronized (session) {
+                session.resumeAttempts++;
+                attempt = session.resumeAttempts;
+            }
+            if (attempt <= MAX_SELF_HEAL_ATTEMPTS) {
+                session.lastError = reason + " — watchdog auto-resume " + attempt + "/" + MAX_SELF_HEAL_ATTEMPTS + " in 30s";
+                AiBuildMod.LOGGER.warn("[aibuild] {} watchdog kill ({}); self-heal {}/{} in 30s",
+                        tag(), reason, attempt, MAX_SELF_HEAL_ATTEMPTS);
+                manager.broadcast("[aibuild] " + tag() + " 看门狗: " + reason
+                        + " — 判定卡死,杀进程,30s 后自动续跑 (自愈 " + attempt + "/" + MAX_SELF_HEAL_ATTEMPTS + ")");
+                manager.persist();
+                scheduleSelfHeal();
+            } else {
+                terminate(AgentSession.Status.FAILED,
+                        reason + " — after " + MAX_SELF_HEAL_ATTEMPTS + " self-heal attempts",
+                        "[aibuild] " + tag() + " 看门狗连续 " + MAX_SELF_HEAL_ATTEMPTS
+                                + " 次自愈仍卡死 — 宣告失败,现场保留;/aichat 可手动续跑");
+            }
             return;
         }
         if (session.status() == AgentSession.Status.INTAKE) {
