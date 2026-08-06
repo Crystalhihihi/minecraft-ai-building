@@ -70,6 +70,15 @@
   ],
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 64, "source": "gc:phase10:church"},
+        {"id": "rect_bump", "weight": 4, "source": "gc:phase10:church"},
+        {"id": "L", "weight": 9, "source": "gc:phase10:church"},
+        {"id": "T", "weight": 4, "source": "gc:phase10:church"},
+        {"id": "U", "weight": 7, "source": "gc:phase10:church"},
+        {"id": "O", "weight": 7, "source": "gc:phase10:church"},
+        {"id": "cluster", "weight": 5, "source": "gc:phase10:church"}
+      ]},
       "body_material": {"options": [
         {"id": "white_concrete", "weight": 65, "source": "gc:churches:n=16"},
         {"id": "bricks", "weight": 25, "source": "gc:churches:n=16"},

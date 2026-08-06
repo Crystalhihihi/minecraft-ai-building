@@ -79,7 +79,7 @@
 | altar | 祭坛(多层台座+顶饰) |
 | settlement | 聚落布局(产 scene 空间计划非方块;grid/radial/organic/park) |
 | scene_load | scene 计划重建为方块(pattern 构件调生成器,style 地块产占位建筑;可选地形适配+碰撞避让) |
-| plan_shape | 平面形状(rect/L/T/U/rect_bump;翼楼拼合;凹凸率按语料分档 0.10~0.43;治只会矩形) |
+| plan_shape | 平面形状(rect/L/T/U/rect_bump/O围合/cluster簇群;构图轴语料校准;治只会矩形) |
 | clutter_pile | 杂物堆(干草/原木/箱桶/劈柴;seed 随机游走簇形,治无菌感) |
 | wear_path | 踩出来的路(两点间 seed 扰动带弯;dirt_path+渐稀收边;轻重磨损档) |
 | room_partition | 分房生成器(回刀式二分+隔墙吸附开间网格+门树动线;内置 BFS 可达校验,不可达 die;输出 rooms/window_hints 供 interior_rooms 与外墙开窗对齐) |

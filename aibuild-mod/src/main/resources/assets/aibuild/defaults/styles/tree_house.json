@@ -79,6 +79,15 @@
   ],
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 18, "source": "gc:phase10:tree"},
+        {"id": "rect_bump", "weight": 10, "source": "gc:phase10:tree"},
+        {"id": "L", "weight": 14, "source": "gc:phase10:tree"},
+        {"id": "T", "weight": 6, "source": "gc:phase10:tree"},
+        {"id": "U", "weight": 6, "source": "gc:phase10:tree"},
+        {"id": "O", "weight": 4, "source": "gc:phase10:tree"},
+        {"id": "cluster", "weight": 42, "source": "gc:phase10:tree"}
+      ]},
       "trunk_species": {"options": [
         {"id": "jungle_log", "weight": 50, "source": "gc:tree-houses:n=26"},
         {"id": "oak_log", "weight": 40, "source": "gc:tree-houses:n=26"},

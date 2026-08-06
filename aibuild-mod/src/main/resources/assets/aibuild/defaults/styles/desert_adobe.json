@@ -55,6 +55,15 @@
   ],
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 52, "source": "gc:phase10:adobe"},
+        {"id": "rect_bump", "weight": 8, "source": "gc:phase10:adobe"},
+        {"id": "L", "weight": 8, "source": "gc:phase10:adobe"},
+        {"id": "T", "weight": 3, "source": "gc:phase10:adobe"},
+        {"id": "U", "weight": 4, "source": "gc:phase10:adobe"},
+        {"id": "O", "weight": 16, "source": "gc:phase10:adobe"},
+        {"id": "cluster", "weight": 9, "source": "gc:phase10:adobe"}
+      ]},
       "roof_form": {"options": [
         {"id": "flat_parapet", "weight": 50, "source": "prior"},
         {"id": "dome_central", "weight": 30, "source": "prior"},

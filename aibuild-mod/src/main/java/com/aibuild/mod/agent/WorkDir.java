@@ -339,6 +339,11 @@ public final class WorkDir {
             at most: spend the budget on silhouette and macro texture (large
             material bands readable from distance), not on furniture.
 
+            If the build_order carries a `composition` axis, it is the plan
+            shape — run `plan_shape.py` with `shape` = that value (cluster
+            masses by tier: 中=2, 大/超大/地标=3) and raise walls from its
+            outline. Never substitute your own plan for the drawn one.
+
             ## Coordinates
 
             - +x = east, -x = west; +y = up; +z = south, -z = north.

@@ -5,7 +5,14 @@
 marker layer; the build AI raises the real walls from these cells. Shapes:
 rect / L / T / U (主体+翼楼矩形拼合; wing size preset + side/position derived
 from `seed`) / rect_bump (矩形带凹凸 — notches bitten from the edges until the
-measured concavity reaches the calibrated tier).
+measured concavity reaches the calibrated tier) / O (围合: 外环建筑+内院,
+正面可开 2-3 格门) / cluster (簇群: 主体+1-2 个附属体块, 面距 1-2 格互不相贴,
+附属比主体矮一层 — 连接件(桥/廊)由交接生成器负责, 本卡只排体块).
+
+构图权重校准 (scratch/phase10/composition/composition_report.md, 1867 建筑):
+rect 78% / irregular 7.3% / L 4.6% / cluster 4.3% / O 1.8% / U,T 各 1.6%。
+树屋类 cluster 占 40%, 园林类 O 占 20% —— 构图多样性按类目分布差异巨大,
+各风格卡的 composition 轴权重照此校准。
 
 凹凸率校准 (scratch/phase9/gc_probe/stats_details.md 二b, 299 medieval plans;
 口径与 layer_analyze.py 完全一致: 洪泛填室内空洞后, 单调链凸包 + Pick 定理
@@ -35,14 +42,16 @@ DEFAULTS = {
     "facing": "south",             # 正面朝向(翼楼/凹凸随正面一起旋转)
     "width": 9,                    # 正面宽(x), 5-31
     "depth": 7,                    # 进深(z), 5-31
-    "shape": "rect",               # rect | L | T | U | rect_bump
+    "shape": "rect",               # rect | L | T | U | rect_bump | O | cluster
     "wing": "medium",              # 翼楼尺寸档: small 0.25 / medium 0.35 / large 0.45 (L/T/U 用)
-    "storeys": 2,                  # 层数 1-4; 每层一条周界, 层距 +4
+    "gate": "south",               # O 围合正面门: south(正面) | none
+    "masses": 2,                   # cluster 体块总数 2-3 (含主体)
+    "storeys": 2,                  # 层数 1-4; 每层一条周界, 层距 +4 (cluster 附属体块矮一层)
     "material": "minecraft:stone_bricks",  # 轮廓标记材(无方向整方块; 起墙时按风格卡替换)
     "seed": 7
 }
 
-SHAPES = ("rect", "L", "T", "U", "rect_bump")
+SHAPES = ("rect", "L", "T", "U", "rect_bump", "O", "cluster")
 WING_RATIO = {"small": 0.25, "medium": 0.35, "large": 0.45}
 STOREY_GAP = 4
 
@@ -162,22 +171,81 @@ def footprint(p):
             if bite and bite <= cells:                        # 不加深/拓宽已有凹口
                 cells -= bite
                 removed += len(bite)
-    return cells
+    elif shape == "O":
+        # 围合: 外环建筑 + 内院(中心空洞), 正面(south)可开 2-3 格门
+        cw = max(3, round(W * 0.45))
+        cd = max(3, round(D * 0.45))
+        cx0, cz0 = (W - cw) // 2, (D - cd) // 2
+        cells -= {(x, z) for x in range(cx0, cx0 + cw) for z in range(cz0, cz0 + cd)}
+        if p["gate"] != "none":
+            gw = 3 if W >= 13 else 2
+            gx = rng.randint(cx0 - 1, cx0 + cw + 1 - gw)        # 门洞落在院墙段内
+            gx = max(1, min(W - 1 - gw, gx))
+            cells -= {(x, D - 1) for x in range(gx, gx + gw)}
+    elif shape == "cluster":
+        # 簇群: 主体 + masses-1 个附属体块, 面距 1-2 格互不相贴(桥/廊由交接
+        # 生成器补); 附属尺寸 0.4-0.6 主体, 贴主体四侧, 位置由 seed 推导。
+        n_mass = int(p["masses"])
+        cells = {(x, z) for x in range(W) for z in range(D)}
+        mass_sets = [set(cells)]
+        sides = ["e", "s", "n", "w"]
+        rng.shuffle(sides)
+        for mi in range(n_mass - 1):
+            r = rng.uniform(0.4, 0.6)
+            sw = max(3, round(W * r))
+            sd = max(3, round(D * r))
+            gap = rng.randint(1, 2)
+            placed = None
+            for side in sides:
+                if side == "e":
+                    x0 = W + gap
+                    zc = list(range(0, D - sd + 1))
+                elif side == "w":
+                    x0 = -gap - sw
+                    zc = list(range(0, D - sd + 1))
+                elif side == "s":
+                    z0 = D + gap
+                    xc = list(range(0, W - sw + 1))
+                else:  # n
+                    z0 = -gap - sd
+                    xc = list(range(0, W - sw + 1))
+                rng.shuffle(zc if side in ("e", "w") else xc)
+                cands = ([(x0, zz) for zz in zc] if side in ("e", "w")
+                         else [(xx, z0) for xx in xc])
+                for bx, bz in cands:
+                    cand = {(x, z) for x in range(bx, bx + sw) for z in range(bz, bz + sd)}
+                    # 膨胀 1 格(4-邻接)不与已有体块相贴 => 保持"独立体块"语义
+                    dil = {(x + dx, z + dz) for (x, z) in cand
+                           for dx, dz in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1))}
+                    if not (dil & cells):
+                        placed = cand
+                        break
+                if placed is not None:
+                    break
+            if placed is None:
+                continue                                        # 挤不下就少一个体块
+            cells |= placed
+            mass_sets.append(placed)
+        return cells, mass_sets
+    return cells, [set(cells)]
 
 
 def build(p):
     ox, oy, oz = [int(v) for v in p["origin"]]
     rot, _ = FACING_ROT[p["facing"]]
-    cells = footprint(p)
-    outline = sorted(c for c in cells
-                     if any((c[0] + dx, c[1] + dz) not in cells
-                            for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))))
+    cells, mass_sets = footprint(p)
     blocks = []
-    for s in range(int(p["storeys"])):
-        for x, z in outline:
-            wx, wz = rot(x, z)
-            blocks.append({"x": ox + wx, "y": oy + s * STOREY_GAP,
-                           "z": oz + wz, "block": p["material"]})
+    storeys = int(p["storeys"])
+    for mi, mcells in enumerate(mass_sets):
+        outline = sorted(c for c in mcells
+                         if any((c[0] + dx, c[1] + dz) not in cells
+                                for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))))
+        ms = storeys if mi == 0 else max(1, storeys - 1)      # cluster 附属矮一层
+        for s in range(ms):
+            for x, z in outline:
+                wx, wz = rot(x, z)
+                blocks.append({"x": ox + wx, "y": oy + s * STOREY_GAP,
+                               "z": oz + wz, "block": p["material"]})
     return blocks
 
 
@@ -194,6 +262,16 @@ def validate(p):
         die("width/depth/storeys must be ints", {"width": "5-31", "depth": "5-31", "storeys": "1-4"})
     if not 5 <= w <= 31 or not 5 <= d <= 31:
         die("width/depth out of range", {"width": "5-31", "depth": "5-31"})
+    if p["shape"] == "O" and (w < 9 or d < 9):
+        die("O 围合需要 width/depth >= 9 (内院 >=3 + 双侧翼楼)", {"width": ">=9", "depth": ">=9"})
+    if p["gate"] not in ("south", "none"):
+        die("gate must be south|none", {"gate": ["south", "none"]})
+    try:
+        masses = int(p["masses"])
+    except (TypeError, ValueError):
+        die("masses must be an int", {"masses": "2-3"})
+    if not 2 <= masses <= 3:
+        die("masses out of range", {"masses": "2-3"})
     if not 1 <= st <= 4:
         die("storeys out of range", {"storeys": "1-4"})
     if not str(p["material"]).startswith("minecraft:") or "[" in str(p["material"]):

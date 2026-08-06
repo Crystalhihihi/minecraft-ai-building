@@ -53,6 +53,15 @@
   ],
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 55, "source": "gc:phase10:grand"},
+        {"id": "rect_bump", "weight": 12, "source": "gc:phase10:grand"},
+        {"id": "L", "weight": 9, "source": "gc:phase10:grand"},
+        {"id": "T", "weight": 4, "source": "gc:phase10:grand"},
+        {"id": "U", "weight": 3, "source": "gc:phase10:grand"},
+        {"id": "O", "weight": 5, "source": "gc:phase10:grand"},
+        {"id": "cluster", "weight": 12, "source": "gc:phase10:grand"}
+      ]},
       "plan": {"options": [
         {"id": "cruciform", "weight": 60, "source": "prior"},
         {"id": "nave_aisles", "weight": 40, "source": "prior"}

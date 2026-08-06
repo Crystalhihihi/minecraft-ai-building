@@ -50,6 +50,15 @@
   },
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 56, "source": "gc:phase10:dock"},
+        {"id": "rect_bump", "weight": 10, "source": "gc:phase10:dock"},
+        {"id": "L", "weight": 10, "source": "gc:phase10:dock"},
+        {"id": "T", "weight": 3, "source": "gc:phase10:dock"},
+        {"id": "U", "weight": 3, "source": "gc:phase10:dock"},
+        {"id": "O", "weight": 3, "source": "gc:phase10:dock"},
+        {"id": "cluster", "weight": 15, "source": "gc:phase10:dock"}
+      ]},
       "deck_width": {"options": [
         {"id": "width_3", "weight": 30, "source": "prior"},
         {"id": "width_4", "weight": 45, "source": "prior"},

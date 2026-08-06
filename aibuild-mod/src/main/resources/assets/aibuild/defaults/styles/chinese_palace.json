@@ -87,6 +87,15 @@
   ],
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 38, "source": "gc:phase10:eastasia"},
+        {"id": "rect_bump", "weight": 4, "source": "gc:phase10:eastasia"},
+        {"id": "L", "weight": 8, "source": "gc:phase10:eastasia"},
+        {"id": "T", "weight": 2, "source": "gc:phase10:eastasia"},
+        {"id": "U", "weight": 10, "source": "gc:phase10:eastasia"},
+        {"id": "O", "weight": 24, "source": "gc:phase10:eastasia"},
+        {"id": "cluster", "weight": 14, "source": "gc:phase10:eastasia"}
+      ]},
       "roof_type": {"options": [
         {"id": "xieshan_roof", "weight": 70, "source": "prior"},
         {"id": "hip_roof", "weight": 20, "source": "prior"},

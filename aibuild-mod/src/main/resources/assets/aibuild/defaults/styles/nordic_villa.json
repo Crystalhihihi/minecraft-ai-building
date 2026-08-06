@@ -57,6 +57,15 @@
   },
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 80, "source": "gc:phase10:modern"},
+        {"id": "rect_bump", "weight": 4, "source": "gc:phase10:modern"},
+        {"id": "L", "weight": 7, "source": "gc:phase10:modern"},
+        {"id": "T", "weight": 1, "source": "gc:phase10:modern"},
+        {"id": "U", "weight": 3, "source": "gc:phase10:modern"},
+        {"id": "O", "weight": 2, "source": "gc:phase10:modern"},
+        {"id": "cluster", "weight": 3, "source": "gc:phase10:modern"}
+      ]},
       "massing_shape": {"options": [
         {"id": "rect", "weight": 50, "source": "prior"},
         {"id": "l_shape", "weight": 35, "source": "prior"},

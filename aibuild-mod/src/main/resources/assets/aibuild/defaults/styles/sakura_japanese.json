@@ -81,6 +81,15 @@
   ],
   "lottery": {
     "axes": {
+      "composition": {"options": [
+        {"id": "rect", "weight": 60, "source": "gc:phase10:medieval"},
+        {"id": "rect_bump", "weight": 12, "source": "gc:phase10:medieval"},
+        {"id": "L", "weight": 9, "source": "gc:phase10:medieval"},
+        {"id": "T", "weight": 2, "source": "gc:phase10:medieval"},
+        {"id": "U", "weight": 4, "source": "gc:phase10:medieval"},
+        {"id": "O", "weight": 3, "source": "gc:phase10:medieval"},
+        {"id": "cluster", "weight": 10, "source": "gc:phase10:medieval"}
+      ]},
       "roof_type": {"options": [
         {"id": "hip_roof", "weight": 70, "source": "prior"},
         {"id": "gable_roof", "weight": 30, "source": "prior"}
