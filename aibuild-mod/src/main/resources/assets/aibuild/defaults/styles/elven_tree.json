@@ -123,5 +123,6 @@
     ],
     "skip_if": "纯外观单层小树居时,房间问题跳过,只确认顶部形态。"
   },
-  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
+  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"],
+  "size_tiers": ["超大", "地标"]
 }

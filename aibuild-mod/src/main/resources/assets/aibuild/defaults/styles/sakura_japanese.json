@@ -131,5 +131,6 @@
     ],
     "skip_if": "小茶亭级纯外观时,房间问题跳过,只确认屋顶形式与变体。"
   },
-  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
+  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"],
+  "size_tiers": ["小", "中"]
 }

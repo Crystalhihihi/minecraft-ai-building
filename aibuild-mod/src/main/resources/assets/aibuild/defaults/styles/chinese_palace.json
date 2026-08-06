@@ -137,5 +137,6 @@
     ],
     "skip_if": "只建亭/小堂级小体量或纯外观时,房间与配殿问题跳过,只确认台基层数与屋顶形式。"
   },
-  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
+  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"],
+  "size_tiers": ["大", "超大"]
 }

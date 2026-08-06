@@ -118,5 +118,6 @@
     ],
     "skip_if": "只做街景立面薄片(纯外观)时,房间分区问题跳过,只确认屋顶与墙面材质。"
   },
-  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"]
+  "validators": ["support_check", "slab_check", "stair_corner_check", "symmetry_check", "collision_check"],
+  "size_tiers": ["小", "中"]
 }

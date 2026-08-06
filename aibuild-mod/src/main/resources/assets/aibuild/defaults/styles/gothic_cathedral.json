@@ -105,5 +105,6 @@
     ],
     "skip_if": "单厅级小堂直接改用 church_chapel 卡; 纯外观时房间问题跳过,只确认塔数与玫瑰窗。"
   },
-  "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"]
+  "validators": ["support_check", "slab_check", "symmetry_check", "collision_check"],
+  "size_tiers": ["大", "超大"]
 }

@@ -132,5 +132,6 @@
     ],
     "skip_if": "纯外观布景或体量很小(占地小于 7x9)时,房间问题跳过,只确认悬挑与外墙做法。"
   },
-  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"]
+  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"],
+  "size_tiers": ["小", "中"]
 }

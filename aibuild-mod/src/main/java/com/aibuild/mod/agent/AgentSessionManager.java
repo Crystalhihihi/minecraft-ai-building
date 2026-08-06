@@ -349,7 +349,9 @@ public final class AgentSessionManager {
             AgentRunner r = runnerFor(intake);
             if (r.isProcessAlive()) {
                 intake.inbox().add(message);
-                return "[已排队到访谈会话 #" + intake.no() + ",AI 下次行动时送达] " + message;
+                return (intake.inbox().hasWaiter()
+                        ? "[已送达访谈会话 #" + intake.no() + " 正在等待的提问] "
+                        : "[已排队到访谈会话 #" + intake.no() + ",AI 下次行动时送达] ") + message;
             }
             if (intake.description.contains("[访谈确认]")) {
                 // interview done but the launch was cap-blocked — retry (idempotent)
@@ -370,7 +372,9 @@ public final class AgentSessionManager {
         AgentSession running = latestRunning();
         if (running != null) {
             running.inbox().add(message);
-            return "[已排队到会话 #" + running.no() + ",AI 下次行动时送达] " + message;
+            return (running.inbox().hasWaiter()
+                    ? "[已送达会话 #" + running.no() + " 正在等待的提问] "
+                    : "[已排队到会话 #" + running.no() + ",AI 下次行动时送达] ") + message;
         }
         AgentSession resumable = sessions.values().stream()
                 .filter(s -> s.kimiSessionId() != null && s.status() != AgentSession.Status.RUNNING)

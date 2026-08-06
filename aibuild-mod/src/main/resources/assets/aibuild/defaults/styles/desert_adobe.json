@@ -106,5 +106,6 @@
     ],
     "skip_if": "单体小穹顶亭或纯外观布景时,房间问题跳过,只确认屋顶形式与材质体系。"
   },
-  "validators": ["support_check", "slab_check", "collision_check"]
+  "validators": ["support_check", "slab_check", "collision_check"],
+  "size_tiers": ["小", "中"]
 }

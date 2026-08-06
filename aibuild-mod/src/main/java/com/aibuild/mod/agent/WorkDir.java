@@ -328,6 +328,17 @@ public final class WorkDir {
             exactly (feed texture_seed to the seeded generators); override an
             axis only on a hard bounds/terrain conflict and say why in plan.md.
 
+            The brief's 体量 tier sets expectations: 超小/小 = a single volume
+            is normal; 中/大 = plan the volume composition (体块 line) and its
+            junctions before raising walls; 超大/地标 = stage the build —
+            massing/silhouette first, verify the outline with renders from
+            FAR away (200+ blocks out, or high-elevation topdown), THEN fill
+            in detail. Size the site proposal generously for big tiers (roof
+            overhang, landscape, landmark margin — a cramped site produces a
+            cramped landmark). 用途=观赏/地标 means the interior is symbolic
+            at most: spend the budget on silhouette and macro texture (large
+            material bands readable from distance), not on furniture.
+
             ## Coordinates
 
             - +x = east, -x = west; +y = up; +z = south, -z = north.
@@ -366,6 +377,32 @@ public final class WorkDir {
               cover, flatness stats and up to 3 flat candidate spots. Use it to
               choose and orient the build. To scout elsewhere, call
               `get_terrain_summary(center, radius)` (radius <= 128).
+
+            ## Terrain adaptation (MANDATORY on non-flat sites)
+
+            After the site is confirmed, DERIVE the ground strategy from
+            terrain.json (or a fresh get_terrain_summary over the confirmed
+            box) — never eyeball it. Compute the ground range (max-min of the
+            heightmap cells under your footprint), then:
+
+            - range <= 2: build on grade; just clear vegetation and set the
+              floor 1 above the highest ground cell touching the walls.
+            - range 3-6: `terraform_pad.py` for a level platform at the
+              footprint's MEAN ground height (its blend band does the
+              transition), OR follow the slope: split the footprint into 2-3
+              height bands (1-2 block steps between bands, joined by the
+              staircase pattern) and pad each band separately.
+            - range >= 7 or a steep edge: do NOT flatten a hill — terrace
+              into it (bands as above) or raise on stilts (stilt_house card:
+              posts reach solid ground, floor at max ground + 1). A wall cut
+              into a slope gets a retaining face (stone_brick / cobblestone)
+              on the uphill side, never bare dirt.
+            - Water edge: the foundation reaches 1 below water level (see
+              waterfront_dock card).
+            - Whatever you choose, the building must MEET the ground
+              everywhere: no floating corners, no buried facade. After the
+              shell is up, walk the footprint perimeter with `get_block` and
+              fix every gap or overlap you find.
 
             ## Style cards (MANDATORY — pick one BEFORE planning)
 
@@ -625,60 +662,65 @@ public final class WorkDir {
               and a slow player is normal; NEVER wrap up just because the
               player has not answered yet. Only 跳过 / 随便 / 你定 ends the
               interview early (mark undecided items "AI 定" then).
-            - QUESTION 1 IS ALWAYS THE DEPTH QUESTION: "这轮访谈要多细?"
-              with options [快速(~3问: 只问非问不可的, 其余 AI 定)] /
-              [标准(推荐: 正常弧, 含结构选择)] / [细致(问到满意:
-              结构/材料/细节逐项过)]. Then HONOUR the tier: 快速 = ask only
-              what is genuinely unknowable (style if the description leaves
-              it open, site) + the final confirmation; 标准 = the normal arc
-              below; 细致 = walk the structural decision points one by one,
-              materials and detail preferences included. Depth controls
-              question COUNT, never question quality — even 快速 must end
-              with the final confirmation.
-            - Think FIRST about what is genuinely ambiguous: style, size,
-              function (who lives/works there), interior level, special
-              requests. Do NOT ask about things the description already
-              settles — the more specific the request, the fewer you ask.
-            - STRUCTURAL DETAIL questions are what make the interview worth
-              having: once the style is settled, derive 1-3 questions from
-              THAT building type's real decision points — e.g. castle: does
-              the rampart get a walkable wall-walk? are watchtowers pure
-              decoration or connected and climbable? gatehouse / moat?
-              house: balcony / loft / basement? These choices decide whether
-              the result is a shell or a considered structure — an interview
-              that only asks style/size/interior is a FAILED interview for
-              any non-trivial request.
-            - Question count is YOUR call (typically 2-6). If the player's
-              free-text answer raises NEW ambiguities, ask a follow-up about
-              THOSE — keep going until you actually understand the request
-              (hard cap: ~8 questions in 标准 tier, ~12 in 细致; 快速 stays
-              at ~3).
-            - Recommended question arc: style / function / detail questions
-              FIRST; the SIZE question SECOND-TO-LAST (sensible size options
-              depend on the chosen style and function — asking size early is
-              asking blind); the SITE question LAST, and only when task.json
-              has NO `bounds` (a wand selection means the site is already
-              chosen — never ask then). Site options: 玩家附近 / AI 自己选
-              (plus 你定 if unsure).
-            - FINAL STEP before writing the brief: ask ONE confirmation
-              question summarizing everything you understood (style / size /
-              function / interior / structural choices / site) with options
-              like [开工] / [我要补充]. Write intake_brief.md and exit ONLY
-              after the player answers that confirmation (跳过/随便/你定
-              counts as confirmation). Ending the interview without it is
-              FORBIDDEN — it is the player's veto against misunderstanding.
+            - Players describe buildings ROUGHLY ("a castle", "a big tree").
+              They do NOT have a detailed design in mind — your job is to
+              turn the one-liner into a concrete DECISION LIST and let them
+              veto it. Propose, never interrogate: every question offers the
+              most likely answers as clickable options, and "AI 定" is always
+              an acceptable answer. Do NOT ask what the description, the
+              style card, or the lottery already settles (materials are the
+              card's business — never ask them): decide those yourself and
+              put them in the final playback; the player vetoes there.
+              Fewer, better questions beat many.
+            - Q1 IS ALWAYS THE PURPOSE QUESTION (unless the description
+              settles it): "造来干嘛?" with options [住人/使用: 里面要能进能用] /
+              [观赏/地标: 远看为主, 里面不重要] / [混合: 外形壮观+里面可用] /
+              [AI 定]. The answer PRUNES the rest of the interview:
+              观赏/地标 → skip ALL room/interior questions (the brief gets
+              内饰: 象征性); 住人/使用 → rooms matter; 混合 → interior = main
+              floor only unless the player says otherwise.
+            - STYLE comes next when the description leaves it open: offer the
+              menu from patterns/INDEX.md (card name + one-line use_for) as
+              options. Skip when the description settles it.
+            - STRUCTURAL DECISIONS: once the style is settled, read THAT
+              card's `interview_prompts` field (MANDATORY — its rooms
+              question and structural points are pre-vetted anchors; honour
+              its skip_if). Ask AT MOST 3, with concrete options, and only
+              those that survive pruning (purpose and size make most answers
+              obvious — a 超小 kiosk has no towers to connect; a 观赏 landmark
+              needs no wall-walk). A free-text answer that raises a NEW
+              ambiguity earns ONE follow-up.
+            - SIZE is second-to-last: six tiers worded by anchor, not numbers:
+              [超小: 亭/摊/神龛级 (≤9×9)] / [小: 独户民居级 (~13×13)] /
+              [中: 客栈/小教堂级 (~20×20)] / [大: 城堡主楼/大教堂级 (~35×35)] /
+              [超大: 完整城堡/巨树级 (60+)] / [地标: 百米级天际线, 几公里外可见].
+              Recommend the tier fitting the card + purpose (a 观赏巨树 is
+              超大 or 地标, never 小; the card may carry a `size_tiers` range —
+              steer inside it). 地标 carries build consequences (silhouette
+              first, far-view readability, symbolic interior) — record them
+              in the brief.
+            - SITE is LAST, and only when task.json has NO `bounds` (a wand
+              selection means the site is already chosen — never ask then).
+              Site options: 玩家附近 / AI 自己选 (plus 你定 if unsure).
+            - FINAL STEP before writing the brief: the PLAYBACK — ONE
+              confirmation question that plays back the WHOLE decision list,
+              including what YOU decided: purpose / style card / size tier /
+              volume composition (体块: e.g. 主楼+东翼+独立塔, 连廊相接) /
+              structural choices / interior level / site / the lottery
+              build_order block (drawn already, see below). Options:
+              [开工] / [我要补充] / [逐项过一遍]. 逐项过一遍 = walk the
+              decision list one item per ask_player call and let the player
+              override each. Write intake_brief.md and exit ONLY after the
+              player answers the playback (跳过/随便/你定 counts as approval).
+              Ending the interview without it is FORBIDDEN — it is the
+              player's veto against misunderstanding.
             - READ LIGHT: `patterns/INDEX.md` already contains the style menu
               (card name + one-line use_for) — that is ALL you need to compose
               options. Do NOT read every styles/*.json: at most read the ONE
-              card you end up recommending (and the cards you consult when
-              authoring a draft card). Reading the whole library into context
-              burns tokens every turn for zero interview quality.
-              EXCEPTION: the recommended card's `interview_prompts` field is
-              MANDATORY reading — its `rooms` question and `structural`
-              decision points are pre-vetted anchors for this style. Ask them
-              (honouring its `skip_if` downgrade cases) and fold the answers
-              into the brief verbatim; the `rooms` answer feeds the builder's
-              room_partition run directly.
+              card you end up recommending (its `interview_prompts` is the
+              mandatory part) and any cards you consult when authoring a
+              draft. Reading the whole library into context burns tokens
+              every turn for zero interview quality.
             - NO matching style card? Then AUTHOR one before you exit: write
               `styles/<new_id>.json` (same fields as the existing cards —
               proportions / materials / roof / windows / details / pitfalls /
@@ -705,10 +747,12 @@ public final class WorkDir {
             ```
             # 访谈纪要
             - 需求: <一句话总结玩家要造什么>
+            - 用途: <住人使用 / 观赏地标 / 混合, or "AI 定">
             - 风格: <style_id from styles/, or "AI 定"> — <为什么>
-            - 体量: <大致 footprint/高度, or "AI 定">
-            - 功能: <房间/用途, or "AI 定">
-            - 内饰: <全内饰/只主房间/不要内饰, or "AI 定">
+            - 体量: <档位(超小/小/中/大/超大/地标) + 大致 footprint/高度, or "AI 定">
+            - 体块: <体块编排提案(如 主楼+东翼+独立塔, 连廊相接), or "AI 定">
+            - 功能: <房间/用途, or "AI 定"; 观赏地标写 "象征性">
+            - 内饰: <全内饰/只主房间/象征性/不要内饰, or "AI 定">
             - 结构: <风格相关的结构选择(如城墙走廊/哨塔连通/阳台/阁楼), or "AI 定">
             - 选址: <玩家附近 / AI 自己选; task.json 已有 bounds 则写 "已圈定选区">
             - 其他: <玩家明确的特殊要求; 无则写 "无">
