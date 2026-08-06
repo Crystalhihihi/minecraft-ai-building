@@ -2,7 +2,51 @@
 
 > 读我即恢复全部关键状态。详细历史:git log;实验数据:`docs/experiments.md`;延后事项:`docs/BACKLOG.md`;调研:`docs/research/`(reflib 13 篇)。
 
-## 当前里程碑
+## 2026-08-06 深夜快照(细节层闭环,读我恢复全部状态)
+
+**最新提交 7a7fd05;jar 已部署(23:41,PCL mods)。系统已达"理论完全体":访谈(提案制)→风格卡(19)→抽签(参数+构图双轴)→生成器(49 含连接件)→验收(7 含 flatness)→渲染自检,全链路无空环。**
+
+### 今天落地的(全部已提交已部署)
+
+- **R6 环境轴收口**:roadfit 楼梯 facing 重写(vanilla 语义 facing=上坡;R=1 高格换楼梯,R≥2 低点柱叠楼梯);`验证/road_test.py` 真灌入读回验证 harness;TerrainSummary 野地虚空 bug 修复(getChunk 预载);builder 手册地形适配推导规则
+- **访谈提案制重写**:Q1 用途剪枝(纯观赏外壳才砍内饰,通达性保留)/结构点≤3/材质永不问/体量六档(超小~地标)/收尾=全决策回放([开工]/[我要补充]/[逐项过一遍]);19 卡 size_tiers 标注
+- **访谈 bug 修复**:PlayerInbox.take 丢唤醒竞态;"已排队"误导回显;看门狗 8min idle 杀+自动续跑(此前只杀不救);k3 思考慢是常态不是卡死
+- **R10 体块编排层(前半+后半)**:构图原型聚类(scratch/phase10/composition/,1867 建筑:rect 78%/L 4.6%/cluster 4.3%/O 1.8%);19 卡 composition 轴按类目加权;plan_shape 扩 O 围合+cluster 簇群;connector.py 连廊(open/covered/enclosed,L 弯,门洞 sidecar);拼装验收=collision+walkability 组合;真实灌入验证全绿(scratch/phase10/pour_assembly.py)
+- **roof_plan.py**:L/T/U 分翼垂直屋顶+45°谷沟(止于脊下);修"L 形盖两个平行双坡"翻车;**重大教训:DEFAULT_ASSETS 是手工清单,新生成器必须登记(connector 曾漏登导致游戏 agent 收不到)**
+- **R8 巨树形态库**:giant_tree v2(显性主枝样条低位起叉先平展再上扬/云片层盘/干形四式直弯斜螺旋/沿骨架收分);11 形态卡 preset(spirit_candelabra=Ori 标杆);调研 docs/research/tree-forms.md;宿主树接线(elven_tree/tree_house 卡+手册);`scratch/giant_tree/tree_png.py` matplotlib voxel 离线渲染器(形态目检主力工具)
+- **细节构件卡族**(治"细节纸糊"):doorway.py(7层门口)/window_trim v2(内凹默认)/eaves_trim(椽子+封檐)/gable flare_corners(翼角)/furniture 5 组团模板(箱上半砖铁律)/抽签校准(dormers→5%,悬挑露台→5%);**flatness_check.py 光秃墙验收器**(细节硬门);plan.md 构件→生成器映射强制(有生成器却徒手=失败)
+- **调研三路**:detail-techniques.md(MC builder 技法配方)/realworld-vocab.md(5传统×5构件,74 URL)/stats_detail_elements.md(语料定量 540 件)
+
+### 用户实测反馈(压测中,按时间序)
+
+1. 地标级树造成庭院级 → 巨树形态库立项(已修)
+2. 双体图书馆翻车(屋顶/楼梯/融合怪) → 诊断=资产不用非缺资产 → 手册牙齿化
+3. 卡死 14 分钟 → 看门狗自动续跑(已修)
+4. L 形房盖平行双坡 → roof_plan(已修)
+5. 门=原版门方块/工作方块排一排/家具堵死房/一格露台/窗只有一圈环 → 细节构件卡族(已修,待实机验收)
+6. **形态(剪影/比例/体块)用户确认过关**——L1/L2 层立住了
+
+### 下一步(按序)
+
+1. **用户实机验收细节层**(建议场景:中世纪民居 小/中档——最能压住房门口/窗/檐口/家具)
+2. 精灵树标杆六条硬指标(8-06 用户发的 bilibili 图定为验收锚点):干发光脉络/冠内光点/垂藤/环形拱廊/拼花广场/花坛基座——缺:发光脉络/垂挂/arcade_ring 生成器
+3. 用户截图投喂(优秀建筑图片/:门口/窗/屋檐/工作间/露台/墙面)——口味校准
+4. R9 聚落(地形引擎 B10②③④ 已修完,聚落接通);B12 大串烧/B1 集群仍冻结(精灵树标杆后)
+5. 可选:grabcraft-to-schema 评估(层图 PNG→3D 精确数据升级语料)
+
+### 血泪纪律(新增)
+
+- **DEFAULT_ASSETS 手工清单**:新生成器/卡文件必须登记进 WorkDir.java 的 DEFAULT_ASSETS,否则游戏 agent 收不到(connector 事故)
+- flatness_check 判据:凸出+1 格深覆盖都计 relief;窗洞碎面逃避问题已修(覆盖格计入面积)
+- 用户游戏 jar 在 PCL mods;部署前查 java 进程(Mojang|natives 过滤,排除 Daemon)
+- 游戏里查 agent 状态:sessions.json 在 saves/<世界>/aibuild/;日志在 sessions/s<N>/logs/
+- jar 大小≈2.7MB 稳定:文本资源 zip 高压缩,加生成器几乎不涨,不是没打进去
+
+---
+
+## 历史快照(更早状态见 git log)
+
+## 当前里程碑(2026-07-31 口径)
 
 - **M1/M2/M3 全闭环**(风格卡/模式库/渲染自检/undo/形状回放/bridge 宽容化)
 - **E 系列**(docs/experiments.md):
