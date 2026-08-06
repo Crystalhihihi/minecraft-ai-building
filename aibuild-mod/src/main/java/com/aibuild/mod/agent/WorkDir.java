@@ -35,6 +35,10 @@ public final class WorkDir {
      * agent edited in the work dir are NEVER overwritten.
      */
     static final List<String> DEFAULT_ASSETS = List.of(
+            "patterns/connector.py",
+            "patterns/connector.json",
+            "patterns/roof_plan.py",
+            "patterns/roof_plan.json",
             "styles/medieval_tower.json",
             "styles/medieval_house.json",
             "styles/plains_cabin.json",
@@ -361,6 +365,11 @@ public final class WorkDir {
                entrance with a require point inside EVERY mass passing — an
                unreachable mass is a failed build, same as an unreachable
                room.
+            5. ROOF on a composite plan: for L/T/U plans run `roof_plan.py`
+               with the SAME seed/shape/width/depth/wing as the plan_shape
+               call — it roofs each wing perpendicular and lays the valley.
+               Two parallel gables on an L plan is a build failure (实测翻车).
+               Rect plans use gable_roof/hip_roof directly.
 
             ## Coordinates
 

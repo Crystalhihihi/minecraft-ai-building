@@ -39,6 +39,7 @@
 | 卡 | use_for |
 | --- | --- |
 | gable_roof | 双坡屋顶(收分/屋脊/山墙) |
+| roof_plan | 组合平面屋顶(L/T/U 分翼垂直相交+45°谷沟; 与 plan_shape 同 seed; 组合平面禁用单坡卡) |
 | hip_roof | 四坡屋顶 |
 | dormer | 老虎窗(gabled/shed/hipped 三变体,窗洞切进坡面带 air 开凿) |
 | gambrel_roof | 折线屋顶(下陡上缓,谷仓/荷兰殖民式) |

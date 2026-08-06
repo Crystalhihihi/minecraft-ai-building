@@ -1,0 +1,26 @@
+{
+  "name": "roof_plan",
+  "description": "Composite-plan roof generator (组合平面屋顶): for L/T/U (and any plan decomposable into <=3 rectangle wings). Reads the SAME plan as plan_shape (same seed = same plan, computed via plan_shape.footprint), splits it into wing strips (equal-x-set z-row runs), roofs each wing with gable_roof (ridge along its long axis — main and wing automatically PERPENDICULAR), main wing wins cell conflicts (subordinate roof dies into the main slope), and lays a 45-degree valley channel (inverted stairs, half=top) from each inner corner up to just below the main ridge. 治'L 形房子盖两个平行双坡'.",
+  "when_to_use": "Whenever the composition axis / plan is L, T or U: run this INSTEAD of gable_roof per wing. Rect plans: use gable_roof/hip_roof directly. O 围合/cluster: roof each mass/ring segment separately (本卡只管 <=3 翼). seed 必须和墙体的 plan_shape 完全一致, 否则屋面和平面对不上。origin = 平面包围盒西北角, y = 墙顶上一层.",
+  "params": {
+    "origin": {"type": "[x,y,z]", "notes": "平面包围盒西北角; y = 屋顶基层"},
+    "shape": {"type": "enum", "values": ["L", "T", "U"], "default": "L", "notes": "与 plan_shape 同值"},
+    "width": {"type": "int", "range": "5-31", "default": 13, "notes": "与 plan_shape 同值"},
+    "depth": {"type": "int", "range": "5-31", "default": 11, "notes": "与 plan_shape 同值"},
+    "wing": {"type": "enum", "values": ["small", "medium", "large"], "default": "medium", "notes": "与 plan_shape 同值"},
+    "seed": {"type": "int", "default": 7, "notes": "必须与墙体 plan_shape 同 seed"},
+    "overhang": {"type": "int", "range": "0-2", "default": 1, "notes": "檐口出挑"},
+    "material": {"type": "block id", "default": "minecraft:spruce_stairs", "notes": "屋面楼梯材, 按风格卡"},
+    "ridge_material": {"type": "block id", "default": "minecraft:spruce_slab", "notes": "脊材"},
+    "ridge_support": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "脊下梁材(防半缝悬空, E8 实测)"},
+    "valley_material": {"type": "block id", "default": "(=material)", "notes": "谷沟材(倒放楼梯); 想用对比色就给别的"}
+  },
+  "pitfalls": [
+    "seed/shape/width/depth/wing 必须与墙体 plan_shape 完全一致 — 这是同一个平面的两次计算, 不一致屋面就歪",
+    "从属翼的脊低于主脊是正确形态, 别手动拉平",
+    "谷沟是倒放楼梯(half=top)替换屋面格, 不是架在屋面上; 看到凸起的棱线就是放错了层",
+    "翼宽 <=2 时谷沟可能只有 1-2 格, 正常; 平面锯齿/带洞会直接 die(v1 只支持条带矩形)"
+  ],
+  "validators": ["support_check", "collision_check(与各翼墙体)"],
+  "example": "python patterns/roof_plan.py --params '{\"origin\":[100,80,100],\"shape\":\"L\",\"width\":13,\"depth\":11,\"wing\":\"medium\",\"seed\":5}' --out roof.json"
+}
