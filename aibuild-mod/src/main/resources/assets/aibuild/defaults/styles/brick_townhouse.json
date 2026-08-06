@@ -95,9 +95,9 @@
         {"id": "stone_brick_aged", "weight": 35, "source": "prior"}
       ]},
       "dormers": {"options": [
-        {"id": "dormer_gabled", "weight": 80, "source": "prior"},
-        {"id": "dormer_shed", "weight": 12, "source": "prior"},
-        {"id": "dormer_none", "weight": 8, "source": "prior"}
+        {"id": "dormer_gabled", "weight": 4, "source": "prior"},
+        {"id": "dormer_shed", "weight": 1, "source": "prior"},
+        {"id": "dormer_none", "weight": 95, "source": "prior"}
       ]},
       "chimney_count": {"options": [
         {"id": "chimney_1", "weight": 50, "source": "prior"},

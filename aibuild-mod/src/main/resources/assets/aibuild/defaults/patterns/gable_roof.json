@@ -11,7 +11,8 @@
     "axis": {"type": "\"x\"|\"z\"", "default": "x", "notes": "ridge direction; the gable ends face the OTHER axis"},
     "material": {"type": "block id", "default": "minecraft:spruce_stairs", "notes": "any *_stairs from the style card's roof list"},
     "ridge_material": {"type": "block id", "default": "minecraft:spruce_slab", "notes": "slab used on the ridge row"},
-    "end_fill": {"type": "block id|\"\"", "default": "", "notes": "wall material to fill the triangular gable ends; empty = open gables"}
+    "end_fill": {"type": "block id|\"\"", "default": "", "notes": "wall material to fill the triangular gable ends; empty = open gables"},
+    "flare_corners": {"type": "bool", "default": false, "notes": "翼角: 屋面四角檐口两端上翘 1 格(中式/日式飞檐曲线); 每屋面 +4 块"}
   },
   "example": "python patterns/gable_roof.py --params '{\"origin\":[100,83,100],\"width\":7,\"depth\":9,\"material\":\"minecraft:dark_oak_stairs\",\"end_fill\":\"minecraft:stone_bricks\"}' --out roof.json"
 }

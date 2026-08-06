@@ -1,0 +1,31 @@
+{
+  "name": "doorway",
+  "description": "Doorway (门口) generator: the full 7-layer human entrance — recess niche, frame ring, lintel/arch band with keystone, door leaves (mirrored-hinge double doors), stoop steps, canopy awning with lanterns, symmetric side lantern posts. Replaces the 'bare vanilla door block' look. Emits explicit minecraft:air cells that carve the opening INTO the wall (dormer-style force carve). Arch openings: stepped half-arch, rise = ceil(width/2), mirrored by construction, apex swaps to keystone material. Frame mode is chosen by material suffix: *_trapdoor = 活板门包框 on the wall face + log side posts, *_stairs = 楼梯描边 (jambs face into opening, upside-down stair lintel), anything else = solid inlaid ring. All direction states derived from origin+params.",
+  "when_to_use": "Any exterior wall needs a door that reads as an entrance, not a hole with a door block in it. origin = bottom-LEFT cell of the door OPENING as seen from outside, y = the sill layer (the cell the door leaf's lower half occupies); the wall face plane runs through origin and the generator carves recess+1 cells deep from it. facing = the outward direction the door looks to. The host wall must already exist (or be planned) at that plane; wall thickness should be >= recess+1. DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit facing/half/hinge/open in the output JSON; change params and re-run (禁止手改方向状态).",
+  "use_for": "民居 1x2 活板门包框、小康 2x2/2x3 双开正门、石造楼梯描边门套、3-5 宽拱形门洞(民居拱门/大厅)、大门洞只留空(door_block=none)的开放式入口",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "门洞底左格(从外面看的左侧); y = 门槛层"},
+    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "门朝向 = 外侧方向"},
+    "width": {"type": "int", "range": "1-5", "default": 1, "notes": "门洞宽; 中世纪民居 1 (86%), 现代/小康 2 双开; >=3 建议 style=arch"},
+    "height": {"type": "int", "range": "2-4", "default": 2, "notes": "门洞直段净高; arch 总高 = height + ceil(width/2), 中心净高>=3 自动满足"},
+    "style": {"type": "enum", "values": ["rect", "arch"], "default": "rect", "notes": "rect=直门洞; arch=阶梯半圆拱(拱高=宽/2, 镜像对称, keystone 换料)"},
+    "frame": {"type": "block id", "default": "minecraft:dark_oak_stairs", "notes": "框料, 必须与墙面拉开明度差(浅墙深框: dark_oak/spruce; 深墙浅框: quartz). *_stairs=楼梯描边(facing 脚本推导), *_trapdoor=活板门包框+原木侧柱, 其他=实块镶框"},
+    "recess": {"type": "int", "range": "0-2", "default": 1, "notes": "凹龛进深 = 门扇坐深; 墙厚须 >= recess+1; 0=门扇贴墙面(1 格薄墙用 0)"},
+    "canopy": {"type": "bool", "default": true, "notes": "小雨棚: 出挑 1, 宽=门洞+框, 两端檐下各挂 1 灯笼; 材料由 frame 衍生(*_slab; trapdoor 框则关合活板门)"},
+    "steps": {"type": "bool", "default": true, "notes": "门前一级台阶(stoop): tread 1, 宽=门洞+框, 放在 origin 下一层(门外地面在 origin-2 层的抬高地基场景最自然)"},
+    "door_block": {"type": "block id 或 \"none\"", "default": "minecraft:oak_door", "notes": "门扇; 宽>=2 自动双开且铰链显式镜像(把手居中); 奇数宽>=3 只放居中扇+两侧整对; none=只留洞"},
+    "side_decor": {"type": "bool", "default": true, "notes": "门旁对称灯笼柱(木框->*_fence, 石框->*_wall + lantern), 位在框外一格"},
+    "keystone": {"type": "block id 或 \"\"", "default": "minecraft:chiseled_stone_bricks", "notes": "arch 拱顶中央换料(宽>=3 生效, 偶数宽成双); 空串=不换料"}
+  },
+  "pitfalls": [
+    "门洞必须切进墙体而不是贴在墙面上 —— 输出里的 minecraft:air 单元就是干这个的(掏洞+凹龛), 禁止删掉; 没有 place_air 能力时先手工挖掉对应墙块再放置",
+    "框料不许与墙面同色同料(深框浅墙铁律): 白墙配白框=门口没做任何装饰, 浅色墙用 dark_oak/spruce 系, 深墙反转型用 quartz/白混凝土",
+    "arch 拱厚=墙厚, 至少 2 格才不像纸板 —— recess=1 起; 1 格薄墙做拱请 recess=0 并接受薄拱(研究点名反例)",
+    "origin 的 y 取门洞底格(门槛层): 抬高地基时台阶默认放在 y-1 层, 平地入口开 steps 会把门口地面换成齐平台阶(无害但没必要)",
+    "双开门铰链是脚本按格显式指定的(左扇 hinge=right, 右扇 hinge=left, 把手居中), 手改 hinge 或连放两次同参数 = 铰链不镜像的低级错误",
+    "活板门包框模式下 canopy 的两端灯笼占住框上角位(角部活板门省略), 这不是缺块; arch 顶拱心石在墙平面内, 包框在其外侧, 两层叠加是正常观感",
+    "拱形禁止徒手改格: profile 由半圆采样镜像生成, 任一手改都会破坏左右对称(头号反例)"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/doorway.py --params '{\"origin\":[100,64,100],\"facing\":\"south\",\"width\":1,\"height\":2}' --out door1.json && python patterns/doorway.py --params '{\"origin\":[100,64,120],\"facing\":\"east\",\"style\":\"arch\",\"width\":3,\"height\":3,\"frame\":\"minecraft:stone_brick_stairs\",\"door_block\":\"none\"}' --out door2.json"
+}

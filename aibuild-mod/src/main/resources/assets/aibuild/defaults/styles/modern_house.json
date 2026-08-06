@@ -108,8 +108,8 @@
         {"id": "full_glazing", "weight": 45, "source": "prior"}
       ]},
       "balcony": {"options": [
-        {"id": "balcony_cantilever", "weight": 50, "source": "prior"},
-        {"id": "none", "weight": 50, "source": "prior"}
+        {"id": "balcony_cantilever", "weight": 5, "source": "prior"},
+        {"id": "none", "weight": 95, "source": "prior"}
       ]},
       "base": {"options": [
         {"id": "raised_1", "weight": 55, "source": "prior"},

@@ -109,8 +109,8 @@
         {"id": "arch_window", "weight": 35, "source": "prior"}
       ]},
       "branch_balcony": {"options": [
-        {"id": "balcony_yes", "weight": 60, "source": "prior"},
-        {"id": "balcony_no", "weight": 40, "source": "prior"}
+        {"id": "balcony_yes", "weight": 5, "source": "prior"},
+        {"id": "balcony_no", "weight": 95, "source": "prior"}
       ]},
       "crown_light": {"options": [
         {"id": "sea_lantern", "weight": 60, "source": "prior"},

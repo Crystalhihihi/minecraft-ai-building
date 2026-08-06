@@ -39,6 +39,10 @@ public final class WorkDir {
             "patterns/connector.json",
             "patterns/roof_plan.py",
             "patterns/roof_plan.json",
+            "patterns/doorway.py",
+            "patterns/doorway.json",
+            "patterns/eaves_trim.py",
+            "patterns/eaves_trim.json",
             "styles/medieval_tower.json",
             "styles/medieval_house.json",
             "styles/plains_cabin.json",
@@ -475,13 +479,14 @@ public final class WorkDir {
             catalogue — every card has a one-line use_for) and pick the
             cards your build needs. Frequent ones:
 
-            - roofs: gable/hip/gambrel/mansard/helm/xieshan -> *_roof.py; + dormer.py / chimney.py
+            - roofs: gable/hip/gambrel/mansard/helm/xieshan -> *_roof.py; + dormer.py / chimney.py; L/T/U plan -> roof_plan.py (same seed as plan_shape); finish sloped roofs with eaves_trim.py (rafters+fascia — 有挑檐必有椽)
+            - entrances: doorway.py (door recess/frame/lintel/leaf/steps/canopy — a bare vanilla door block on a flat wall is a build failure)
             - structure: buttress.py / pilaster.py / timber_structure.py (trusses, brackets)
-            - facade: window_trim.py / arch_window.py / facade_depth.py (base/string/cornice) / accent_detailing.py (ornaments, palette = your style family)
+            - facade: window_trim.py (v2: recess/sill/shutters/flowerbox layers) / arch_window.py / facade_depth.py (base/string/cornice) / accent_detailing.py (ornaments, palette = your style family)
             - walls: wall_weathering.py (material mixing/aging)
-            - interior: furniture.py / interior_rooms.py
-            - landscape: garden_tree.py / flower_field.py / terrace_farm.py / plaza.py / fountain.py
-            - site: road_segment.py / terraform_pad.py / quadruped_statue.py / mirror_build.py (symmetric halves)
+            - interior: furniture.py (scene= room clusters: enchant/smelting/smithing/storage/workbench — work blocks in a ROW is a build failure) / interior_rooms.py
+            - landscape: garden_tree.py (courtyard-size only) / giant_tree.py (anything bigger; presets) / flower_field.py / terrace_farm.py / plaza.py / fountain.py
+            - site: road_segment.py / terraform_pad.py / quadruped_statue.py / mirror_build.py (symmetric halves); masses joined by connector.py (bridge/corridor + door list)
 
             Workflow: read the .json card -> choose params (origin = world
             coords of the element, sizes tuned to your build and the terrain,

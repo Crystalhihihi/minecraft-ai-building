@@ -1,13 +1,21 @@
 {
   "name": "furniture",
-  "description": "Furniture atlas (家具图鉴): 20 pieces from one generator — bed/table/chair/stool/sofa/bookshelf/cabinet/kitchen_counter/desk/lamp_post/flower_pot/bench/dresser/fireplace/piano + wardrobe/fridge/bunk_bed (家具造法图鉴) + bathtub/bathroom_sink 卫浴线 (图片造法提炼). All recipes are build-circle canon; direction states (stair facing/half, sign rotation, bed/door part, trapdoor open/half, waterlogged) derived from origin+facing by the script.",
-  "when_to_use": "Interior furnishing after walls/roof. origin = bottom-FRONT-left cell at floor level (the cell the piece stands IN); facing = front direction (seats: sitter's view; bed: foot->head = where the pillow points). DIRECTION STATES ARE SCRIPT-DERIVED — never hand-edit facing/half/rotation/part in output; change params and re-run (禁止手改方向状态).",
-  "use_for": "室内家具/软装:卧室(bed/bunk_bed/dresser/wardrobe/bookshelf)、客厅(sofa/table/chair/stool/bench/lamp_post/flower_pot/piano)、书房(desk/bookshelf)、厨房(kitchen_counter/cabinet/fridge)、壁炉客厅(fireplace)、卫浴(bathtub/bathroom_sink)",
+  "description": "Furniture atlas (家具图鉴): 20 pieces from one generator — bed/table/chair/stool/sofa/bookshelf/cabinet/kitchen_counter/desk/lamp_post/flower_pot/bench/dresser/fireplace/piano + wardrobe/fridge/bunk_bed (家具造法图鉴) + bathtub/bathroom_sink 卫浴线 (图片造法提炼). All recipes are build-circle canon; direction states (stair facing/half, sign rotation, bed/door part, trapdoor open/half, waterlogged) derived from origin+facing by the script. Also 5 工作间组团模板 via the `scene` param (enchant/smelting/smithing/storage/workbench, detail-techniques.md §5): one room corner + facing -> a functional workstation cluster with matching clutter, NOT stations in a row.",
+  "when_to_use": "Interior furnishing after walls/roof. origin = bottom-FRONT-left cell at floor level (the cell the piece stands IN); facing = front direction (seats: sitter's view; bed: foot->head = where the pillow points). DIRECTION STATES ARE SCRIPT-DERIVED — never hand-edit facing/half/rotation/part in output; change params and re-run (禁止手改方向状态). Scene mode: origin = 房间一角地面格(簇向 u+/w+ 生长,不越过后墙 w=-1/侧墙 u=-1),facing = 工作站正面朝走道方向。",
+  "use_for": "室内家具/软装:卧室(bed/bunk_bed/dresser/wardrobe/bookshelf)、客厅(sofa/table/chair/stool/bench/lamp_post/flower_pot/piano)、书房(desk/bookshelf)、厨房(kitchen_counter/cabinet/fridge)、壁炉客厅(fireplace)、卫浴(bathtub/bathroom_sink);工作间/附魔室/储藏室组团(enchant/smelting/smithing/storage/workbench scene)",
   "params": {
-    "piece": {"type": "enum", "required": true, "values": ["bed", "table", "chair", "stool", "sofa", "bookshelf", "cabinet", "kitchen_counter", "desk", "lamp_post", "flower_pot", "bench", "dresser", "fireplace", "piano", "wardrobe", "fridge", "bunk_bed", "bathtub", "bathroom_sink"]},
+    "piece": {"type": "enum", "required": "yes unless scene is set", "values": ["bed", "table", "chair", "stool", "sofa", "bookshelf", "cabinet", "kitchen_counter", "desk", "lamp_post", "flower_pot", "bench", "dresser", "fireplace", "piano", "wardrobe", "fridge", "bunk_bed", "bathtub", "bathroom_sink"]},
+    "scene": {"type": "enum", "required": false, "default": "", "values": ["", "enchant", "smelting", "smithing", "storage", "workbench"], "notes": "工作间组团模板(与 piece 二选一;给 scene 时忽略 piece)。origin=房间一角地面格,簇只向 u+/w+ 生长(后墙在 w=-1,侧墙在 u=-1,簇不占这两排);facing=工作站正面朝向(朝走道)。见 scenes.<name>"},
     "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "bottom-front-left cell; y = the layer the piece stands in"},
     "facing": {"type": "north|south|east|west", "default": "south"},
     "extra": {"type": "per-piece", "notes": "see pieces.<name>.params; all have safe defaults, default output = the classic recipe"}
+  },
+  "scenes": {
+    "enchant": {"use_for": "附魔角", "recipe": "15 bookshelf 围 5x5 环(enchanting_table 居中,环与台之间 1 格空气缝——缝里放任何方块含地毯即 30 级附魔失效;正面 w=4 中格留 1 格出入口) + 沿后墙 grindstone/anvil/smithing_table 装备维护位(§5.1)", "params": {"anvil": "anvil|chipped_anvil|damaged_anvil, default anvil"}, "footprint": "8x5", "pitfalls": ["书架环空气缝内严禁放任何方块(含地毯/火把)", "环的背面/侧面贴墙不影响附魔"]},
+    "smelting": {"use_for": "熔炼组", "recipe": "furnace+blast_furnace+smoker 相邻一排,开口面同朝 facing 走道,端头 barrel 燃料 + 双箱成品箱(§5.1);w>=1 保持净空", "footprint": "6x1", "pitfalls": ["三机正面必须同朝走道", "工作站前方留 1-2 格净空"]},
+    "smithing": {"use_for": "铁匠角", "recipe": "lava 锻炉火塘(石围十字自封闭,不靠墙) + damaged_anvil 残损做旧(§5.2 GrabCraft 蓝图) + 落地 grindstone + water_cauldron 淬火槽(§5.6)", "params": {"anvil": "default damaged_anvil", "hearth_material": "default stone_bricks"}, "footprint": "6x3", "pitfalls": ["火塘 1 格内别放可燃块(木墙/地毯会着火)", "lava 四邻已全部石封,不要拆"]},
+    "storage": {"use_for": "储藏室箱墙", "recipe": "大箱(type=right/left 成对,奇数尾单箱)贴墙排,每排箱顶盖 type=top 半砖(非导电,压实体方块箱盖打不开——§5.3 铁律)再叠下一排;端头 barrel 列一路码到顶(barrel 头顶有方块也能开)", "params": {"length": "2-8, default 4", "tiers": "1-3, default 2", "slab_material": "default oak_slab"}, "footprint": "(length+1)x1", "pitfalls": ["箱上必须半砖/楼梯等非导电方块", "item_frame 是实体无法 setblock,不生成标签"]},
+    "workbench": {"use_for": "工作台角", "recipe": "crafting_table 居中贴邻储藏(§5.1 合成组):一侧双箱+type=top 半砖搁板(同箱墙铁律),另一侧双 barrel,搁板上盆栽点缀", "params": {"slab_material": "default oak_slab"}, "footprint": "5x1", "pitfalls": ["搁板/箱盖半砖必须 type=top,才能平接上一排"]}
   },
   "pieces": {
     "bed": {"use_for": "卧室双人床(1x2)", "recipe": "REAL <color>_bed: part=foot at origin, part=head one cell forward (same facing); default adds a bottom-slab headboard above the head cell (图鉴 §2.1)", "params": {"color": "16 bed colors, default red", "headboard": "default true; headboard_material default oak_slab", "posts": "true = four-poster fence frame, default false"}, "pitfalls": ["必须用真床方块(part=foot/head),严禁羊毛/混凝土冒充(项目耻辱柱)", "head 格前方必须是空气否则放置失败"]},
@@ -37,8 +45,12 @@
     "坐具楼梯 facing=坐向反面;台面/桌面楼梯 half=top;座面 slab type=bottom 贴地",
     "扩占地的细节全是 opt-in 参数(sofa back、kitchen faucet/curtain、cabinet banner、storage 双层床)——interior_rooms 贴墙摆放只用默认形态",
     "tripwire_hook = 通用水龙头/龙头件(图片提炼 6887/b8f3/e850/1392 四图互证),卫浴/酒桶/厨台水龙头统一用它;waterlogged 楼梯/半砖 = 安全盛水容器,别放真水方块",
-    "家具不浮空:每件有落地支撑路径,跑 support_check/slab_check 验证"
+    "家具不浮空:每件有落地支撑路径,跑 support_check/slab_check 验证",
+    "工作间组团用 scene 模板(enchant/smelting/smithing/storage/workbench),严禁把工作方块沿墙一字等距排开(§5.5 反例=本项目被骂现状)",
+    "箱墙铁律:箱子上方必须是非导电方块(type=top 半砖/楼梯),否则箱盖打不开;barrel 无此限制可叠到顶",
+    "附魔环与附魔台之间的 1 格空气缝严禁放任何方块(含地毯/火把),否则只剩低等级附魔",
+    "smithing 的 lava 火塘已石围自封闭,周围 1 格别放可燃块;禁止真水流方块(同浴缸纪律)"
   ],
   "validators": ["support_check", "slab_check", "stair_corner_check"],
-  "example": "python patterns/furniture.py --params '{\"piece\":\"bed\",\"origin\":[100,64,100],\"facing\":\"east\"}' --out bed.json && python patterns/furniture.py --params '{\"piece\":\"wardrobe\",\"origin\":[100,64,110],\"facing\":\"south\"}' --out wardrobe.json"
+  "example": "python patterns/furniture.py --params '{\"piece\":\"bed\",\"origin\":[100,64,100],\"facing\":\"east\"}' --out bed.json && python patterns/furniture.py --params '{\"scene\":\"storage\",\"origin\":[101,64,105],\"facing\":\"north\",\"length\":6}' --out chest_wall.json"
 }

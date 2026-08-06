@@ -107,8 +107,8 @@
         {"id": "4", "weight": 35, "source": "gc:medieval-houses:n=247"}
       ]},
       "dormers": {"options": [
-        {"id": "dormers_gable", "weight": 55, "source": "prior"},
-        {"id": "none", "weight": 45, "source": "prior"}
+        {"id": "dormers_gable", "weight": 5, "source": "prior"},
+        {"id": "none", "weight": 95, "source": "prior"}
       ]},
       "chimney": {"options": [
         {"id": "chimney_1x1", "weight": 55, "source": "prior"},
@@ -116,8 +116,8 @@
         {"id": "none", "weight": 30, "source": "prior"}
       ]},
       "balcony": {"options": [
-        {"id": "none", "weight": 70, "source": "prior"},
-        {"id": "balcony_front", "weight": 30, "source": "prior"}
+        {"id": "none", "weight": 95, "source": "prior"},
+        {"id": "balcony_front", "weight": 5, "source": "prior"}
       ]},
       "roof_material": {"options": [
         {"id": "spruce_stairs", "weight": 75, "source": "prior"},

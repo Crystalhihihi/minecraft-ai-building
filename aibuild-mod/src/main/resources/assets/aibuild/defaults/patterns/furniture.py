@@ -15,12 +15,22 @@ Output: {"blocks":[{x,y,z,block}]} compatible with set_blocks_from_file.
 Usage:
   python furniture.py --params '{"piece":"bed","origin":[100,64,100],"facing":"east"}' [--out bed.json]
   python furniture.py --params '{"piece":"sofa","origin":[100,64,110],"facing":"south","length":4}'
+  python furniture.py --params '{"scene":"enchant","origin":[100,64,100],"facing":"south"}'
 
 Pieces (in priority order):
   bed table chair stool sofa bookshelf cabinet kitchen_counter desk
   lamp_post flower_pot bench dresser fireplace piano
   wardrobe fridge bunk_bed            (absorbed from 家具造法图鉴)
   bathtub bathroom_sink               (卫浴线, absorbed from 图片造法提炼)
+
+Scenes (scene=..., 工作间组团模板, detail-techniques.md §5: 功能组团,
+replaces 工作站沿墙排一排): enchant(附魔角) smelting(熔炼组)
+smithing(铁匠角) storage(箱墙) workbench(工作台角). When `scene` is set,
+`piece` is ignored. Scene convention: origin = the room-CORNER floor cell
+the cluster grows from (the cluster emits nothing at u<0 or w<0, so the
+back wall is the w=-1 row and the side wall the u=-1 column); facing =
+the direction workstation fronts face (toward the walkway). The cluster
+extends u+ along the back wall and w+ into the room.
 
 Conventions (all classic MC build-circle recipes, no inventions):
   seat stairs face OPPOSITE of `facing` (stair facing = high/back side,
@@ -463,6 +473,102 @@ def piece_bathroom_sink(P, p, F):
     return out
 
 
+# ------------------------------------------------- scenes (工作间组团, §5)
+ANVILS = ("minecraft:anvil", "minecraft:chipped_anvil",
+          "minecraft:damaged_anvil")
+
+
+def _anvil(p, default):
+    a = p.get("anvil", default)
+    if a not in ANVILS:
+        raise ValueError("anvil must be one of %s" % (ANVILS,))
+    return a
+
+
+def scene_enchant(P, p, F):
+    # 附魔角 (§5.1): 15 bookshelves in a 5x5 ring around the enchanting
+    # table — 1-cell air gap between ring and table (ANY block in the gap,
+    # even a carpet, kills level-30 enchants) and a 1-cell entrance on the
+    # room side (u=2,w=4). Maintenance corner beside the ring along the
+    # back wall: grindstone + anvil + smithing_table (wiki 同框组合).
+    out = [P(2, 2, 0, "minecraft:enchanting_table")]
+    for u in range(5):
+        for w in range(5):
+            if (u in (0, 4) or w in (0, 4)) and (u, w) != (2, 4):
+                out.append(P(u, w, 0, "minecraft:bookshelf"))
+    out.append(P(5, 0, 0, "minecraft:grindstone[face=floor,facing=%s]" % F))
+    out.append(P(6, 0, 0, "%s[facing=%s]" % (_anvil(p, "minecraft:anvil"),
+                                             RIGHT[F])))
+    out.append(P(7, 0, 0, "minecraft:smithing_table"))
+    return out
+
+
+def scene_smelting(P, p, F):
+    # 熔炼组 (§5.1): furnace+blast_furnace+smoker adjacent, opening faces
+    # toward the walkway; stock barrel + double output chest at the end.
+    # Front clearance: the scene emits nothing at w>=1 (前方留 1-2 格净空).
+    return [P(0, 0, 0, "minecraft:furnace[facing=%s]" % F),
+            P(1, 0, 0, "minecraft:blast_furnace[facing=%s]" % F),
+            P(2, 0, 0, "minecraft:smoker[facing=%s]" % F),
+            P(3, 0, 0, "minecraft:barrel[facing=%s]" % F),
+            P(4, 0, 0, "minecraft:chest[facing=%s,type=right]" % F),
+            P(5, 0, 0, "minecraft:chest[facing=%s,type=left]" % F)]
+
+
+def scene_smithing(P, p, F):
+    # 铁匠角 (§5.2/§5.6): lava forge hearth ringed by stone (self-contained
+    # cross — containment does NOT rely on the walls) + damaged anvil
+    # (残损做旧, GrabCraft 铁匠铺蓝图) + floor grindstone + water cauldron
+    # 淬火槽. Keep flammables 1 cell away from the hearth.
+    stone = p.get("hearth_material", "minecraft:stone_bricks")
+    return [P(1, 1, 0, "minecraft:lava"),
+            P(0, 1, 0, stone), P(2, 1, 0, stone),
+            P(1, 0, 0, stone), P(1, 2, 0, stone),
+            P(3, 0, 0, "%s[facing=%s]" % (_anvil(p, "minecraft:damaged_anvil"),
+                                          RIGHT[F])),
+            P(4, 0, 0, "minecraft:grindstone[face=floor,facing=%s]" % F),
+            P(5, 0, 0, "minecraft:water_cauldron[level=3]")]
+
+
+def scene_storage(P, p, F):
+    # 储藏室箱墙 (§5.3): double-chest rows against the wall. IRON RULE: a
+    # chest with a solid (conductive) block directly above can't open — so
+    # every chest row is capped with type=top slabs (non-conductive) and
+    # the next row stacks on the slabs. Barrels open with blocks overhead,
+    # so the end column stacks straight up (barrel 可叠到顶).
+    # (item_frame labels are entities — cannot be setblock'ed, not emitted.)
+    length = clamp(p.get("length", 4), 2, 8)
+    tiers = clamp(p.get("tiers", 2), 1, 3)
+    slab = p.get("slab_material", "minecraft:oak_slab")
+    out = []
+    for t in range(tiers):
+        for u in range(length):
+            typ = "single" if u == length - 1 and u % 2 == 0 \
+                else ("right" if u % 2 == 0 else "left")
+            out.append(P(u, 0, t * 2,
+                         "minecraft:chest[facing=%s,type=%s]" % (F, typ)))
+        out += [P(u, 0, t * 2 + 1, "%s[type=top]" % slab)
+                for u in range(length)]
+    out += [P(length, 0, v, "minecraft:barrel[facing=%s]" % F)
+            for v in range(tiers * 2)]
+    return out
+
+
+def scene_workbench(P, p, F):
+    # 工作台角 (§5.1 crafting 组): crafting table 居中贴邻储藏 — double
+    # chest under a type=top slab shelf (same lid iron rule) on one side,
+    # two barrels on the other; potted plant clutter on the shelf.
+    slab = p.get("slab_material", "minecraft:oak_slab")
+    return [P(0, 0, 0, "minecraft:chest[facing=%s,type=right]" % F),
+            P(1, 0, 0, "minecraft:chest[facing=%s,type=left]" % F),
+            P(0, 0, 1, "%s[type=top]" % slab),
+            P(1, 0, 1, "%s[type=top]" % slab),
+            P(2, 0, 0, "minecraft:crafting_table"),
+            P(3, 0, 0, "minecraft:barrel[facing=%s]" % F),
+            P(4, 0, 0, "minecraft:barrel[facing=%s]" % F),
+            P(0, 0, 2, "minecraft:potted_red_tulip")]
+
+
 PIECES = {
     "bed": piece_bed,
     "table": piece_table,
@@ -486,14 +592,30 @@ PIECES = {
     "bathroom_sink": piece_bathroom_sink,
 }
 
-DEFAULTS = {"origin": [0, 64, 0], "facing": "south", "piece": "bed"}
+SCENES = {
+    "enchant": scene_enchant,
+    "smelting": scene_smelting,
+    "smithing": scene_smithing,
+    "storage": scene_storage,
+    "workbench": scene_workbench,
+}
+
+DEFAULTS = {"origin": [0, 64, 0], "facing": "south", "piece": "bed",
+            "scene": ""}
 
 
 def build(p):
-    piece = p.get("piece", "bed")
-    if piece not in PIECES:
-        raise ValueError("unknown piece %r; valid: %s"
-                         % (piece, ", ".join(PIECES)))
+    scene = p.get("scene", "")
+    if scene:
+        if scene not in SCENES:
+            raise ValueError("unknown scene %r; valid: %s"
+                             % (scene, ", ".join(SCENES)))
+        piece = None                     # scene set -> piece ignored
+    else:
+        piece = p.get("piece", "bed")
+        if piece not in PIECES:
+            raise ValueError("unknown piece %r; valid: %s"
+                             % (piece, ", ".join(PIECES)))
     F = p.get("facing", "south")
     if F not in DIRS:
         raise ValueError("facing must be one of north/south/east/west")
@@ -507,7 +629,7 @@ def build(p):
                 "z": oz + rz * u + fz * w,
                 "block": block}
 
-    return PIECES[piece](P, p, F)
+    return SCENES[scene](P, p, F) if scene else PIECES[piece](P, p, F)
 
 
 def main():
@@ -520,7 +642,8 @@ def main():
     try:
         blocks = build(p)
     except ValueError as e:
-        die(str(e), {"piece": sorted(PIECES), "facing": sorted(DIRS)})
+        die(str(e), {"piece": sorted(PIECES), "scene": sorted(SCENES),
+                     "facing": sorted(DIRS)})
     out = json.dumps({"blocks": blocks}, ensure_ascii=False)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:

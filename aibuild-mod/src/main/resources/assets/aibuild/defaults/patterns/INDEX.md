@@ -38,7 +38,7 @@
 
 | 卡 | use_for |
 | --- | --- |
-| gable_roof | 双坡屋顶(收分/屋脊/山墙) |
+| gable_roof | 双坡屋顶(收分/屋脊/山墙;flare_corners=翼角四角上翘,中式/日式飞檐) |
 | roof_plan | 组合平面屋顶(L/T/U 分翼垂直相交+45°谷沟; 与 plan_shape 同 seed; 组合平面禁用单坡卡) |
 | hip_roof | 四坡屋顶 |
 | dormer | 老虎窗(gabled/shed/hipped 三变体,窗洞切进坡面带 air 开凿) |
@@ -54,7 +54,7 @@
 | buttress | 扶壁(stepped 3-2-1 收分 / flying 飞扶壁:墩+斜拱臂+可选尖塔,哥特高厅隔间构件) |
 | arch_window | 拱窗 |
 | rose_window | 哥特玫瑰窗(辐条+外圈+玻璃填充,嵌墙 air 开凿;ellipse 复用) |
-| window_trim | 窗套(凸 0/1) |
+| window_trim | 窗套 v2(玻璃内凹/窗台/百叶/花箱/窗楣可选层;默认内凹+窗台) |
 | pilaster | 壁柱 |
 | facade_depth | 立面纵深(三段式:基座放脚/墙身线脚壁龛/檐口封檐+交接专章;profile 机制,统计校准) |
 | timber_structure | 木构梁架(三角屋架 3 种/托臂/45°斜撑/梁端收分/暴露节奏;间距校准 2-5) |
@@ -63,7 +63,9 @@
 | quadruped_statue | 四足雕像 |
 | windmill_blade | 风车叶片(4 叶 X/+ 形,骨架+可选半砖蒙布;旋转角脚本推导) |
 | mirror_build | 镜像建造 |
-| furniture | 家具图鉴(床/桌/椅/凳/沙发/书架/橱柜/厨台/书桌/落地灯/花盆/长椅/抽屉柜/壁炉/钢琴,piece 参数选件) |
+| furniture | 家具图鉴(15 件单品 piece;5 组团模板 scene: 附魔环/熔炼组/铁匠角/箱墙/工作台角) |
+| doorway | 门口(7层结构: 掏洞/凹龛/框/楣/扇/台阶/雨棚;rect+拱形;双开镜像;尺寸按语料实测) |
+| eaves_trim | 檐口修饰(椽子间距1-2+封檐板/收边条;输入屋顶json几何推导檐口沿;有挑檐必有椽) |
 | balcony | 阳台(cantilever 挑板/recessed 凹进;support 托臂/立柱;railing 四材质) |
 | railing | 护栏/栏杆(fence/wall/pane/trapdoor+楼梯扶手+桥栏;转角自动推导) |
 | wall_weathering | 墙壁肌理(掺比 preset/基座深浅分层/壁柱线脚分格/垂藤做旧) |

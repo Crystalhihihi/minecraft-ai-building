@@ -81,9 +81,9 @@
         {"id": "brace_none", "weight": 45, "source": "prior"}
       ]},
       "balcony": {"options": [
-        {"id": "balcony_deep", "weight": 45, "source": "prior"},
-        {"id": "balcony_shallow", "weight": 40, "source": "prior"},
-        {"id": "balcony_none", "weight": 15, "source": "prior"}
+        {"id": "balcony_deep", "weight": 3, "source": "prior"},
+        {"id": "balcony_shallow", "weight": 2, "source": "prior"},
+        {"id": "balcony_none", "weight": 95, "source": "prior"}
       ]},
       "access": {"options": [
         {"id": "stair_access", "weight": 70, "source": "prior"},

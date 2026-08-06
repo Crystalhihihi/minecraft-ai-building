@@ -1,0 +1,25 @@
+{
+  "name": "eaves_trim",
+  "description": "Eaves finishing (檐口修饰) overlaid on a stair-skin roof json: ① rafters (椽子) — '有挑檐必有椽子' (WesterosCraft review line, detail-techniques §3.1) — one upside-down stair / bottom slab / wall directly BELOW the eave lip, every 1-2 cells along the row, poking out under the eave; ② edge strip (檐口收边条) — contrast material along the eave outline: open-trapdoor fascia boards flat on the lip's outer face (with end caps at row ends/corners), or a bottom-slab row on top of the lip. The eave lip is DERIVED from the roof geometry (lowest stair cells whose outward cell — opposite the stair facing — is empty); all facing/half/open states derived by the script (禁止手改方向状态). Output = trim only; it never writes a cell the roof already occupies.",
+  "when_to_use": "After any gable/hip/xieshan roof with overhang > 0 — a bare double slope (裸双坡) fails review without rafters. Run the roof generator with --out roof.json first, then this with roof=roof.json; place roof, then trim. Pass the RAW roof json (extra blocks below the eave layer, e.g. walls merged in, confuse lip detection).",
+  "use_for": "中世纪/中式/日式/农舍一切带挑檐的坡屋顶; 椽子+封檐板是让'屋顶不再是纸糊双坡'的最低成本组合; overhang=0 的屋顶没有檐口线, 不要用",
+  "params": {
+    "roof": {"type": "path", "default": "", "notes": "屋顶 blocks json 路径(gable_roof/hip_roof/xieshan_roof 的 --out 输出); 必填"},
+    "rafters": {"type": "bool", "default": true, "notes": "椽子开关; 有挑檐时必须开(WesterosCraft 审核线)"},
+    "rafter_style": {"type": "enum", "values": ["stairs", "slab", "wall"], "default": "stairs", "notes": "stairs=反放楼梯(薄端朝外=椽头); slab=下半砖; wall=圆石墙当椽头(极像, §3.1)"},
+    "rafter_spacing": {"type": "int", "range": "1-2", "default": 2, "notes": "沿檐口每 N 格一根椽子(§3.1 间距 1-2)"},
+    "rafter_material": {"type": "block id|\"\"", "default": "", "notes": "\"\"=按 style 自动: dark_oak_stairs / dark_oak_slab / cobblestone_wall; 显式给出时后缀必须匹配 style"},
+    "edge": {"type": "enum", "values": ["fascia", "slab", "none"], "default": "fascia", "notes": "fascia=开态trapdoor贴檐口外沿一圈(封檐板, 含行端/转角端帽); slab=檐口顶面一排下半砖收边(檐口第一排瓦, realworld-vocab §3.5); none=只出椽子"},
+    "edge_material": {"type": "block id|\"\"", "default": "", "notes": "\"\"=按 edge 自动: dark_oak_trapdoor / dark_oak_slab; 应为对比材(收边条唯一不该做的就是和屋顶同料, §3.5); 显式给出时后缀必须匹配 edge"}
+  },
+  "pitfalls": [
+    "只认楼梯皮屋顶: 檐口沿由'最低层 + 外侧面为空的楼梯格'推导, 整方块/半砖砌的屋顶边(如茅草 hay_block 阶梯)检不到, 会输出空清单并 stderr 警告",
+    "传原始屋顶 json: 别把墙/烟囱合进来再跑——低于檐口层的块会把 min_y 拉低, 檐口检不到",
+    "椽子在檐口沿正下方 1 格(min_y-1), 叠加放置时它悬在墙外——这是出挑檐的正常形态, support_check 以屋顶为 base 时全绿",
+    "fascia 端帽只补行端/转角的外侧面; 四坡顶转角斜缝对角格不补(1 格缺口), 要满圈自己加",
+    "edge=slab 时遇到檐口上方已被占的格(如 flare_corners 抬起的翼角)会跳过该格——收边条在翼角处断开是刻意的, 让翘角穿出",
+    "输出只是修饰件, 不是屋顶+修饰的合并清单; 放置顺序: 先屋顶后本输出"
+  ],
+  "validators": ["collision_check", "support_check"],
+  "example": "python patterns/gable_roof.py --params '{\"origin\":[100,80,100],\"width\":7,\"depth\":9}' --out roof.json && python patterns/eaves_trim.py --params '{\"roof\":\"roof.json\",\"rafter_style\":\"stairs\",\"rafter_spacing\":2,\"edge\":\"fascia\"}' --out trim.json"
+}

@@ -9,7 +9,8 @@ slab row, eaves on one slope share one facing. Do NOT hand-edit facings in
 the output: the script derives them; fix params instead.
 Stairs only (roof skin) + ridge slab; optional solid gable-end triangle fill.
 A gable roof has no hip corners by geometry — for corner curve intents see
-hip_roof.py.
+hip_roof.py. flare_corners=true lifts the two ends of each eave row by 1
+(生起+翼角, the 中式/日式 flying-eave curve — realworld-vocab §3.2②/§3.5).
 
 Usage:
   python gable_roof.py --params '{"origin":[100,80,100],"width":7,"depth":9}' [--out roof.json]
@@ -27,7 +28,8 @@ DEFAULTS = {
     "material": "minecraft:spruce_stairs",
     "ridge_material": "minecraft:spruce_slab",
     "ridge_support": "minecraft:spruce_planks",  # solid beam under the ridge slab (a sideways stair leaves a half-gap on its open side — E8 实测)
-    "end_fill": ""                 # e.g. "minecraft:oak_planks": solid gable-end triangles inside wall footprint
+    "end_fill": "",                # e.g. "minecraft:oak_planks": solid gable-end triangles inside wall footprint
+    "flare_corners": False         # 生起+翼角: lift the 2 ends of each eave row by 1 (中式/日式 flying-eave curve)
 }
 
 def stair(base, facing):
@@ -53,6 +55,7 @@ def build(p):
     height = max(1, min(height, auto_h))
     mat, ridge, fill = p["material"], p["ridge_material"], p["end_fill"]
     beam = p.get("ridge_support", "minecraft:spruce_planks")
+    flare = bool(p.get("flare_corners", False))
     blocks = []
 
     # axis=z transposes local coords (local x -> world z); facing strings must
@@ -87,6 +90,13 @@ def build(p):
             else:
                 emit(x, y, zn, stair(mat, "south"))
                 emit(x, y, zs, stair(mat, "north"))
+                # 生起+翼角 (realworld-vocab §3.2②/§3.5): lift the two ends of
+                # each eave row by 1 — the eave line gets the 中式/日式
+                # flying-eave smile. The base stair stays (keeps the skin
+                # closed and supports the lifted tip above it).
+                if flare and i == 0 and x in (-oh, w + oh - 1):
+                    emit(x, y + 1, zn, stair(mat, "south"))
+                    emit(x, y + 1, zs, stair(mat, "north"))
         if fill:
             g = max(0, inset - oh)
             for x in (0, w - 1):         # gable-end walls at the two wall faces
