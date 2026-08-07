@@ -295,6 +295,36 @@ class Tree:
             ln = math.sqrt(bx * bx + 1.0 + bz * bz)
             self._add(lead, (lx + bx / ln * STEP, ly + STEP / ln, lz + bz / ln * STEP))
             self.trunk_ids.append(len(self.nodes) - 1)
+        # ---- phase 1.5: 次主干(co-dominant stems — 用户分类: 主干 > 次主干 >
+        # 枝干 > 侧枝 > 细条): 粗干(ts>=5)/幻想档长 1-2 根, 0.15-0.3h 分出,
+        # 0.55ts 截面收分, 陡角上行外张进下冠 — 巨树"多干合抱"骨架
+        self.costem_chains = []
+        self.costem_ids = set()
+        if self.ts >= 5 or self.p["fantasy"]:
+            n_co = 1 + (1 if (self.ts >= 8 or self.p["fantasy"]) else 0)
+            co_az0 = self.rng.uniform(0, 2 * math.pi)
+            for k in range(n_co):
+                caz = co_az0 + k * (2 * math.pi / n_co) + self.rng.uniform(-0.3, 0.3)
+                h_start = h * (0.15 + 0.12 * k + self.rng.uniform(-0.02, 0.02))
+                sid = min(self.trunk_ids,
+                          key=lambda nid: abs(self.nodes[nid][1] - h_start))
+                el = self.rng.uniform(0.9, 1.25)         # 陡角上行(52-72°)
+                top = h * self.rng.uniform(0.6, 0.75)
+                cur, pos = sid, self.nodes[sid]
+                chain = []
+                while pos[1] < top and len(self.nodes) < MAX_NODES:
+                    dx = math.cos(caz) * math.cos(el)
+                    dz = math.sin(caz) * math.cos(el)
+                    dy = math.sin(el) * 1.3               # 上行偏陡(外张缓)
+                    ln = math.sqrt(dx * dx + dy * dy + dz * dz)
+                    pos = (pos[0] + dx / ln * STEP, pos[1] + dy / ln * STEP,
+                           pos[2] + dz / ln * STEP)
+                    self._add(cur, pos)
+                    cur = len(self.nodes) - 1
+                    chain.append(cur)
+                    self.costem_ids.add(cur)
+                    caz += self.rng.uniform(-0.04, 0.04)
+                self.costem_chains.append(chain)
         # ---- phase 2: 显性主枝(先平展再上扬样条; 拓扑随叶形分形 —
         # 实测"六形一味": 云片=起叉高度聚成离散层档, 伞形=高位单点近水平
         # 共点射出, 雾团=侧枝加密; 一套主枝撒所有叶形=全塌成小团)
@@ -317,8 +347,13 @@ class Tree:
                                self.rng.uniform(-0.02, 0.02))
             else:
                 h_start = h * (0.35 + 0.2 * (i / max(1, n_limbs - 1)) + self.rng.uniform(-0.03, 0.03))
-            start_id = min(self.trunk_ids,
-                           key=lambda nid: abs(self.nodes[nid][1] - h_start))
+            if self.costem_ids and crown_mode != "umbrella" and self.rng.random() < 0.45:
+                # 部分枝干从次主干顶段出(多干各戴一冠; 伞形必须共点不走这)
+                start_id = self.rng.choice(sorted(self.costem_ids)[
+                    len(self.costem_ids) // 3:])
+            else:
+                start_id = min(self.trunk_ids,
+                               key=lambda nid: abs(self.nodes[nid][1] - h_start))
             if self.p["form"] == "leaning":
                 # 偏锋主枝 = 顺风扇(lean_az ±1.2 rad 内展开), 背风面无枝 —
                 # 探头剪影(F04: 倾斜侧枝长背侧裸);整环分布+冠心偏移=逆风裸枝翻车
@@ -335,8 +370,14 @@ class Tree:
                 tilt = self.rng.uniform(0.04, 0.08)     # 上扬段每步仰角抬升
                 el_cap = self.rng.uniform(0.8, 1.05)
             # 枝长收敛在冠幅内; 幻想宽幅档主枝更长(宽幅>高度的前提是真枝伸出去,
-            # 不是叶团甩出去 — 实测"宽幅全靠叶团硬凑"翻车)
-            lo, hi2 = (0.7, 0.9) if self.p["fantasy"] else (0.5, 0.7)
+            # 不是叶团甩出去 — 实测"宽幅全靠叶团硬凑"翻车);
+            # 伞盖枝最长(0.8-1.0r, 伞面半径全靠它)
+            if crown_mode == "umbrella":
+                lo, hi2 = (0.8, 1.0)
+            elif self.p["fantasy"]:
+                lo, hi2 = (0.7, 0.9)
+            else:
+                lo, hi2 = (0.5, 0.7)
             steps = max(3, int(r * self.rng.uniform(lo, hi2)))
             flat = int(steps * self.rng.uniform(0.25, 0.4))       # 短平展段
             pos = self.nodes[start_id]
@@ -459,8 +500,11 @@ class Tree:
         r, ry = self.p["canopy_radius"], self.ry
         mx, my, mz = self.nodes[mid][0], self.yc, self.nodes[mid][2]
         anchors = [mid] + [li for li, _d, _s in self.limb_ends]
-        # 幻想档辐条减半: 团块要能各自独立(花椰菜), 条太密簇全粘连成盘
-        n = max(8, int(r * (0.55 if self.p["fantasy"] else 1.2)))
+        # 幻想档辐条减半: 团块要能各自独立(花椰菜), 条太密簇全粘连成盘;
+        # r>=30 巨冠同样减(簇径随 r 放大, 条数不减=体量 r³ 爆炸, 实测
+        # 130 高 r50 樱花 18 万块)
+        nr = 0.55 if self.p["fantasy"] else (0.9 if r >= 30 else 1.2)
+        n = max(8, int(r * nr))
         az0 = rng.uniform(0, 2 * math.pi)
 
         def v_of(x, y, z):
@@ -729,9 +773,28 @@ class Tree:
                 f = ci / max(1, len(chain) - 1)
                 w = w0 if f < 0.35 else (max(1, w0 - 2) if f < 0.7 else 1)
                 limb_w[nid] = max(w, limb_w.get(nid, 1))
+        # 次主干: 0.55ts 截面沿程收分到 1(削角成圆同主干), 通用循环跳过
+        for chain in self.costem_chains:
+            size0 = max(2, int(round(self.ts * 0.55)))
+            prev = None
+            for idx, nid in enumerate(chain):
+                x, y, z = self.nodes[nid]
+                yy = rhu(y)
+                frac = idx / max(1, len(chain) - 1)
+                size = max(1, int(round(size0 - (size0 - 1) * frac)))
+                if prev is None:                            # 与母干连通桥
+                    pa = self.parent[chain[0]]
+                    ax, ay, az = self.nodes[pa]
+                    for cell in vline((rhu(ax), yy, rhu(az)), (rhu(x), yy, rhu(z))):
+                        self.put_wood(*cell, "%s[axis=y]" % self.log)
+                elif yy > prev[1]:                          # 层间连通桥
+                    for cell in vline((prev[0], yy, prev[2]), (rhu(x), yy, rhu(z))):
+                        self.put_wood(*cell, "%s[axis=y]" % self.log)
+                self._bole_section(x, z, yy, size)
+                prev = (rhu(x), yy, rhu(z))
         for i in range(1, len(self.nodes)):
-            if i in trunk_set:
-                continue                                # 顶梢干已画
+            if i in trunk_set or i in self.costem_ids:
+                continue                                # 顶梢干/次主干已画
             pa = self.parent[i]
             a = tuple(rhu(v) for v in self.nodes[pa])
             b = tuple(rhu(v) for v in self.nodes[i])
@@ -931,9 +994,17 @@ class Tree:
         gap = base_r * (1.9 - 0.8 * ld) + 0.4   # 簇距随簇径缩放(小树也连续成冠)
         # 幻想档大叶团: 簇径上限按冠幅放开(0.3r, 封顶 7), 簇距拉稀 —
         # 少量大团+团间沟壑留白 = 展示树"花椰菜"剪影(参考图核心观感)
-        tcap, ecap = 4.5, 5.0
+        # 簇径上限随冠幅缩放(实机翻车取证: 130 高 r=50 巨树簇径封顶 4.5 =
+        # 巨冠上撒芝麻, "发胖小疙瘩/不成大伞盖"同根); 幻想档再放宽;
+        # 但 r>=30 巨冠簇数/簇径双收(体量随 r³ 涨, 18 万块事故)
+        tcap = min(9.0, max(4.5, r * 0.18))
+        ecap = tcap + 0.5
+        if r >= 30:
+            tcap = min(8.0, max(4.5, r * 0.14))
+            ecap = tcap + 0.5
+            gap *= 1.6
         if self.p["fantasy"]:
-            tcap = min(6.0, max(4.5, r * 0.3))
+            tcap = min(10.0, max(4.5, r * 0.3))
             ecap = tcap + 0.5
             gap *= 1.6                      # 簇距(幻想主靠枝梢簇, 沿链簇是配角)
 
@@ -1049,8 +1120,9 @@ class Tree:
         dr, dh = r * 0.8, max(2.0, self.ry * 0.8)
         cy = self.yc + self.ry * 0.1
         # 幻想档: 壳只留 v∈[0.92,1] 极薄皮+更透 — 壳糊平=花椰菜变蘑菇盘
-        # (实测: 大簇+满壳=团块全粘连, 沟壑消失, 干被吞)
-        v_lo = 0.92 if self.p["fantasy"] else 0.85
+        # (实测: 大簇+满壳=团块全粘连, 沟壑消失, 干被吞);
+        # r>=30 巨冠同样极薄皮(壳体量随 r³ 涨, 18 万块事故)
+        v_lo = 0.92 if (self.p["fantasy"] or r >= 30) else 0.85
         if self.p["fantasy"]:
             carve = min(0.55, carve * 1.6)
         R, H = math.ceil(dr), math.ceil(dh)
@@ -1151,7 +1223,8 @@ class Tree:
                 (int((math.atan2(z - mz, x - mx) + math.pi) / (math.pi / 4)) % 8,
                  0 if y < my else 1), 0) + 1
         base_r = max(1.6, r * 0.22 * self.p["tuft_scale"])
-        tcap = min(6.0, max(4.5, r * 0.3)) if self.p["fantasy"] else 4.5
+        tcap = (min(10.0, max(4.5, r * 0.3)) if self.p["fantasy"]
+                else min(9.0, max(4.5, r * 0.18)))
         carve = 0.26 - 0.16 * self.p["leaf_density"]
         flat = {"blob": 0.9, "layers": 0.5, "umbrella": 0.4,
                 "mist": 0.75}.get(self.p["crown"], 0.65)
