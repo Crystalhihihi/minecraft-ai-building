@@ -12,8 +12,8 @@ points uphill) is empty — and emits the TRIM ONLY:
      BELOW the lip stair, poking out under the eave — upside-down stair
      (反放楼梯, default) / bottom slab / wall (圆石墙椽头)
   2) edge strip (檐口收边条): contrast material along the eave outline —
-     fascia = open trapdoors flat on the lip's outer face, plus end caps at
-     row ends/corners (封檐板); slab = a bottom-slab row on top of the lip
+     slab = a bottom-slab row on top of the lip (fascia 活板门封檐板已下线,
+     活板门全线禁用 2026-08-07)
 
 Overlay the output on the roof json: the trim NEVER writes a cell the roof
 already occupies (collision_check-clean by construction). All facing/half/
@@ -37,18 +37,17 @@ DEFAULTS = {
     "rafter_style": "stairs",        # stairs (反放楼梯) | slab (下半砖) | wall (圆石墙当椽头)
     "rafter_spacing": 2,             # one rafter every N lip cells (间距 1-2, §3.1)
     "rafter_material": "",           # "" = auto per style (dark_oak_stairs / dark_oak_slab / cobblestone_wall)
-    "edge": "fascia",                # fascia (trapdoor 封檐板) | slab (檐口半砖收边) | none
-    "edge_material": ""              # "" = auto per edge (dark_oak_trapdoor / dark_oak_slab)
+    "edge": "slab",                  # slab (檐口半砖收边) | none; fascia(活板门封檐板)已下线 — 活板门全线禁用(2026-08-07 实测 AI 用不明白)
+    "edge_material": ""              # "" = auto (dark_oak_slab)
 }
 
 OPP = {"north": "south", "south": "north", "east": "west", "west": "east"}
 AUTO_RAFTER = {"stairs": "minecraft:dark_oak_stairs",
                "slab": "minecraft:dark_oak_slab",
                "wall": "minecraft:cobblestone_wall"}
-AUTO_EDGE = {"fascia": "minecraft:dark_oak_trapdoor",
-             "slab": "minecraft:dark_oak_slab"}
+AUTO_EDGE = {"slab": "minecraft:dark_oak_slab"}
 RAFTER_SUFFIX = {"stairs": "_stairs", "slab": "_slab", "wall": "_wall"}
-EDGE_SUFFIX = {"fascia": "_trapdoor", "slab": "_slab"}
+EDGE_SUFFIX = {"slab": "_slab"}
 
 def parse(spec):
     """'minecraft:x_stairs[facing=south,half=bottom]' -> (name, {props})."""
@@ -117,24 +116,12 @@ def build(p):
 
     # ---- ② edge strip along the eave outline ------------------------------
     edge = p["edge"]
+    if edge == "fascia":
+        die("edge=fascia 已下线(活板门全线禁用, 实测 AI 用不明白) — 用 edge=slab", {})
     if edge != "none":
         mat = p["edge_material"] or AUTO_EDGE[edge]
         for x, z, f, o in lips:
-            if edge == "fascia":
-                # open trapdoor flat on the lip's outer face (封檐板)
-                dx, dz = DIRS[o]
-                if (x + dx, min_y, z + dz) not in occupied:
-                    cells[(x + dx, min_y, z + dz)] = (
-                        "%s[facing=%s,half=bottom,open=true]" % (mat, f))
-                # end caps where the row ends / turns a corner (along-axis
-                # neighbour at the eave layer missing)
-                ax = ("east", "west") if f in ("north", "south") else ("north", "south")
-                for c in ax:
-                    cx, cz = DIRS[c]
-                    if (x + cx, min_y, z + cz) not in occupied:
-                        cells[(x + cx, min_y, z + cz)] = (
-                            "%s[facing=%s,half=bottom,open=true]" % (mat, OPP[c]))
-            else:  # slab strip on top of the lip (檐口第一排瓦收边)
+            if edge == "slab":  # slab strip on top of the lip (檐口第一排瓦收边)
                 if (x, min_y + 1, z) not in occupied:
                     cells[(x, min_y + 1, z)] = slab(mat, "bottom")
 

@@ -29,6 +29,7 @@ DEFAULTS = {
     "ridge_material": "minecraft:spruce_slab",
     "ridge_support": "minecraft:spruce_planks",  # solid beam under the ridge slab (a sideways stair leaves a half-gap on its open side — E8 实测)
     "end_fill": "",                # e.g. "minecraft:oak_planks": solid gable-end triangles inside wall footprint
+    "end_fill_ends": "both",       # both | first(局部x=0 面) | last(x=w-1 面) | none — roof_plan 按"外露端"推导
     "flare_corners": False         # 生起+翼角: lift the 2 ends of each eave row by 1 (中式/日式 flying-eave curve)
 }
 
@@ -99,7 +100,13 @@ def build(p):
                     emit(x, y + 1, zs, stair(mat, "north"))
         if fill:
             g = max(0, inset - oh)
-            for x in (0, w - 1):         # gable-end walls at the two wall faces
+            ends = p.get("end_fill_ends", "both")
+            end_faces = []
+            if ends in ("both", "first"):
+                end_faces.append(0)
+            if ends in ("both", "last"):
+                end_faces.append(w - 1)
+            for x in end_faces:                # gable-end walls at the two wall faces
                 for z in range(g, d - g):
                     if z not in (zn, zs):
                         emit(x, y, z, fill)

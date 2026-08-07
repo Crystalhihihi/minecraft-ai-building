@@ -1,29 +1,131 @@
 {
   "name": "balcony",
-  "description": "Balcony (阳台): two variants from one generator — cantilever (悬空挑板式: deck projecting from the facade, held by upside-down stair corbels under the wall line [support=brackets] and/or fence columns down from the front corners [support=columns], railing wrapping the three free edges) and recessed (凹进式/loggia: the balcony carved INTO the facade — the generator emits the recess shell: back wall, jambs, floor, lintel, threshold, plus explicit air cells that carve the recess out of an existing wall, with a railing at the front lip). Optional doorway punched through the facade/back wall (air carve). wall_stub emits the facade patch so the piece is self-supporting. All direction states (corbel stair facing/half, trapdoor open panels) are DERIVED from origin+facing.",
+  "description": "Balcony (阳台): two variants from one generator — cantilever (悬空挑板式: deck projecting from the facade, held by upside-down stair corbels under the wall line [support=brackets] and/or fence columns down from the front corners [support=columns], railing wrapping the three free edges) and recessed (凹进式/loggia: the balcony carved INTO the facade — the generator emits the recess shell: back wall, jambs, floor, lintel, threshold, plus explicit air cells that carve the recess out of an existing wall, with a railing at the front lip). Optional doorway punched through the facade/back wall (air carve). wall_stub emits the facade patch so the piece is self-supporting. All direction states (corbel stair facing/half) are DERIVED from origin+facing.",
   "when_to_use": "Upper-floor facade relief: houses, inns, apartments, keeps — a bare flat wall above the ground floor is exactly the '光秃秃' failure this card fixes. origin = bottom-LEFT cell of the wall face (seen from OUTSIDE), y = the balcony FLOOR layer (align it with the interior upper floor); facing = the outward direction the balcony looks to. Common sizes: width 3-5, depth 1-2 (cantilever max 3; more reads as a roof deck, not a balcony). DIRECTION STATES ARE DERIVED BY THE SCRIPT — never hand-edit (禁止手改方向状态).",
   "use_for": "二层立面挑阳台/凹阳台(敞廊);民居、客栈、公寓、塔楼立面分层;配 window_trim/pilaster 做立面节奏",
   "params": {
-    "variant": {"type": "enum", "required": true, "values": ["cantilever", "recessed"], "notes": "cantilever=悬空挑板;recessed=凹进立面(敞廊)"},
-    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "墙面外视左下角格;y=阳台地板层(对齐室内楼板)"},
-    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "阳台外朝向;一切朝向状态由此推导"},
-    "width": {"type": "int", "range": "2-8", "default": 4, "notes": "沿墙宽;常见 3-5"},
-    "depth": {"type": "int", "range": "cantilever 1-3 / recessed 1-2", "default": 2, "notes": "cantilever=出挑深度;recessed=凹进深度"},
-    "floor_material": {"type": "block id", "default": "minecraft:spruce_planks", "notes": "甲板/凹阳台地面;石构用 stone_brick_slab 风格请给整砖"},
-    "wall_material": {"type": "block id", "default": "minecraft:stone_bricks", "notes": "墙贴面/凹阳台壳体;与真实墙面同料以便咬合"},
-    "wall_stub": {"type": "bool", "default": true, "notes": "cantilever:发出阳台所挂的墙面补丁(与真墙重叠是刻意的);recessed 壳体恒发"},
-    "stub_height": {"type": "int", "range": "1-6", "default": 3, "notes": "cantilever 墙补丁在甲板以上的层数(盖住门洞上沿)"},
-    "railing": {"type": "enum", "values": ["none", "fence", "wall", "pane", "trapdoor"], "default": "fence", "notes": "栏杆做法(详见 railing 卡);trapdoor=木面板栏板"},
-    "railing_material": {"type": "block id", "default": "minecraft:spruce_fence", "notes": "按 railing 校验后缀:fence=*_fence, wall=*_wall, pane=*_pane|iron_bars, trapdoor=*_trapdoor"},
-    "post_material": {"type": "block id", "default": "minecraft:spruce_fence", "notes": "pane 栏杆的角柱/端柱"},
-    "post_spacing": {"type": "int", "range": "2-8", "default": 3, "notes": "pane 栏杆每隔几格一根柱"},
-    "support": {"type": "enum", "values": ["brackets", "columns", "none"], "default": "brackets", "notes": "cantilever 支撑:brackets=托臂(倒放楼梯),columns=前角柱落地,none=纯悬挑(现代)"},
-    "corbel_material": {"type": "block id (*_stairs)", "default": "minecraft:spruce_stairs", "notes": "托臂;half=top 倒放、平托面朝上顶住甲板(脚本推导)"},
-    "column_material": {"type": "block id", "default": "minecraft:spruce_fence", "notes": "support=columns 的立柱"},
-    "column_drop": {"type": "int", "range": "1-16", "default": 3, "notes": "立柱从甲板前角向下延伸层数;必须落到地面/下层屋顶,给错就是悬空柱"},
-    "door": {"type": "bool", "default": true, "notes": "开 1x2 门洞(air 开凿);cantilever 开在墙补丁上,recessed 开在凹进后墙上"},
-    "door_offset": {"type": "int", "range": "-1..width-1", "default": -1, "notes": "门洞 u 位;-1=居中"},
-    "headroom": {"type": "int", "range": "2-3", "default": 2, "notes": "recessed 开口净高"}
+    "variant": {
+      "type": "enum",
+      "required": true,
+      "values": [
+        "cantilever",
+        "recessed"
+      ],
+      "notes": "cantilever=悬空挑板;recessed=凹进立面(敞廊)"
+    },
+    "origin": {
+      "type": "[x,y,z]",
+      "default": "[0,64,0]",
+      "notes": "墙面外视左下角格;y=阳台地板层(对齐室内楼板)"
+    },
+    "facing": {
+      "type": "\"north\"|\"south\"|\"east\"|\"west\"",
+      "default": "south",
+      "notes": "阳台外朝向;一切朝向状态由此推导"
+    },
+    "width": {
+      "type": "int",
+      "range": "2-8",
+      "default": 4,
+      "notes": "沿墙宽;常见 3-5"
+    },
+    "depth": {
+      "type": "int",
+      "range": "cantilever 1-3 / recessed 1-2",
+      "default": 2,
+      "notes": "cantilever=出挑深度;recessed=凹进深度"
+    },
+    "floor_material": {
+      "type": "block id",
+      "default": "minecraft:spruce_planks",
+      "notes": "甲板/凹阳台地面;石构用 stone_brick_slab 风格请给整砖"
+    },
+    "wall_material": {
+      "type": "block id",
+      "default": "minecraft:stone_bricks",
+      "notes": "墙贴面/凹阳台壳体;与真实墙面同料以便咬合"
+    },
+    "wall_stub": {
+      "type": "bool",
+      "default": true,
+      "notes": "cantilever:发出阳台所挂的墙面补丁(与真墙重叠是刻意的);recessed 壳体恒发"
+    },
+    "stub_height": {
+      "type": "int",
+      "range": "1-6",
+      "default": 3,
+      "notes": "cantilever 墙补丁在甲板以上的层数(盖住门洞上沿)"
+    },
+    "railing": {
+      "type": "enum",
+      "values": [
+        "none",
+        "fence",
+        "wall",
+        "pane"
+      ],
+      "default": "fence",
+      "notes": "栏杆做法(详见 railing 卡);trapdoor 面板栏板已下线(活板门全线禁用)"
+    },
+    "railing_material": {
+      "type": "block id",
+      "default": "minecraft:spruce_fence",
+      "notes": "按 railing 校验后缀:fence=*_fence, wall=*_wall, pane=*_pane|iron_bars"
+    },
+    "post_material": {
+      "type": "block id",
+      "default": "minecraft:spruce_fence",
+      "notes": "pane 栏杆的角柱/端柱"
+    },
+    "post_spacing": {
+      "type": "int",
+      "range": "2-8",
+      "default": 3,
+      "notes": "pane 栏杆每隔几格一根柱"
+    },
+    "support": {
+      "type": "enum",
+      "values": [
+        "brackets",
+        "columns",
+        "none"
+      ],
+      "default": "brackets",
+      "notes": "cantilever 支撑:brackets=托臂(倒放楼梯),columns=前角柱落地,none=纯悬挑(现代)"
+    },
+    "corbel_material": {
+      "type": "block id (*_stairs)",
+      "default": "minecraft:spruce_stairs",
+      "notes": "托臂;half=top 倒放、平托面朝上顶住甲板(脚本推导)"
+    },
+    "column_material": {
+      "type": "block id",
+      "default": "minecraft:spruce_fence",
+      "notes": "support=columns 的立柱"
+    },
+    "column_drop": {
+      "type": "int",
+      "range": "1-16",
+      "default": 3,
+      "notes": "立柱从甲板前角向下延伸层数;必须落到地面/下层屋顶,给错就是悬空柱"
+    },
+    "door": {
+      "type": "bool",
+      "default": true,
+      "notes": "开 1x2 门洞(air 开凿);cantilever 开在墙补丁上,recessed 开在凹进后墙上"
+    },
+    "door_offset": {
+      "type": "int",
+      "range": "-1..width-1",
+      "default": -1,
+      "notes": "门洞 u 位;-1=居中"
+    },
+    "headroom": {
+      "type": "int",
+      "range": "2-3",
+      "default": 2,
+      "notes": "recessed 开口净高"
+    }
   },
   "pitfalls": [
     "悬挑阳台没有支撑是'浮空板'——support=none 只用于现代风格;brackets 托臂是倒放楼梯(half=top、平托面顶住甲板),不是正放",
@@ -35,6 +137,11 @@
     "一层阳台别贴地放:origin y 应对齐二层楼板;贴地的'阳台'是门廊(porch),请用柱子+顶",
     "与真墙合并时跑 collision_check(墙补丁/壳体与既有墙体同坐标属刻意重叠,材质必须一致)"
   ],
-  "validators": ["support_check", "slab_check", "stair_corner_check", "collision_check"],
+  "validators": [
+    "support_check",
+    "slab_check",
+    "stair_corner_check",
+    "collision_check"
+  ],
   "example": "python patterns/balcony.py --params '{\"variant\":\"cantilever\",\"origin\":[100,64,100],\"facing\":\"south\",\"width\":4,\"depth\":2}' --out balcony1.json && python patterns/balcony.py --params '{\"variant\":\"recessed\",\"origin\":[100,64,120],\"facing\":\"east\",\"width\":3,\"depth\":1,\"railing\":\"pane\",\"railing_material\":\"minecraft:glass_pane\"}' --out balcony2.json"
 }

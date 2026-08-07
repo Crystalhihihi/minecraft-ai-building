@@ -21,7 +21,7 @@ Coordinate frame (same as wall_weathering): origin = bottom-LEFT cell of the
 facade seen from outside, y = base layer; facing = outward normal; u runs to
 the outside viewer's right. All accent cells sit one cell OFF the face
 (u -> wall cell, +facing -> accent cell); attachment states (vine face, banner
-facing, trapdoor hinge, lantern hanging) are derived from `facing` — never
+facing, lantern hanging) are derived from `facing` — never
 hand-edit the output (禁止手改方向状态).
 
 Usage:
@@ -48,7 +48,6 @@ KIND_SURFACES = {
     "lantern_stand": ("column_base",),
     "button": ("wall",),
     "candle": ("column_base", "tabletop"),
-    "trapdoor_panel": ("wall",),
     "stone_lantern": ("column_base",),
     "moss": ("column_base",),
     "gold": ("corner",),
@@ -65,8 +64,7 @@ KIND_SURFACES = {
 PALETTES = {
     "medieval": [("vine", None), ("banner", "minecraft:red_wall_banner"),
                  ("bars", None), ("lantern_hang", None), ("lantern_stand", None)],
-    "japanese": [("trapdoor_panel", "minecraft:bamboo_trapdoor"),
-                 ("stone_lantern", None), ("moss", None)],
+    "japanese": [("stone_lantern", None), ("moss", None), ("lantern_hang", None)],
     "elven": [("sea_lamp", None), ("gold", None), ("vine", None)],
     "industrial": [("bars", None), ("button", "minecraft:stone_button"),
                    ("pipes", None)],
@@ -128,9 +126,6 @@ def place(rng, kind, arg, u, v, F, cells, width, height):
         return row(rng.randint(2, 3), "%s[face=wall,facing=%s]" % (arg, F))
     if kind == "candle":
         return row(2, "minecraft:candle[candles=%d,lit=true]" % rng.randint(2, 3))
-    if kind == "trapdoor_panel":             # shutter panel, hinge against wall
-        return row(rng.randint(2, 3),
-                   "%s[facing=%s,half=bottom,open=true]" % (arg, OPP[F]))
     if kind == "stone_lantern":              # 石灯笼:石墙座+灯笼叠, 2 blocks
         pts = [(u, 0), (u, 1)]
         if not all(free(*q) for q in pts):

@@ -503,7 +503,7 @@ public final class WorkDir {
               re-run instead of editing those cells.
             Frequent ones:
 
-            - roofs: gable/hip/gambrel/mansard/helm/xieshan -> *_roof.py; + dormer.py / chimney.py; L/T/U plan -> roof_plan.py (same seed as plan_shape); finish sloped roofs with eaves_trim.py (rafters+fascia — 有挑檐必有椽)
+            - roofs: gable/hip/gambrel/mansard/helm/xieshan -> *_roof.py; + dormer.py / chimney.py; L/T/U plan -> roof_plan.py (same seed as plan_shape); finish sloped roofs with eaves_trim.py (rafters+slab edge — 有挑檐必有椽). GABLE ENDS: any gable roof on an enclosed building MUST pass `end_fill` = the wall material (roof_plan fills only the FREE ends automatically — ends joined to another mass stay open); an open gable triangle is a build failure (实测镂空). TRAPDOORS ARE BANNED everywhere (freehand and generator params alike — 实测 AI 用不明白); use slabs/panels instead.
             - entrances: doorway.py (door recess/frame/lintel/leaf/steps/canopy — a bare vanilla door block on a flat wall is a build failure)
             - structure: buttress.py / pilaster.py / timber_structure.py (trusses, brackets)
             - facade: window_trim.py (v2: recess/sill/shutters/flowerbox layers) / arch_window.py / facade_depth.py (base/string/cornice) / accent_detailing.py (ornaments, palette = your style family)

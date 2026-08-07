@@ -50,7 +50,7 @@ Stairs/slabs/walls/fences exist for almost every full block: append
 - minecraft:bamboo_planks / bamboo_mosaic
 - Fences: oak_fence / spruce_fence / birch_fence / dark_oak_fence ... (per wood type)
 - Doors: oak_door / spruce_door / birch_door / dark_oak_door / iron_door
-- Trapdoors: oak_trapdoor / spruce_trapdoor / dark_oak_trapdoor / iron_trapdoor
+- Trapdoors: **全线禁用**（实测 AI 用不明白，2026-08-07 起）——徒手和生成输出都不许出现；要薄板用 `_slab` 或墙板类替代
 
 ## 石 / Stone variants & decoration
 

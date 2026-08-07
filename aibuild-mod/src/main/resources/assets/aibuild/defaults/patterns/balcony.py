@@ -18,7 +18,7 @@ hand-edit 禁止手改方向状态; see stair_orientations.md):
 - canonical frame: u along the wall to the viewer's right, w outward (=
   facing), v up; the facade plane is w=-1 (cantilever) / w=0 lip (recessed).
 - corbels are half=top stairs, flat top up against the deck underside,
-  facing outward; trapdoor rails are open=true panels, hinge outward.
+  facing outward. (trapdoor 栏杆选项已下线 — 活板门全线禁用 2026-08-07)
 - wall_stub (default true) emits the facade patch the balcony hangs on so
   the piece is self-supporting and shows where it attaches; overlap with
   the real wall is intentional (same material).
@@ -40,7 +40,7 @@ DIRS = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}
 OPP = {"north": "south", "south": "north", "east": "west", "west": "east"}
 RIGHT = {"north": "east", "east": "south", "south": "west", "west": "north"}
 VARIANTS = ("cantilever", "recessed")
-RAIL_KINDS = ("none", "fence", "wall", "pane", "trapdoor")
+RAIL_KINDS = ("none", "fence", "wall", "pane")
 SUPPORTS = ("brackets", "columns", "none")
 
 DEFAULTS = {
@@ -53,7 +53,7 @@ DEFAULTS = {
     "wall_material": "minecraft:stone_bricks",
     "wall_stub": True,             # emit the facade patch the balcony hangs on
     "stub_height": 3,              # cantilever stub layers ABOVE the deck (1-6)
-    "railing": "fence",            # none | fence | wall | pane | trapdoor
+    "railing": "fence",            # none | fence | wall | pane(trapdoor 已下线, 活板门全线禁用)
     "railing_material": "minecraft:spruce_fence",
     "post_material": "minecraft:spruce_fence",  # pane corner/end posts
     "post_spacing": 3,             # pane: post every N cells
@@ -95,8 +95,6 @@ def build(p):
         if kind == "pane":
             is_post = (i % max(2, int(p["post_spacing"])) == 0) or (i == n - 1)
             return p["post_material"] if is_post else mat
-        if kind == "trapdoor":
-            return "%s[facing=%s,half=bottom,open=true]" % (mat, outward_dir)
         return mat  # fence / wall
 
     door_u = int(p["door_offset"])
@@ -195,11 +193,10 @@ def validate(p):
     if p["railing"] not in RAIL_KINDS:
         die("railing must be one of %s" % (RAIL_KINDS,), {"railing": list(RAIL_KINDS)})
     rk, mat = p["railing"], str(p["railing_material"])
-    need = {"fence": "_fence", "wall": "_wall", "trapdoor": "_trapdoor"}
+    need = {"fence": "_fence", "wall": "_wall"}
     if rk in need and not mat.endswith(need[rk]):
         die("railing=%s needs a *%s railing_material" % (rk, need[rk]),
-            {"railing_material": ["minecraft:spruce_fence", "minecraft:cobblestone_wall",
-                                  "minecraft:oak_trapdoor"]})
+            {"railing_material": ["minecraft:spruce_fence", "minecraft:cobblestone_wall"]})
     if rk == "pane" and not (mat.endswith("_pane") or mat == "minecraft:iron_bars"):
         die("railing=pane needs a *_pane id or minecraft:iron_bars",
             {"railing_material": ["minecraft:glass_pane", "minecraft:iron_bars"]})

@@ -7,7 +7,7 @@ Stone-brick / brick shaft (1x1, 1x2 or 2x2) with:
   corners per the stair rules; the half-top tread is a standable service
   ledge for roof repairs;
 - a rim course on top (same ring recipe) and a cap: campfire (smoke, the
-  classic) or a closed trapdoor lid.
+  classic) or none (trapdoor 盖已下线 — 活板门全线禁用 2026-08-07).
 
 The shaft is solid full blocks stacked from the base, so every block has
 support; the campfire is whitelisted (contains "fire").
@@ -30,15 +30,14 @@ DEFAULTS = {
     "depth": 2,                    # shaft footprint along z: 1-2
     "height": 6,                   # shaft height in layers, 1-24
     "material": "minecraft:stone_bricks",
-    "cap": "campfire",             # campfire | trapdoor | none
+    "cap": "campfire",             # campfire | none(trapdoor 盖已下线, 活板门全线禁用)
     "facing": "south",             # fireplace/front direction (campfire faces this way)
     "ledge_layer": -1,             # flashing/检修台 ring at this y-offset from origin; -1 = auto (height-3)
     "rim": True,                   # rim course on top of the shaft
-    "trim_material": "minecraft:stone_brick_stairs",  # stairs for ledge + rim rings
-    "trapdoor_material": "minecraft:spruce_trapdoor"
+    "trim_material": "minecraft:stone_brick_stairs"  # stairs for ledge + rim rings
 }
 
-CAPS = ("campfire", "trapdoor", "none")
+CAPS = ("campfire", "none")
 FACINGS = ("north", "south", "east", "west")
 
 def ledge_ring(b, w, d, y, mat):
@@ -74,8 +73,6 @@ def build(p):
         for z in range(d):
             if cap == "campfire":
                 b.put(x, h, z, "minecraft:campfire[facing=%s,lit=true]" % p["facing"])
-            elif cap == "trapdoor":
-                b.put(x, h, z, "%s[facing=north,half=bottom,open=false]" % p["trapdoor_material"])
     return b.emit([ox, oy, oz])
 
 def validate(p):
@@ -98,10 +95,6 @@ def validate(p):
     if not str(p["trim_material"]).endswith("_stairs"):
         die("trim_material must be a *_stairs id",
             {"trim_material": ["minecraft:stone_brick_stairs", "minecraft:brick_stairs"]})
-    if p["cap"] == "trapdoor" and "trapdoor" not in str(p["trapdoor_material"]):
-        die("trapdoor_material must be a *_trapdoor id",
-            {"trapdoor_material": ["minecraft:spruce_trapdoor", "minecraft:dark_oak_trapdoor",
-                                   "minecraft:iron_trapdoor"]})
     if len(p["origin"]) != 3:
         die("origin must be [x,y,z]", {"origin": "[100,64,100]"})
 

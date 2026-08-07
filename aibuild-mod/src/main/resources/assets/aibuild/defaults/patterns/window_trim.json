@@ -1,35 +1,86 @@
 {
   "name": "window_trim",
-  "description": "Window surround v2 (窗套+纵深细节): the V1 decorative ring (jambs + header + sill rows, projection 0/1, corner_material) plus the cheap-depth moves from detail-techniques §2 — recess (glass set INTO the wall), protruding sill ledge, trapdoor shutters, flowerbox, lintel. Default combo = recess+sill. All V1 params unchanged; glass_material=\"\" returns to the V1 trim-only output. All direction states (stair facing/half, trapdoor facing/open) are DERIVED by the script — never hand-edit them in the output (禁止手改方向状态).",
+  "description": "Window surround v2 (窗套+纵深细节): the V1 decorative ring (jambs + header + sill rows, projection 0/1, corner_material) plus cheap-depth moves — recess (glass set INTO the wall), protruding sill ledge, lintel. Default combo = recess+sill. shutters/flowerbox 已下线(活板门全线禁用, 实测 AI 用不明白)。方向状态全部派生, 禁止手改。",
   "when_to_use": "Around every window the style card wants a surround for (see details.depth.window_trim). Run AFTER arch_window.py: origin = bottom-left cell of the OPENING as seen from outside (same convention as arch_window). Opening sizes from 实测: medieval 1x2 / modern 2x3, sill 1-2 above ground (stats_detail_elements §2).",
-  "use_for": "治'窗户=一圈环'的纸糊细节: 玻璃内凹+窗台出挑是成本最低的纵深; 中世纪 1×2 四件套 = recess+sill+shutters+flowerbox; 田园花箱窗 = flowerbox; 现代幕墙 = recess:0 + glass_material:minecraft:glass + sill:false",
+  "use_for": "治'窗户=一圈环'的纸糊细节: 玻璃内凹+窗台出挑是成本最低的纵深; 窗楣可选; 现代幕墙 = recess:0 + glass 满铺 + sill:false",
   "params": {
-    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "bottom-left cell of the window opening, seen from outside"},
-    "width": {"type": "int", "range": "1-8", "default": 2, "notes": "opening width"},
-    "height": {"type": "int", "range": "1-8", "default": 3, "notes": "opening height"},
-    "facing": {"type": "\"north\"|\"south\"|\"east\"|\"west\"", "default": "south", "notes": "outward direction of the wall face"},
-    "projection": {"type": "0|1", "default": 1, "notes": "0 = flush in the wall plane, 1 = sticks out of the face"},
-    "material": {"type": "block id", "default": "minecraft:dark_oak_planks", "notes": "ring material from the style card"},
-    "corner_material": {"type": "block id|\"\"", "default": "", "notes": "the 4 ring corners (角件); empty = same as ring"},
-    "sill_material": {"type": "block id|\"\"", "default": "", "notes": "V1: ring bottom row override (slabs get type=bottom). V2: also the sill-ledge material when set; empty ledge = minecraft:stone_brick_slab"},
-    "recess": {"type": "int", "range": "0-2", "default": 1, "notes": "玻璃内凹深度(格): 0=与墙齐平(仅幕墙), 1=标准纵深, 2=厚墙; recess=2 会自动打通深度1的隧道格(air)"},
-    "glass_material": {"type": "block id|\"\"", "default": "minecraft:glass_pane", "notes": "窗洞填充; \"\"=不放玻璃(回到V1纯环), minecraft:air=不上釉箭缝(显式air格), 幕墙用 minecraft:glass"},
-    "sill": {"type": "bool", "default": true, "notes": "窗台: 窗洞下沿外贴1格(下半砖/倒放楼梯), 宽=洞口+2; projection=1时覆盖环底排同格"},
-    "shutters": {"type": "bool", "default": false, "notes": "活板门百叶: 两侧墙平面格竖贴开态trapdoor, 合页朝窗(fandom配方); h>=2时支撑最稳"},
-    "flowerbox": {"type": "bool", "default": false, "notes": "花箱(窗台升级版): 窗下grass_block一行出挑1格 + trapdoor三面围边 + 顶上一排花; 与sill互斥(覆盖窗台格)"},
-    "lintel": {"type": "bool", "default": false, "notes": "窗楣: 窗顶外贴1格收边条, 宽=洞口+2"},
-    "lintel_material": {"type": "block id|\"\"", "default": "", "notes": "\"\"=minecraft:stone_brick_slab; *_slab→下半砖, *_stairs→倒放楼梯, 其他=整方块"},
-    "trapdoor_material": {"type": "block id (*_trapdoor)", "default": "minecraft:spruce_trapdoor", "notes": "百叶+花箱围边共用"},
-    "flower_material": {"type": "block id (flower)", "default": "minecraft:poppy", "notes": "花箱顶上的花; blocks.md 花卉清单任选"}
+    "origin": {
+      "type": "[x,y,z]",
+      "default": "[0,64,0]",
+      "notes": "bottom-left cell of the window opening, seen from outside"
+    },
+    "width": {
+      "type": "int",
+      "range": "1-8",
+      "default": 2,
+      "notes": "opening width"
+    },
+    "height": {
+      "type": "int",
+      "range": "1-8",
+      "default": 3,
+      "notes": "opening height"
+    },
+    "facing": {
+      "type": "\"north\"|\"south\"|\"east\"|\"west\"",
+      "default": "south",
+      "notes": "outward direction of the wall face"
+    },
+    "projection": {
+      "type": "0|1",
+      "default": 1,
+      "notes": "0 = flush in the wall plane, 1 = sticks out of the face"
+    },
+    "material": {
+      "type": "block id",
+      "default": "minecraft:dark_oak_planks",
+      "notes": "ring material from the style card"
+    },
+    "corner_material": {
+      "type": "block id|\"\"",
+      "default": "",
+      "notes": "the 4 ring corners (角件); empty = same as ring"
+    },
+    "sill_material": {
+      "type": "block id|\"\"",
+      "default": "",
+      "notes": "V1: ring bottom row override (slabs get type=bottom). V2: also the sill-ledge material when set; empty ledge = minecraft:stone_brick_slab"
+    },
+    "recess": {
+      "type": "int",
+      "range": "0-2",
+      "default": 1,
+      "notes": "玻璃内凹深度(格): 0=与墙齐平(仅幕墙), 1=标准纵深, 2=厚墙; recess=2 会自动打通深度1的隧道格(air)"
+    },
+    "glass_material": {
+      "type": "block id|\"\"",
+      "default": "minecraft:glass_pane",
+      "notes": "窗洞填充; \"\"=不放玻璃(回到V1纯环), minecraft:air=不上釉箭缝(显式air格), 幕墙用 minecraft:glass"
+    },
+    "sill": {
+      "type": "bool",
+      "default": true,
+      "notes": "窗台: 窗洞下沿外贴1格(下半砖/倒放楼梯), 宽=洞口+2; projection=1时覆盖环底排同格"
+    },
+    "lintel": {
+      "type": "bool",
+      "default": false,
+      "notes": "窗楣: 窗顶外贴1格收边条, 宽=洞口+2"
+    },
+    "lintel_material": {
+      "type": "block id|\"\"",
+      "default": "",
+      "notes": "\"\"=minecraft:stone_brick_slab; *_slab→下半砖, *_stairs→倒放楼梯, 其他=整方块"
+    }
   },
   "pitfalls": [
     "recess 把玻璃放进墙体内侧: 1×1 窗洞+recess 时单块玻璃四邻无靠(support_check 会报悬浮), 1×1 箭缝窗用 recess=0",
-    "shutters 占据窗洞两侧的墙平面格(替换墙块), 开态薄板贴立面——墙体会留一线缝, 这是活板门百叶的正常代价",
-    "projection=1 且 sill/lintel/flowerbox 开启时, 出挑件与环同格并覆盖环底排/顶排(含 corner_material 角件)——要角件露头就把 projection 设 0",
-    "flowerbox 与 sill 互斥: flowerbox=true 时窗台格被花箱土壤覆盖",
     "recess=2 会在玻璃前打通 1 格隧道(air 格), 没有 place_air 能力时先手工挖掉对应墙体格",
-    "方向状态全部由脚本推导, 禁止手改输出 JSON 里的 facing/half/open"
+    "方向状态全部由脚本推导, 禁止手改输出 JSON 里的 facing/half/open",
+    "活板门全线禁用(2026-08-07): 别在任何地方徒手/生成使用 trapdoor"
   ],
-  "validators": ["support_check"],
+  "validators": [
+    "support_check"
+  ],
   "example": "python patterns/window_trim.py --params '{\"origin\":[100,70,100],\"width\":2,\"height\":3,\"facing\":\"south\",\"projection\":1,\"material\":\"minecraft:stone_brick_stairs\",\"corner_material\":\"minecraft:chiseled_stone_bricks\",\"recess\":1,\"sill\":true,\"shutters\":true}' --out trim.json"
 }

@@ -32,6 +32,7 @@ DEFAULTS = {
     "ridge_material": "minecraft:spruce_slab",
     "ridge_support": "minecraft:spruce_planks",
     "valley_material": "",         # 缺省 = material
+    "end_fill": "",                # 山墙三角区填充(墙身主材): 封闭式建筑的必选项 — 只填"外露端"(与另一体块相接的端头不填, 自动推导)
     "seed": 7,                     # 必须与墙体的 plan_shape 同 seed 才同一平面
 }
 
@@ -71,6 +72,7 @@ def build(p):
 
     mat = p["material"]
     valley_mat = p["valley_material"] or mat
+    fill = p.get("end_fill", "")
     order = sorted(range(len(rects)), key=lambda i: i != main_i)  # 主翼先
     blocks = []
     taken = set()
@@ -84,10 +86,25 @@ def build(p):
             main_d = rects[main_i][3] - rects[main_i][2] + 1
             main_axis = "x" if main_w >= main_d else "z"
             axis = "z" if main_axis == "x" else "x"
+        # 山墙端头: 只填"外露端"(端头外无平面格); 与另一体块相接的端头不填
+        # (相接端是内院/连体, 填了就是堵死)。axis=x: first=西端 last=东端;
+        # axis=z: gable_roof 内局部 x↔世界 z 转置, first=北端 last=南端。
+        ends = "none"
+        if fill:
+            if axis == "x":
+                first_free = all((x0 - 1, z) not in cells for z in range(z0, z1 + 1))
+                last_free = all((x1 + 1, z) not in cells for z in range(z0, z1 + 1))
+            else:
+                first_free = all((x, z0 - 1) not in cells for x in range(x0, x1 + 1))
+                last_free = all((x, z1 + 1) not in cells for x in range(x0, x1 + 1))
+            ends = ("both" if first_free and last_free else
+                    "first" if first_free else
+                    "last" if last_free else "none")
         gp = {"origin": [ox + x0, oy, oz + z0], "width": w, "depth": d,
               "axis": axis, "overhang": p["overhang"], "height": 0,
               "material": mat, "ridge_material": p["ridge_material"],
-              "ridge_support": p["ridge_support"], "end_fill": ""}
+              "ridge_support": p["ridge_support"], "end_fill": fill,
+              "end_fill_ends": ends}
         for b in gable_roof.build(gp):
             key = (b["x"], b["y"], b["z"])
             if key not in taken:
