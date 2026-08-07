@@ -2,6 +2,47 @@
 
 > 读我即恢复全部关键状态。详细历史:git log;实验数据:`docs/experiments.md`;延后事项:`docs/BACKLOG.md`;调研:`docs/research/`(reflib 13 篇)。
 
+## 2026-08-07 凌晨快照④(多样性四连: species/facade_scan/三树/stair_row)
+
+**用户拍板的四步全部落地部署(04:5x jar, 资产 157 文件)。全部未提交(连同前 3 批)。**
+
+- **①species 材质库**: giant_tree SPECIES 扩到 9 种(birch/spruce/jungle/acacia/cherry/mangrove/pale_oak 新增), 新 preset 4 张: cherry_blossom(樱花粉叶)/birch_grove/mangrove_swamp/pale_oak_garden(材质系卡, 同骨架换树皮, ASPECT 域已配)
+- **②装饰感知**: facade_scan.py(立面扫描→门窗洞/平整区段/候选锚点(corner_pilaster/base_footing/string_course/eave_cornice/window_trim/accent_cluster)+每面 budget 2-4) + decoration_menu.md(每锚点配方级文字描述, 来源 realworld-vocab+detail-techniques) — 治"强行让 AI 修饰";手册 FACADE DEPTH 改为"先扫再饰, 锚点外的面是留白";真房子(s3)实测输出正常
+- **③三树拆分**: tree_common.py(共享 kernel: h3/rhu/vline/Voxel/tuft/9 species;giant_tree.py 内嵌拷贝冻结未回拆) + conifer_spire.py(spire 云杉锥/cedar 分层塔/pine 伞松, 裙边下垂撕裂) + palm_umbrella.py(棕榈羽状叶+椰团/平顶金合欢 60% 双干) + weeping_tree.py(垂坠叶帘 0.35-0.6h 透缝渐稀);**踩坑: 弯干对角断开+羽叶/叶盘脱离干顶, 全靠 vline 连通桥, 否则 flood-fill 全剪**(palm 曾只产 8 块)
+- **④stair_row.py**: facing/half 几何推导, **shape 不写 — ChunkSupport 的 shape replay(UPDATE_CLIENTS|KNOWN_SHAPE)让游戏放置时自动算转角**(原版逻辑);run 平推/上升(smooth 踏踢交替)/ring 矩形环(back_mode out=inner/in=outer)
+- 全部 validators 过(support_check 0 浮空);手册已接线(针叶走 conifer 不走 giant_tree/装饰先扫/排梯必跑 stair_row)
+
+债: 精灵装饰 special 钩子仍压;weeping/palm 渲染仅离线低角度验证, 等实机;commit 等用户一句话
+
+## 2026-08-07 凌晨快照③(树 v4 沿枝簇生+骨架 v3.2+圆台收分)
+
+**GitHub 调研落地(ez-tree/AJM/vanilla placer)后重写: 树叶 v4 + 骨架 v3.2 已部署(03:4x jar, 部署时游戏进程=1, 用户须知重启游戏加载新 jar)。未提交(连同 v3.1+手册批一起)。**
+
+- **树叶 v4(ez-tree generateLeaves 体素化)**: 废除盘壳, 沿每条辐条/主枝外侧段分层撒叶簇(位置分层+抖动, 簇径 ±30% 方差, 簇距随簇径缩放保证交叠, 梢端大团封顶 r≤5, 边界 2 轮飞叶 10%/4.5%);蓬松感=尺寸方差+边界噪声。小树主枝起簇 0.55→0.3
+- **骨架 v3.2**: trunk 上限 2-7(粗高 ts≈h/15, 细高 ts≈h/25);spiral 加**盘旋棱脊**(干身绕轴棱线 pitch=ts*3+8 层/圈, 粗干双棱, 端面纹理条纹 — 盘旋靠棱脊不靠漂干);curved 弯幅 min(3.0, 0.6ts+0.6)
+- **参考固化**: ez-tree tree.js 语义(子枝粗细随父枝局部半径/扭曲度 1/√半径/twist 绕生长轴逐段累加), AJM 等值面冠, vanilla foliage placer
+- 验证: 4 树 support_check 全绿 0 浮空;高度: 冠顶可冒 2-4 格(叶簇+飞叶, 卡面已注);块数 22 高 1.7k/100 地标 3.4 万
+- **部署事故自查**: 进程查询返回 1(游戏开着)仍 cp 覆盖 jar——命令链没按计数分支, 下次必须先判 0 再部署
+- 下一步: 装饰感知工具+锚点菜单(治"强行让 AI 修饰"; 参考=docs/research/realworld-vocab.md+detail-techniques.md, 菜单项带文字描述防乱造) / stair_row 楼梯行推导 / 精灵装饰钩子仍压
+
+## 2026-08-07 凌晨快照②(系统级反弹: 手册松绑+树 v3.1+plaza circle)
+
+**用户实机三连测(世界5 s1 树+广场/s2 秋色树/s3 民居)后系统级否定: "这些东西彻底限制死了 llm"。树 v3.1 + 手册大改已部署(02:5x jar)。未提交。**
+
+病根(证据链, 全部来自会话取证):
+- 手册 `INTERIORS LAST` 明文规定先墙后家具 → 用户的"从里到外"从未落实(s3 plan 证实, 家具最后塞, walkability 验到超时)
+- 手册"元素有生成器却徒手=失败"+flatness 硬门"裸墙=失败建筑" → AI 每窗必窗套堆饰(用户: 谁说窗户一定要装饰的?)
+- 生成器输出被当圣旨(手册禁止手改) → plaza 拿着就用(巨树下孤立方垫子, 逆天)
+- 树: taper 到 1x1=筷子干(s1 115 高地标); 主枝 45% 裸露段用户嫌丑(s2 AI 自己写 tip_tuft 补丁救枝尖); 盘壳剪影每棵一样; **比例失控**(s2 55高×52冠煎饼, 再被 AI 自写换色脚本糊成炒蛋羊毛)
+
+改动:
+- **giant_tree v3.1**: 收分 tip=max(1,ts-2)(ts=5 冠下保持 3x3); 主枝盘链 45%→25%+枝端埋尖+辐条止壳内(不捅出叶壳)+辐条仰角钳位(防下垂裸枝); 逐盘 dr/dh 抖动+35% 卫星小团(破"每棵一样"); **冠区干身盘链**(0.6/0.72/0.84h 三盘裹上段干, 治 15-20 格冠区裸干段); **高宽比硬护栏**(按 preset 合法域, 越界 die 拒生成)
+- **plaza**: 新增 shape=circle(边缘 seed 抖动±1+外圈 dirt_path 磨损带+环形灯椅), 树下/喷泉/神像必用; 曾踩掉模块 docstring 闭合引号(整文件变字符串, 已修)
+- **手册(WorkDir.java AGENTS_MD)**: ①INTERIOR FIRST 从里到外五阶段(分隔→楼板梯→家具开敞落位→闭壳→walkability 门); ②生成器两层制(正确性关键件仍强制: 屋顶/楼梯/门口/连廊/平面/整地/镜像/分隔/宿主树; 其余=可跳可删改的草稿, 禁手改仅限楼梯方向态); ③装饰预算(窗套正立面或隔窗, 次立面可留白, flatness 只查零 relief 面非配额); ④plaza 尺度贴主体纪律
+- 验证: 5 树高度达标+support_check 全绿+裸木检测(仅主干/板根段, 正确)+plaza circle 边缘有机+比例护栏拦下煎饼树
+
+债: 精灵装饰 special 钩子(发光/垂藤/灯笼); 树按几何原型拆分(conifer/palm/willow); 等实机验收本批
+
 ## 2026-08-07 凌晨快照(巨树 v3,读我恢复全部状态)
 
 **用户实测报"树断头/粗细变化差/60 上限"。giant_tree 重写为 v3 并部署(01:2x jar)。完整简报(给评审 agent)在 `docs/research/giant-tree-v3-status.md`。**
