@@ -28,6 +28,12 @@ for b in blocks:
     else:
         colors[i, j, k] = (0.45, 0.3, 0.15, 1.0)
 
+# matplotlib 3D 的 z 轴才是"上": 转置 (x,z,y) 让 MC 的 y(高)朝上 —
+# 旧版直接画导致整树侧躺(2026-08-12 发现, 历史 PNG 全是躺着的树)
+filled = np.transpose(filled, (0, 2, 1))
+colors = np.transpose(colors, (0, 2, 1, 3))
+shape = (shape[0], shape[2], shape[1])
+
 fig = plt.figure(figsize=(10, 10))
 ax = fig.add_subplot(111, projection="3d")
 ax.voxels(filled, facecolors=colors, edgecolor=None, shade=True)

@@ -509,7 +509,7 @@ public final class WorkDir {
             - facade: window_trim.py (v2: recess/sill/shutters/flowerbox layers) / arch_window.py / facade_depth.py (base/string/cornice) / accent_detailing.py (ornaments, palette = your style family)
             - walls: wall_weathering.py (material mixing/aging)
             - interior: furniture.py (scene= room clusters: enchant/smelting/smithing/storage/workbench — work blocks in a ROW is a build failure) / interior_rooms.py
-            - landscape: garden_tree.py (courtyard-size only) / giant_tree.py (broadleaf giants, 15 presets; it REJECTS absurd height:canopy ratios — retune, don't bypass) / conifer_spire.py (conifers: spire/cedar/pine — needle trees go HERE, not giant_tree) / palm_umbrella.py (palm/flat-top acacia) / weeping_tree.py (willow by water) / flower_field.py / terrace_farm.py / plaza.py (rect for town squares; shape=circle for tree/fountain/statue spots — a lone rect pad under an organic host is a measured failure — sized as host canopy/footprint + 2-4, not bigger)
+            - landscape: garden_tree.py (courtyard-size only) / giant_tree.py (broadleaf giants, 19 presets in TWO lines: realistic (ancient_oak/sky_pillar/... nature scenery) and fantasy_* (sakura/world/oak/spirit — 展示树/地标/许愿树 go HERE: 矮胖撑伞+大叶团+巨基座+干纵纹, pair with decor=lights,lanterns,vines — a bare fantasy landmark with no decor is half-dressed); it REJECTS absurd height:canopy ratios and thin-trunk-big-crown combos — retune, don't bypass) / conifer_spire.py (conifers: spire/cedar/pine — needle trees go HERE, not giant_tree) / palm_umbrella.py (palm/flat-top acacia) / weeping_tree.py (willow by water) / flower_field.py / terrace_farm.py / plaza.py (rect for town squares; shape=circle for tree/fountain/statue spots — a lone rect pad under an organic host is a measured failure — sized as host canopy/footprint + 2-4, not bigger)
             - site: road_segment.py / terraform_pad.py / quadruped_statue.py / mirror_build.py (symmetric halves); masses joined by connector.py (bridge/corridor + door list)
 
             Workflow: read the .json card -> choose params (origin = world
@@ -788,6 +788,13 @@ public final class WorkDir {
               obvious — a 超小 kiosk has no towers to connect; a 纯观赏外壳
               build needs no wall-walk). A free-text answer that raises a NEW
               ambiguity earns ONE follow-up.
+            - GIANT TREES: when the task IS a landscape/landmark tree (not a
+              building's host tree), ask ONE extra question after purpose:
+              "要哪种树?" [真实系: 自然配景, 像真的树] / [幻想系: 展示地标,
+              矮胖巨伞+大叶团+发光装饰] / [AI 定]. 幻想系 means a fantasy_*
+              preset + decor (offer lights/lanterns/vines as a multi-pick in
+              the same question); 真实系 means the classic presets. Record
+              the choice in the brief — the builder MUST NOT flip it.
             - SIZE is second-to-last: six tiers worded by anchor, not numbers:
               [超小: 亭/摊/神龛级 (≤9×9)] / [小: 独户民居级 (~13×13)] /
               [中: 客栈/小教堂级 (~20×20)] / [大: 城堡主楼/大教堂级 (~35×35)] /

@@ -1,6 +1,6 @@
 {
   "name": "giant_tree",
-  "description": "巨树生成器 v4: 顶梢干(leader)直贯树梢作树脊 + 显性主枝样条(低位起叉先平展再上扬) + 云片层盘定位 + 盘内确定性辐枝扇(锚枝到盘心, 辐条止壳内) + **沿枝簇生叶**(每条辐条/主枝外侧段分层撒叶簇, 位置分层+抖动, 簇径 ±30% 方差, 梢端大团, 边界 1-2 格飞叶 — 蓬松感来自尺寸方差+边界噪声, ez-tree 模型体素化) + 干形四式(straight/curved/leaning/spiral 解析有界偏移, spiral 附盘旋棱脊: 干身绕轴棱线, 粗干双棱) + **全程圆台收分**(基座足尺区以上线性缩到 tip=max(1,ts-2), 缩径层半砖台阶) + 板根阶梯鳍 + 高宽比硬护栏(按 preset 合法域拒生成) + 整树 flood-fill 剪不连通。11 张形态卡预设。同参同 seed 同树。骨架语义参考 dgreenheck/ez-tree: 子枝粗细随父枝局部半径, 扭曲度随 1/√半径。",
+  "description": "巨树生成器 v6: 顶梢干(leader)直贯树梢作树脊 + 显性主枝样条 + 云片层盘/球面辐条双骨架 + **贴地爬根**(干基样条先拱出再逐级下扎入土, 长短混编方位抖动, flare=钟形基座膨大) + **干径/冠幅硬护栏**(trunk>=canopy_radius/4, 大球必须配粗干, 越界拒生成) + 沿枝簇生叶(tuft 基元: 云片压扁 0.65/球团近圆 0.9, tuft_scale 调簇径) + blob 去壳(壳层只剩 v∈[0.85,1] 薄皮填簇缝, 球形靠辐条簇的并集读出来; 辐条 ~45% 从主枝末端二级锚点发出) + 干形四式 + 全程圆台收分 + 高宽比护栏 + flood-fill 剪不连通。16 张形态卡预设。同参同 seed 同树。",
   "when_to_use": "任何需要树超过庭院小树的场合: 景观大树(15-25)/巨树(40-80)/地标树(80-150 直接生成, 无需分件)。选形态卡 preset 再按体量档给 height/canopy_radius —— 别自己调形态参数, 那是调研校准过的。seed 换形不重样。garden_tree 只管 4 格冠以下的庭院小树。",
   "use_for": "巨树/古树/奇幻圣树/世界树地标; preset 定形态, seed 换个体; spirit_candelabra=Ori 精灵树标杆形, world_tree=地标支柱(自带 trunk=4), sky_pillar=通直巨杉(高宽比 3-4:1 时给大 height 小 canopy)",
   "params": {
@@ -27,10 +27,14 @@
         "birch_grove",
         "mangrove_swamp",
         "pale_oak_garden",
-        "fluffy_crown"
+        "fluffy_crown",
+        "fantasy_sakura",
+        "fantasy_world",
+        "fantasy_oak",
+        "fantasy_spirit"
       ],
       "default": "(空)",
-      "notes": "形态卡 id;给了就按卡填 form/limbs/layers/density(/species), 显式参数仍可覆盖; 后四张是材质系卡(同骨架换树皮); fluffy_crown=蓬松档(冠幅直径≈0.8-0.9 高, 密叶三层)"
+      "notes": "形态卡 id;给了就按卡填 form/limbs/layers/density(/species), 显式参数仍可覆盖; 后四张是材质系卡(同骨架换树皮); fluffy_crown=蓬松档; fantasy_* 四张=幻想地标系(矮胖撑伞+大叶团+基座巨化+干纵纹, 配 decor 用)"
     },
     "height": {
       "type": "int",
@@ -84,7 +88,24 @@
     "buttress": {
       "type": "bool",
       "default": true,
-      "notes": "板根: 4-6 条阶梯根鳍, 尺寸随干径缩放;老树/热带/巨木必开"
+      "notes": "兼容旧参数: false=无根;根式由 roots 参数定(默认 crawl 贴地爬根)"
+    },
+    "roots": {
+      "type": "enum",
+      "values": [
+        "crawl",
+        "flare",
+        "buttress",
+        "none"
+      ],
+      "default": "crawl",
+      "notes": "根式: crawl=贴地爬根(干基样条拱出再下扎入土, 长短混编, 老树/巨木默认) | flare=钟形基座(干基膨大~1.7ts, 温带老树)+短根 | buttress=旧板根阶梯鳍(热带板根风味) | none=光杆"
+    },
+    "tuft_scale": {
+      "type": "float",
+      "range": "0.6-1.6",
+      "default": 1.0,
+      "notes": "叶簇径倍率: >1 蓬松大肉团(樱花/蓬松档), <1 碎叶透光(白桦感);preset 已校准, 一般别动"
     },
     "leaf_density": {
       "type": "float",
@@ -124,6 +145,20 @@
       "default": false,
       "notes": "true=纯骨架(枯立木卡用, 辐条更多更下垂)"
     },
+    "fantasy": {
+      "type": "int",
+      "values": [
+        0,
+        1
+      ],
+      "default": 0,
+      "notes": "幻想地标档(一般走 fantasy_* 卡别手开): 矮胖撑伞比例+花椰菜大叶团+弯幅x2+冠底 0.3h+基座巨化+粗干双材质纵纹; 块数 ~2-3 倍真实系"
+    },
+    "decor": {
+      "type": "string",
+      "default": "(空)",
+      "notes": "装饰钩子, 逗号组合: lights=冠内光点(shroomlight) / lanterns=枝下灯笼串(chain+lantern) / vines=冠底垂藤 / all=全上; 任何树可用, 精灵/地标/村落树必配"
+    },
     "crown": {
       "type": "enum",
       "values": [
@@ -131,19 +166,22 @@
         "blob"
       ],
       "default": "layers",
-      "notes": "叶形函数: layers=云片分层(奇幻感) | blob=圆整球形(球面辐条骨架成球+簇随枝走+球壳封口 — 用户参考图款; ancient_oak/banyan/cherry/mangrove/fluffy 已默认 blob)"
+      "notes": "叶形函数: layers=云片分层(奇幻感, tuft 压扁 0.65) | blob=圆整球形(球面辐条骨架成球, 簇随枝走+薄皮壳填缝, tuft 近圆 0.9 — 用户参考图款; ancient_oak/banyan/cherry/mangrove/fluffy 已默认 blob)"
     }
   },
   "pitfalls": [
     "高宽比有硬护栏(height/canopy_diameter 按 preset 合法域): 越界直接拒生成——被拒就调 height/canopy_radius, 别绕过",
+    "干径有硬护栏(trunk>=canopy_radius/4): 大冠必须配粗干——被拒就加 trunk 或减 canopy_radius; 40 格球冠压 2x2 杆=棒棒糖, 护栏就是治这个",
+    "根式默认 crawl 贴地爬根(半埋, 会钻到地表下 1-2 格, 坡地先整地); flare=钟形基座适合温带老树; buttress=热带板根; 近干段粗根双宽是体量惯例",
     "叶形二式: 奇幻/云片选 layers, 用户参考图那种圆整球选 blob(已在对应 preset 默认);顶穹团自动加盖, 树顶必须是穹面",
-    "偏锋(leaning)的冠只在顺风侧: 背风面裸干是风骨剪影不是秃;冠心偏移+根锚自动",
-    "干截面 size>=3 自动削角成圆, 别期待方柱;trunk 10+ 时板根鳍长封顶 9, 巨干靠粗不靠长",
+    "偏锋(leaning)的冠只在顺风侧: 背风面裸干是风骨剪影不是秃;冠心偏移+根锚自动(逆风根加长)",
+    "干截面 size>=3 自动削角成圆, 别期待方柱;trunk 10+ 时根长封顶, 巨干靠粗不靠长",
     "形态由 preset+seed 决定: 想换形态换 preset, 想换个体重摇 seed, 别手调 form/limbs/layers",
     "细梢 fence、粗枝 2 宽 log 梁、大盘辐根 2 宽是体素化惯例;整树已过 flood-fill 连通剪枝, 别删单格",
     "叶全带 persistent=true(实测教训:裸叶放下即消失);别批量替换成默认叶",
     "spiral/curved 干绕轴偏移, footprint 按 canopy_radius×2+弯幅 6 圈地",
     "块数参考: 22 高约 1-2 千 / 40 高约 3-6 千(blob 更实) / 100+ 地标 3-4 万;生成秒级",
+    "幻想系体量: 40 高 fantasy ~2 万 / 70 高 ~5 万 — footprint 按 canopy×2+10 圈地, 选址给足;decor 的灯笼/垂藤会伸出冠缘 2-8 格",
     "banyan(多干)/willow(垂枝)是近似卡: 真垂柳走 weeping_tree.py, 多干未实现",
     "发光脉络/垂藤/灯笼等精灵装饰是 special 钩子欠债, 生成器不自动加"
   ],
