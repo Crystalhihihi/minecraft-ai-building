@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 """giant_tree.py — 巨树(景观大树/巨树/地标树)生成器. EXPERIMENTAL.
 
+v9 (2026-08-12 深夜, 治实机"六形一味/怪树"):
+- 叶形=骨架拓扑+包络分形: layers 云片(主枝起叉聚成离散层档, flat 0.5,
+  层间留缝) / umbrella 伞形(高位单点近水平共点射出, flat 0.4, 梢簇下垂
+  成伞沿) / mist 雾团(侧枝加密, 0.17r 小簇全链高方差叠放) / blob 不变;
+  层盘/辐扇体系废除, 全叶形由真分枝骨架扛
+- aesthetic 美学约束(可选, 访谈二选一): 树冠 8 扇区 x 2 层簇覆盖强制,
+  空洞扇区自动补短枝+端簇(心形/双塔=扇区空洞, 实测); 0=自由野生
+- 新 preset: mist_crown; umbrella_acacia 改 umbrella 冠(ASPECT 0.4-0.9)
+
+v8 (2026-08-12 深夜, 治实机"没有分枝/叶团硬凑/宽幅全靠叶"):
+- 二级/三级分枝(_sub_branches, 全树通用): 主枝外侧段长 2-4 侧枝(夹角
+  0.3-0.6, 0.35-0.55×母枝长), 侧枝梢再分 1-2 小枝; terminals=全枝梢表
+- 幻想宽幅 foliage 重写: 辐条/壳层全废, 叶簇只坐枝梢+冠心团+顶穹团
+  (分层=主枝起叉高度差天然形成); 主枝长 0.7-0.9r(宽幅靠真枝不靠叶团)
+- 垂藤修正: 短 2-5+横向摆动(冰锥翻车); 灯笼锚点无辐条时回落枝梢
+
 v7 (2026-08-12, 幻想地标系 — 用户参考图 bilibili 展示树蒸馏):
 - fantasy 档(卡级开关): ASPECT 0.7-1.3 矮胖撑伞 / 冠底 0.3h / tuft 大簇
   (0.3r 封顶 6, 簇距 x2.6, 簇更透) / 辐条减半(团块独立成花椰菜) / 弯幅
@@ -72,6 +88,8 @@ DEFAULTS = {
     "no_foliage": False,        # True = 纯骨架(枯立木); 正常树别动
     "fantasy": 0,               # 1=幻想地标档: 矮胖撑伞比例+花椰菜大叶团+弯幅
                                 #   x2+冠底下压 0.25h+基座巨化+粗干双材质纵纹
+    "aesthetic": 0,             # 1=美学约束: 树冠 8 扇区 x 2 层覆盖强制
+                                #   (空洞自动补枝补簇); 0=自由生成(野生感)
     "decor": "",                # 装饰钩子(逗号组合): lights=冠内光点(shroomlight)
                                 #   lanterns=枝下灯笼串 vines=冠底垂藤 all=全上
     "limbs": 0,                 # 主枝数 3-6; 0 = seed 自动
@@ -108,7 +126,10 @@ PRESETS = {
     "leaning_river":     {"form": "leaning",  "limbs": 5, "canopy_layers": 1, "leaf_density": 0.6},
     "banyan_court":      {"form": "straight", "limbs": 6, "canopy_layers": 2, "leaf_density": 0.8,
                           "crown": "blob"},
-    "umbrella_acacia":   {"form": "straight", "limbs": 4, "canopy_layers": 2, "leaf_density": 0.5},
+    "umbrella_acacia":   {"form": "straight", "limbs": 5, "canopy_layers": 2, "leaf_density": 0.5,
+                          "crown": "umbrella"},
+    "mist_crown":        {"form": "curved",   "limbs": 5, "canopy_layers": 3, "leaf_density": 0.7,
+                          "crown": "mist"},
     "weeping_willow":    {"form": "straight", "limbs": 5, "canopy_layers": 1, "leaf_density": 0.4},
     "cloud_disc":        {"form": "curved",   "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5},
     "spirit_candelabra": {"form": "spiral",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.45},
@@ -191,8 +212,8 @@ class Tree:
         h, r = p["height"], p["canopy_radius"]
         self.ry = max(2, min(rhu(r * 0.6), (h - 3) // 2))
         if p["fantasy"]:
-            # 幻想档冠底下压: 冠底≈0.3h(人站伞下但干可读), ry<=0.31h
-            self.ry = max(2, min(self.ry, (h * 5) // 16))
+            # 幻想档: 宽幅矮冠(ry<=0.45r) + 冠底≈0.3h(人站伞下但干可读)
+            self.ry = max(2, min(self.ry, rhu(r * 0.45), (h * 5) // 16))
         self.hl = max(1.5, self.ry * 0.3)               # 层盘半高
         self.yc = h - self.ry                           # crown centre y
         self.nodes = [(self.c, 0.0, self.c)]            # float skeleton
@@ -266,15 +287,28 @@ class Tree:
             ln = math.sqrt(bx * bx + 1.0 + bz * bz)
             self._add(lead, (lx + bx / ln * STEP, ly + STEP / ln, lz + bz / ln * STEP))
             self.trunk_ids.append(len(self.nodes) - 1)
-        # ---- phase 2: 显性主枝(先平展再上扬样条)
+        # ---- phase 2: 显性主枝(先平展再上扬样条; 拓扑随叶形分形 —
+        # 实测"六形一味": 云片=起叉高度聚成离散层档, 伞形=高位单点近水平
+        # 共点射出, 雾团=侧枝加密; 一套主枝撒所有叶形=全塌成小团)
         n_limbs = int(self.p["limbs"]) or self.rng.randint(3, 5)
         n_limbs = max(3, min(6, n_limbs))
+        crown_mode = self.p["crown"]
+        tiers = int(self.p["canopy_layers"]) if crown_mode == "layers" else 1
         r = self.p["canopy_radius"]
         az0 = self.rng.uniform(0, 2 * math.pi)
         for i in range(n_limbs):
             # 起叉高度: 0.35-0.55 树高(形态规律: 低位起叉才有巨木感),
             # 映射到顶梢干链上最近的节点
-            h_start = h * (0.35 + 0.2 * (i / max(1, n_limbs - 1)) + self.rng.uniform(-0.03, 0.03))
+            if crown_mode == "umbrella":
+                # 伞形: 全部主枝从 0.7-0.8h 同一节点共点射出
+                h_start = h * (0.75 + self.rng.uniform(-0.02, 0.02))
+            elif crown_mode == "layers" and tiers >= 2:
+                # 云片: 起叉高度聚成 tiers 个离散层档(0.5h→0.8h), 层间留缝
+                tier_i = i % tiers
+                h_start = h * (0.5 + 0.3 * (tier_i / max(1, tiers - 1)) +
+                               self.rng.uniform(-0.02, 0.02))
+            else:
+                h_start = h * (0.35 + 0.2 * (i / max(1, n_limbs - 1)) + self.rng.uniform(-0.03, 0.03))
             start_id = min(self.trunk_ids,
                            key=lambda nid: abs(self.nodes[nid][1] - h_start))
             if self.p["form"] == "leaning":
@@ -284,10 +318,18 @@ class Tree:
                                      max(1, n_limbs - 1) - 0.5) * 2.4
             else:
                 az = az0 + i * (2 * math.pi / n_limbs) + self.rng.uniform(-0.2, 0.2)
-            el = self.rng.uniform(0.25, 0.45)           # 起角抬高(低角=蜘蛛腿)
-            tilt = self.rng.uniform(0.04, 0.08)         # 上扬段每步仰角抬升
-            el_cap = self.rng.uniform(0.8, 1.05)
-            steps = max(3, int(r * self.rng.uniform(0.5, 0.7)))   # 枝长收敛在冠幅内
+            if crown_mode == "umbrella":
+                el = self.rng.uniform(0.05, 0.18)       # 近水平射出(伞面)
+                tilt = self.rng.uniform(0.02, 0.04)
+                el_cap = self.rng.uniform(0.3, 0.45)    # 顶多微扬(伞沿不下扣)
+            else:
+                el = self.rng.uniform(0.25, 0.45)       # 起角抬高(低角=蜘蛛腿)
+                tilt = self.rng.uniform(0.04, 0.08)     # 上扬段每步仰角抬升
+                el_cap = self.rng.uniform(0.8, 1.05)
+            # 枝长收敛在冠幅内; 幻想宽幅档主枝更长(宽幅>高度的前提是真枝伸出去,
+            # 不是叶团甩出去 — 实测"宽幅全靠叶团硬凑"翻车)
+            lo, hi2 = (0.7, 0.9) if self.p["fantasy"] else (0.5, 0.7)
+            steps = max(3, int(r * self.rng.uniform(lo, hi2)))
             flat = int(steps * self.rng.uniform(0.25, 0.4))       # 短平展段
             pos = self.nodes[start_id]
             cur = start_id
@@ -303,18 +345,92 @@ class Tree:
                 az += self.rng.uniform(-0.05, 0.05)
             # 层盘中心推到枝端外侧: 主枝平展段要留白可读, 叶盘长在枝端之外
             self.limb_ends.append((cur, (dx, dy, dz), steps))
+        # ---- phase 2.5: 二级/三级分枝(全树通用 — 实测"树没有分枝, 全是一条")
+        self._sub_branches()
         # ---- phase 3: 树冠内容
         self.pre_fan = len(self.nodes)              # 主干+主枝阶段节点界
         self.spoke_thick = set()                    # 大盘辐条根(2 宽)
         self.spoke_chains = []                      # 每条辐条的节点链(叶簇用)
-        if self.p["crown"] == "blob":
-            # blob: 层盘/辐扇不用, 改球面辐条(球形是枝条长出来的, 不是叶壳)
-            self.discs = []
+        self.discs = []
+        if crown_mode == "blob" and not self.p["fantasy"]:
+            # blob: 球面辐条(球形是枝条长出来的, 不是叶壳)
             self._blob_spokes()
-        else:
-            # layers: 云片层盘 + 盘内辐枝扇(确定性轮辐)
-            self.discs = self._make_discs()
-            self._disc_fans()
+        # layers/umbrella/mist/幻想宽幅: 无盘无辐条 — 真分枝骨架扛全部叶形
+
+    def _sub_branches(self):
+        """二级/三级分枝(phase 2.5, 全树通用): 每根主枝外侧 40-90% 段长 2-4
+        根侧枝(与母枝走向夹角 0.3-0.6 rad, 长 0.35-0.55×母枝), 每根侧枝梢
+        再分 1-2 根小枝(3-6 格)。产出 self.terminals=全部枝梢节点(叶簇锚点
+        — 叶必须坐在枝梢上, 不是沿链撒点硬凑)。侧枝抬高 desc 计数, 主枝
+        自动加粗(calibre), 分层由主枝起叉高度差天然形成。"""
+        rng = self.rng
+        trunk_set = set(self.trunk_ids)
+        self.terminals = []
+        self.sub_chains = []                            # 侧枝链(mist 雾团用)
+
+        def rot(v, ang):
+            """向量 v 绕随机垂直轴转 ang 弧度(确定性 rng)。"""
+            ux, uy, uz = rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1)
+            un = math.sqrt(ux * ux + uy * uy + uz * uz) or 1.0
+            ux, uy, uz = ux / un, uy / un, uz / un
+            # perp = normalize(cross(v, u))
+            px = v[1] * uz - v[2] * uy
+            py = v[2] * ux - v[0] * uz
+            pz = v[0] * uy - v[1] * ux
+            pn = math.sqrt(px * px + py * py + pz * pz)
+            if pn < 1e-6:
+                return v
+            px, py, pz = px / pn, py / pn, pz / pn
+            c, s = math.cos(ang), math.sin(ang)
+            return (v[0] * c + px * s, v[1] * c + py * s, v[2] * c + pz * s)
+
+        for li, ldir, steps in list(self.limb_ends):
+            chain = []
+            cur = li
+            while cur not in trunk_set and cur > 0:
+                chain.append(cur)
+                cur = self.parent[cur]
+            chain.reverse()
+            if len(chain) < 4:
+                self.terminals.append(li)
+                continue
+            n_sub = rng.randint(2, 3 if steps < 14 else 4)
+            if self.p["crown"] == "mist":
+                n_sub = rng.randint(3, 5)               # 雾团: 侧枝加密(小枝扛簇)
+            for si in range(n_sub):
+                t = 0.4 + 0.5 * (si / max(1, n_sub - 1)) + rng.uniform(-0.06, 0.06)
+                anchor = chain[min(len(chain) - 1, max(0, int(t * (len(chain) - 1))))]
+                pa = self.parent[anchor]
+                ax, ay, az = self.nodes[anchor]
+                bx, by, bz = self.nodes[pa]
+                vn = math.sqrt((ax - bx) ** 2 + (ay - by) ** 2 + (az - bz) ** 2) or 1.0
+                v = ((ax - bx) / vn, (ay - by) / vn, (az - bz) / vn)
+                d = rot(v, rng.uniform(0.3, 0.6))
+                d = (d[0], max(d[1], -0.15), d[2])       # 侧枝不许下垂(下垂=裸枝)
+                L = max(3, int(steps * rng.uniform(0.35, 0.55)))
+                cur, pos = anchor, self.nodes[anchor]
+                sub_chain = [cur]
+                for s in range(L):
+                    pos = (pos[0] + d[0] * STEP, pos[1] + d[1] * STEP, pos[2] + d[2] * STEP)
+                    self._add(cur, pos)
+                    cur = len(self.nodes) - 1
+                    sub_chain.append(cur)
+                    d = rot(d, rng.uniform(-0.06, 0.10))
+                    d = (d[0], max(d[1], -0.15), d[2])
+                self.terminals.append(cur)
+                self.sub_chains.append(sub_chain)
+                for _ in range(rng.randint(1, 2)):
+                    td = rot(d, rng.uniform(0.3, 0.7))
+                    L2 = rng.randint(3, 6)
+                    tcur, tpos = cur, pos
+                    for s in range(L2):
+                        tpos = (tpos[0] + td[0] * STEP, tpos[1] + td[1] * STEP,
+                                tpos[2] + td[2] * STEP)
+                        self._add(tcur, tpos)
+                        tcur = len(self.nodes) - 1
+                        td = rot(td, rng.uniform(-0.08, 0.08))
+                    self.terminals.append(tcur)
+            self.terminals.append(li)               # 主枝梢也是簇点
 
     def _blob_spokes(self):
         """crown=blob 的骨架: 球面辐条(球形是枝条长出来的, 不是叶壳)。
@@ -724,7 +840,10 @@ class Tree:
     # ----------------------------------------------------------- foliage --
     def _tuft(self, cx, cy, cz, r, carve, flat=0.8):
         """单个叶簇: 带镂空的小椭球(carve 用 seeded hash, 确定性);
-        flat=y 向压扁度(layers 云片 0.65 扁, blob 球团 0.9 近圆)。"""
+        flat=y 向压扁度(layers 云片 0.5 扁, blob 球团 0.9 近圆)。
+        簇心记 tuft_centers(美学约束扇区覆盖统计用)。"""
+        if hasattr(self, "tuft_centers"):
+            self.tuft_centers.append((cx, cy, cz))
         ry = max(1, int(round(r * flat)))
         ri = max(1, int(round(r)))
         for dy in range(-ry, ry + 1):
@@ -740,24 +859,31 @@ class Tree:
                         self.leaves.add(cell)
 
     def foliage(self):
-        """叶形二式(crown 参数):
-        - layers 沿枝簇生(ez-tree generateLeaves 体素化): 每条辐条/主枝外侧段
-          分层撒叶簇(位置分层+抖动, 簇径带方差), 簇间交叠成连续冠;
-        - blob 圆整球形(用户参考图"近似球"): 主球+1-2 副球合并的球壳冠
-          (v∈[0.5,1] 壳+贴木填充), 副球偏心错动 = '圆整但表面成簇'。
-        两式共享: 顶穹团(治平顶/秃顶) + 边界 2 轮飞叶(尺寸方差+边界噪声)。
-        leaf_density 控簇距/壳厚与镂空。"""
+        """叶形四式(crown 参数, 骨架拓扑已在 grow 分形):
+        - layers 云片层盘: 主枝起叉高度聚成离散层档, 簇沿枝外侧段成盘
+          (flat 0.5), 层间留缝;
+        - umbrella 伞形平顶: 高位共点近水平枝, 整枝盘面簇(flat 0.4),
+          枝梢簇下垂 1-2 格成伞沿;
+        - mist 蓬松雾团: 侧枝加密, 小簇(0.13r)沿全部枝链高方差叠放,
+          无层无壳;
+        - blob 圆整球形: 球面辐条+薄壳(v6, 真实系) / 幻想宽幅=枝梢簇并集。
+        共享: 顶穹团(治平顶/秃顶) + 边界 2 轮飞叶。leaf_density 控簇距/镂空。"""
         rng = self.rng
         ld = self.p["leaf_density"]
         if bool(self.p.get("no_foliage")):
             return
         r = self.p["canopy_radius"]
+        crown_mode = self.p["crown"]
         base_r = max(1.6, r * 0.22 * self.p["tuft_scale"])
         carve = 0.26 - 0.16 * ld
-        flat = 0.9 if self.p["crown"] == "blob" else 0.65   # 球团近圆, 云片压扁
+        flat = {"blob": 0.9, "layers": 0.5, "umbrella": 0.4,
+                "mist": 0.75}.get(crown_mode, 0.65)
+        if crown_mode == "mist":
+            base_r = max(1.5, r * 0.17 * self.p["tuft_scale"])
         trunk_set = set(self.trunk_ids)
         tip = self.nodes[self.trunk_ids[-1]]
         h = self.p["height"]
+        self.tuft_centers = []                          # 美学约束扇区统计用
 
         gap = base_r * (1.9 - 0.8 * ld) + 0.4   # 簇距随簇径缩放(小树也连续成冠)
         # 幻想档大叶团: 簇径上限按冠幅放开(0.3r, 封顶 7), 簇距拉稀 —
@@ -766,8 +892,7 @@ class Tree:
         if self.p["fantasy"]:
             tcap = min(6.0, max(4.5, r * 0.3))
             ecap = tcap + 0.5
-            gap *= 2.6                      # 簇数大减(治块数爆炸: 40冠曾到 3.4 万)
-            carve = min(0.42, carve * 1.6)   # 簇更透(大簇必透, 否则体量失控)
+            gap *= 1.6                      # 簇距(幻想主靠枝梢簇, 沿链簇是配角)
 
         def tufts_along(chain, start_frac):
             L = len(chain)
@@ -795,20 +920,68 @@ class Tree:
             chain.reverse()
             limb_chains.append(chain)
 
-        if self.p["crown"] == "blob":
+        if crown_mode == "blob" and self.p["fantasy"]:
+            # 幻想宽幅: 叶簇只坐枝梢(terminals=主枝/侧枝/小枝梢) —
+            # 实测"发胖叶团是硬凑的, 不长在枝上, 还镂空": 无壳无辐条,
+            # 簇径大但 carve 正常, 分层=主枝起叉高度差天然形成
+            for tid in self.terminals:
+                x, y, z = self.nodes[tid]
+                tr = min(base_r * rng.uniform(0.9, 1.4), tcap)
+                self._tuft(round(x), round(y), round(z), tr, carve, flat)
+            # 冠心团: 枝梢簇全在外圈, 冠中心上空会漏干(实测"心形缺口")
+            mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
+            mx, my, mz = self.nodes[mid]
+            self._tuft(round(mx), round(my + self.ry * 0.7), round(mz),
+                       min(base_r * 1.3, ecap), carve, flat)
+            for chain in limb_chains:               # 主枝中段稀疏补簇(遮骨干)
+                tufts_along(chain, 0.6)
+        elif crown_mode == "blob":
             for chain in self.spoke_chains:         # 球面辐条: 外侧 35% 起簇
                 tufts_along(chain, 0.35)            # (球形=枝条长成, 簇随枝走)
             for chain in limb_chains:               # 主枝下部也别裸(球底收口)
                 tufts_along(chain, 0.45)
             self._foliage_blob(r, carve * 1.2)      # 壳层封口(更透: 簇团已扛纹理)
+        elif crown_mode == "umbrella":
+            # 伞形平顶: 整枝盘面(近水平枝从 25% 起簇), 梢簇下垂成伞沿,
+            # 冠心一张顶盘收口
+            for chain in limb_chains:
+                tufts_along(chain, 0.25)
+            for tid in self.terminals:
+                x, y, z = self.nodes[tid]
+                tr = min(base_r * rng.uniform(0.8, 1.2), tcap)
+                self._tuft(round(x), round(y) - rng.randint(1, 2), round(z),
+                           tr, carve, flat)
+            mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
+            mx, my, mz = self.nodes[mid]
+            self._tuft(round(mx), round(my + self.ry * 0.4), round(mz),
+                       min(base_r * 1.4, ecap), carve, flat)
+        elif crown_mode == "mist":
+            # 蓬松雾团: 全部枝链(主枝+侧枝)小簇高方差叠放 — 要"雾"不要"稀"
+            # (实测 0.3 起簇+标准簇距=半枯), 起簇更早簇距更密
+            gap *= 0.5
+            for chain in limb_chains:
+                tufts_along(chain, 0.1)
+            for chain in getattr(self, "sub_chains", []):
+                tufts_along(chain, 0.1)
+            for tid in self.terminals:
+                x, y, z = self.nodes[tid]
+                self._tuft(round(x), round(y), round(z),
+                           base_r * rng.uniform(0.7, 1.3), carve, flat)
         else:
-            for chain in self.spoke_chains:         # 辐条: 外侧 40% 起簇
-                tufts_along(chain, 0.4)
-            for chain in limb_chains:               # 主枝: 外侧起簇(小树更靠根)
-                tufts_along(chain, 0.55 if r >= 12 else 0.3)
+            # layers 云片层盘: 簇沿主枝+侧枝外侧段成盘(flat 0.5 压扁),
+            # 层档=骨架起叉高度, 层间缝=层档间距; 侧枝梢补同层小盘
+            # (实测只在主枝撒簇=秃枝小树, 侧枝链必须入盘)
+            for chain in limb_chains:
+                tufts_along(chain, 0.35)
+            for chain in getattr(self, "sub_chains", []):
+                tufts_along(chain, 0.3)
+            for tid in self.terminals:
+                x, y, z = self.nodes[tid]
+                tr = min(base_r * rng.uniform(0.7, 1.1), tcap)
+                self._tuft(round(x), round(y), round(z), tr, carve, flat)
         # 顶穹团: 树尖上方一个半球团(治平顶/秃顶 — 树冠顶部必须是穹面不是平台)
         self._tuft(rhu(tip[0]), int(h) - 1, rhu(tip[2]),
-                   min(max(2.0, base_r * 1.2), 5.0), carve * 0.6, flat)
+                   min(max(2.0, base_r * 1.2), ecap), carve * 0.6, flat)
         # 边界飞叶: 叶格邻空处按概率向外补 1 格(连 2 轮 → 1-2 格毛边)
         for fuzz_round, prob in ((0.10, 12345), (0.045, 54321)):
             edge = []
@@ -875,11 +1048,13 @@ class Tree:
                 self.leaves.discard(c)
                 self.decor_blocks[c] = "minecraft:shroomlight"
         if "lanterns" in modes:
-            # 辐条/主枝外段节点下方: 2-4 格链 + 挂灯
+            # 辐条/主枝外段节点下方: 2-4 格链 + 挂灯; 无辐条(幻想宽幅)用枝梢
             spots = []
             for chain in self.spoke_chains:
                 if len(chain) >= 3:
                     spots.append(self.nodes[chain[int(len(chain) * 0.8)]])
+            if not spots:
+                spots = [self.nodes[t] for t in getattr(self, "terminals", [])]
             rng.shuffle(spots)
             for (x, y, z) in spots[:2 + r // 6]:
                 bx, by, bz = rhu(x), rhu(y), rhu(z)
@@ -895,19 +1070,68 @@ class Tree:
                     self.leaves.discard(c)
                     self.decor_blocks[c] = "minecraft:lantern[hanging=true]"
         if "vines" in modes:
-            # 冠底外缘(下方无叶的叶格)垂叶链, 3-8 格 85% 逐格渐断
+            # 冠底外缘(下方无叶的叶格)垂叶链: 短(2-5)+带横向摆动 —
+            # 实测"垂藤像冰锥": 长直杆是翻车剪影, 藤要歪歪斜斜
             bottom = [c for c in leaves_list if c[1] < self.yc and
                       (c[0], c[1] - 1, c[2]) not in self.leaves]
             rng.shuffle(bottom)
-            for (x, y, z) in bottom[:r * 2]:
-                for i in range(1, rng.randint(3, 8)):
-                    c = (x, y - i, z)
+            for (x, y, z) in bottom[:r]:
+                vx, vz = x, z
+                for i in range(1, rng.randint(2, 5)):
+                    vx += rng.choice((0, 0, 1, -1))
+                    vz += rng.choice((0, 0, 1, -1))
+                    c = (vx, y - i, vz)
                     if c in self.wood or c in self.decor_blocks:
                         break
                     if rng.random() < 0.85:
                         self.leaves.add(c)      # 入 leaves, emit 带 persistent
                     else:
                         break
+
+    # ------------------------------------------------------- aesthetic --
+    def _aesthetic_fix(self):
+        """美学约束(aesthetic=1, foliage 之后): 树冠包络 8 扇区 x 上下 2 层
+        的簇覆盖检查 — 空洞扇区在最近骨架节点徒手补一条短枝(vline 木)+
+        端簇。心形/双塔/大缺口翻车全部是扇区空洞(实测), 这条直接掐死;
+        自由生成(aesthetic=0)不做任何修补, 野生感保留。"""
+        if not getattr(self, "tuft_centers", None):
+            return
+        r = self.p["canopy_radius"]
+        mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
+        mx, my, mz = self.nodes[mid][0], self.yc, self.nodes[mid][2]
+        bins = {}
+        for (x, y, z) in self.tuft_centers:
+            sec = int((math.atan2(z - mz, x - mx) + math.pi) / (math.pi / 4)) % 8
+            bins[(sec, 0 if y < my else 1)] = bins.get(
+                (int((math.atan2(z - mz, x - mx) + math.pi) / (math.pi / 4)) % 8,
+                 0 if y < my else 1), 0) + 1
+        base_r = max(1.6, r * 0.22 * self.p["tuft_scale"])
+        tcap = min(6.0, max(4.5, r * 0.3)) if self.p["fantasy"] else 4.5
+        carve = 0.26 - 0.16 * self.p["leaf_density"]
+        flat = {"blob": 0.9, "layers": 0.5, "umbrella": 0.4,
+                "mist": 0.75}.get(self.p["crown"], 0.65)
+        for sec in range(8):
+            for tier in (0, 1):
+                if bins.get((sec, tier), 0) >= 1:
+                    continue
+                ang = (sec + 0.5) * (math.pi / 4) - math.pi
+                tx = mx + math.cos(ang) * r * 0.6
+                ty = my + (self.ry * 0.4 if tier else -self.ry * 0.4)
+                tz = mz + math.sin(ang) * r * 0.6
+                best = min(range(len(self.nodes)),
+                           key=lambda i: (self.nodes[i][0] - tx) ** 2 +
+                                         (self.nodes[i][1] - ty) ** 2 +
+                                         (self.nodes[i][2] - tz) ** 2)
+                bx, by, bz = self.nodes[best]
+                dx, dy, dz = tx - bx, ty - by, tz - bz
+                axis = "x" if abs(dx) >= abs(dy) and abs(dx) >= abs(dz) else \
+                       ("y" if abs(dy) >= abs(dz) else "z")
+                cells = vline((rhu(bx), rhu(by), rhu(bz)),
+                              (rhu(tx), rhu(ty), rhu(tz)))
+                for c in cells[1:]:
+                    self.put_wood(*c, "%s[axis=%s]" % (self.log, axis))
+                self._tuft(rhu(tx), rhu(ty), rhu(tz),
+                           min(base_r * 1.2, tcap), carve, flat)
 
     def prune(self):
         """Flood fill from the bole base over wood+leaves; drop the rest."""
@@ -954,6 +1178,8 @@ def build(p):
         t._twist_ridge()
     if not p.get("no_foliage"):
         t.foliage()
+    if p.get("aesthetic") and not p.get("no_foliage"):
+        t._aesthetic_fix()
     if p.get("decor") and not p.get("no_foliage"):
         t._decorate()
     t.prune()
@@ -980,8 +1206,15 @@ def validate(p):
         die("trunk must be 2-12", {"trunk": [2, 12]})
     if not 2 <= p["trunk"] <= 12:
         die("trunk must be 2-12 (ts×ts 基部干柱; 粗高 ts≈h/15, 细高 ts≈h/25, 10+ 刻纹路)", {"trunk": [2, 12]})
-    if p["crown"] not in ("layers", "blob"):
-        die("crown must be layers|blob", {"crown": ["layers", "blob"]})
+    if p["crown"] not in ("layers", "blob", "umbrella", "mist"):
+        die("crown must be layers|blob|umbrella|mist",
+            {"crown": ["layers", "blob", "umbrella", "mist"]})
+    try:
+        p["aesthetic"] = int(p["aesthetic"])
+    except (TypeError, ValueError):
+        die("aesthetic must be 0|1", {"aesthetic": 0})
+    if p["aesthetic"] not in (0, 1):
+        die("aesthetic must be 0|1", {"aesthetic": 0})
     if p["roots"] not in ("crawl", "flare", "buttress", "none"):
         die("roots must be crawl|flare|buttress|none",
             {"roots": ["crawl", "flare", "buttress", "none"]})
@@ -1039,7 +1272,8 @@ def validate(p):
 ASPECT = {
     "ancient_oak": (0.9, 2.2), "sky_pillar": (2.2, 5.0),
     "gnarled_twist": (1.0, 3.0), "leaning_river": (1.1, 2.8),
-    "banyan_court": (0.7, 1.8), "umbrella_acacia": (0.5, 1.2),
+    "banyan_court": (0.7, 1.8), "umbrella_acacia": (0.4, 0.9),
+    "mist_crown": (0.9, 2.2),
     "weeping_willow": (0.9, 2.2), "cloud_disc": (1.2, 3.5),
     "spirit_candelabra": (1.6, 4.5), "world_tree": (1.6, 4.5),
     "dead_snag": (1.2, 4.0),

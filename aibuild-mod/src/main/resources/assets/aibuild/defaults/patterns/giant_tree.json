@@ -28,6 +28,7 @@
         "mangrove_swamp",
         "pale_oak_garden",
         "fluffy_crown",
+        "mist_crown",
         "fantasy_sakura",
         "fantasy_world",
         "fantasy_oak",
@@ -163,10 +164,21 @@
       "type": "enum",
       "values": [
         "layers",
-        "blob"
+        "blob",
+        "umbrella",
+        "mist"
       ],
       "default": "layers",
-      "notes": "叶形函数: layers=云片分层(奇幻感, tuft 压扁 0.65) | blob=圆整球形(球面辐条骨架成球, 簇随枝走+薄皮壳填缝, tuft 近圆 0.9 — 用户参考图款; ancient_oak/banyan/cherry/mangrove/fluffy 已默认 blob)"
+      "notes": "叶形函数(各配骨架拓扑): layers=云片层盘(起叉聚层档, flat 0.5) | blob=圆整球形(真实系辐条+薄壳 / 幻想宽幅=枝梢簇并集) | umbrella=伞形平顶(高位共点近水平枝, flat 0.4+伞沿下垂) | mist=蓬松雾团(侧枝加密+小簇高方差)"
+    },
+    "aesthetic": {
+      "type": "int",
+      "values": [
+        0,
+        1
+      ],
+      "default": 0,
+      "notes": "美学约束: 1=树冠 8 扇区 x 2 层覆盖强制(空洞自动补枝补簇, 不出心形/双塔怪树); 0=自由生成(野生感, 可能抽象)"
     }
   },
   "pitfalls": [
@@ -175,6 +187,8 @@
     "根式默认 crawl 贴地爬根(半埋, 会钻到地表下 1-2 格, 坡地先整地); flare=钟形基座适合温带老树; buttress=热带板根; 近干段粗根双宽是体量惯例",
     "叶形二式: 奇幻/云片选 layers, 用户参考图那种圆整球选 blob(已在对应 preset 默认);顶穹团自动加盖, 树顶必须是穹面",
     "偏锋(leaning)的冠只在顺风侧: 背风面裸干是风骨剪影不是秃;冠心偏移+根锚自动(逆风根加长)",
+    "叶形四式各配骨架: 云片=起叉聚层档, 伞形=高位共点近水平(umbrella_acacia), 雾团=侧枝加密(mist_crown), 球形=blob; 骨架自带二三级分枝(全树通用)",
+    "aesthetic=1 构图约束: 扇区空洞自动补枝补簇, 展示树/地标建议开; 追求野生感留 0",
     "干截面 size>=3 自动削角成圆, 别期待方柱;trunk 10+ 时根长封顶, 巨干靠粗不靠长",
     "形态由 preset+seed 决定: 想换形态换 preset, 想换个体重摇 seed, 别手调 form/limbs/layers",
     "细梢 fence、粗枝 2 宽 log 梁、大盘辐根 2 宽是体素化惯例;整树已过 flood-fill 连通剪枝, 别删单格",
