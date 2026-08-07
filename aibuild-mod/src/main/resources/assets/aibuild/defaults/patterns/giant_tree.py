@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """giant_tree.py — 巨树(景观大树/巨树/地标树)生成器. EXPERIMENTAL.
 
+v10 (2026-08-12 深夜, 治实机"伞盖不成面/主枝只有一根/树皮斑马"):
+- 主枝粗细分档: 叉口 max(2,ts//2) 宽(封顶 4=2x2 梁), 沿程 0.35/0.7 两档
+  收细到 1 — 大树的粗枝也是干(多干合抱感), 1 宽梁撑不起巨冠
+- 干身纵纹锚绝对坐标 (x+z)%4(原截面局部索引, 弯干逐层漂移成斑马 — 
+  实机配色翻车根源), 密度降 1/4(樱木深浅对比强)
+- umbrella 伞盖: 起角 0.03-0.12 更平+el_cap 0.2-0.3+base_r 0.24r+
+  侧枝入盘 — 伞面连续成面不再是一串疙瘩
+
 v9 (2026-08-12 深夜, 治实机"六形一味/怪树"):
 - 叶形=骨架拓扑+包络分形: layers 云片(主枝起叉聚成离散层档, flat 0.5,
   层间留缝) / umbrella 伞形(高位单点近水平共点射出, flat 0.4, 梢簇下垂
@@ -319,9 +327,9 @@ class Tree:
             else:
                 az = az0 + i * (2 * math.pi / n_limbs) + self.rng.uniform(-0.2, 0.2)
             if crown_mode == "umbrella":
-                el = self.rng.uniform(0.05, 0.18)       # 近水平射出(伞面)
-                tilt = self.rng.uniform(0.02, 0.04)
-                el_cap = self.rng.uniform(0.3, 0.45)    # 顶多微扬(伞沿不下扣)
+                el = self.rng.uniform(0.03, 0.12)       # 近水平射出(伞面, 实机太翘)
+                tilt = self.rng.uniform(0.01, 0.03)
+                el_cap = self.rng.uniform(0.2, 0.3)     # 顶多微扬(伞沿不下扣)
             else:
                 el = self.rng.uniform(0.25, 0.45)       # 起角抬高(低角=蜘蛛腿)
                 tilt = self.rng.uniform(0.04, 0.08)     # 上扬段每步仰角抬升
@@ -397,6 +405,10 @@ class Tree:
             n_sub = rng.randint(2, 3 if steps < 14 else 4)
             if self.p["crown"] == "mist":
                 n_sub = rng.randint(3, 5)               # 雾团: 侧枝加密(小枝扛簇)
+            if self.p["crown"] == "umbrella":
+                n_sub = rng.randint(3, 5)               # 伞盖: 补伞沿链间缝
+                # (实测"不成面": 主枝辐射到伞沿链距 1.26r >> 簇径 0.48r,
+                # 中心重叠边缘漏 — 密度随体量线性缩放在, 缺的是方位角覆盖)
             for si in range(n_sub):
                 t = 0.4 + 0.5 * (si / max(1, n_sub - 1)) + rng.uniform(-0.06, 0.06)
                 anchor = chain[min(len(chain) - 1, max(0, int(t * (len(chain) - 1))))]
@@ -407,7 +419,12 @@ class Tree:
                 v = ((ax - bx) / vn, (ay - by) / vn, (az - bz) / vn)
                 d = rot(v, rng.uniform(0.3, 0.6))
                 d = (d[0], max(d[1], -0.15), d[2])       # 侧枝不许下垂(下垂=裸枝)
-                L = max(3, int(steps * rng.uniform(0.35, 0.55)))
+                if self.p["crown"] == "umbrella":
+                    # 伞盖侧枝: 更长(0.45-0.65x)更平(伞面内填充, 不戳出伞面)
+                    L = max(3, int(steps * rng.uniform(0.45, 0.65)))
+                    d = (d[0], min(max(d[1], -0.1), 0.15), d[2])
+                else:
+                    L = max(3, int(steps * rng.uniform(0.35, 0.55)))
                 cur, pos = anchor, self.nodes[anchor]
                 sub_chain = [cur]
                 for s in range(L):
@@ -647,10 +664,11 @@ class Tree:
                         (iz < corner_depth or iz >= size - corner_depth):
                     continue                            # 削角成圆
                 x, z = rhu(cx - half) + ix, rhu(cz - half) + iz
-                # 幻想档粗干双材质纵纹: 同列位置逐层一致=纵向条纹
-                # (展示树树皮观感核心 — 单材质粗干是"水泥柱"翻车根源)
+                # 幻想档粗干双材质纵纹: 锚绝对坐标 (x+z)%4 — 弯干截面中心
+                # 逐层漂移, 用截面局部索引=斑马纹(实机翻车); 绝对锚=连续
+                # 纵线, 密度 1/4(樱木深浅对比强, 1/3 太花)
                 bark = self.log
-                if self.p["fantasy"] and size >= 6 and (ix + iz) % 3 == 0:
+                if self.p["fantasy"] and size >= 6 and (x + z) % 4 == 0:
                     bark = self.stripped
                 self.put_wood(x, y, z, "%s[axis=y]" % bark)
                 cells.add((x, z))
@@ -695,6 +713,22 @@ class Tree:
                     self.put_wood(lx, yy, lz, "%s[type=bottom]" % self.slab)
             prev_cells, prev_size = cells, size
             prev_pos, prev_yy = (x, y, z), yy
+        # 主枝粗细分档(实测"主枝干只有一根, 其他全是细枝条"):
+        # 主枝=叉口 max(2,ts//2) 宽起步, 沿程 0.35/0.7 两档收细到 1 —
+        # 大树的粗枝也是"干"(参考图全是多干合抱感), 1 宽梁撑不起巨冠
+        limb_w = {}
+        w0 = max(1, min(4, self.ts // 2)) if self.ts >= 4 else 1
+        for li, _d, _s in self.limb_ends:
+            chain = []
+            cur = li
+            while cur not in trunk_set and cur > 0:
+                chain.append(cur)
+                cur = self.parent[cur]
+            chain.reverse()
+            for ci, nid in enumerate(chain):
+                f = ci / max(1, len(chain) - 1)
+                w = w0 if f < 0.35 else (max(1, w0 - 2) if f < 0.7 else 1)
+                limb_w[nid] = max(w, limb_w.get(nid, 1))
         for i in range(1, len(self.nodes)):
             if i in trunk_set:
                 continue                                # 顶梢干已画
@@ -706,18 +740,25 @@ class Tree:
                    ("y" if abs(dy) >= abs(dz) else "z")
             in_trunk_zone = rhu(self.nodes[i][1]) <= clear_h and rhu(self.nodes[pa][1]) <= clear_h \
                 and pa in trunk_set
-            thick = (i < self.pre_fan and desc[i] >= self.thick_tips) or \
-                i in self.spoke_thick
+            w = limb_w.get(i, 1)
+            if w < 2 and ((i < self.pre_fan and desc[i] >= self.thick_tips) or
+                          i in self.spoke_thick):
+                w = 2
             spec = self.fence if (not in_trunk_zone and desc[i] < LOG_TIPS) else \
                 "%s[axis=%s]" % (self.log, axis)
             for cell in vline(a, b):
                 if in_trunk_zone:
                     continue                            # 主干区内由截面画过
                 self.put_wood(*cell, spec)
-                if thick:                               # 2-wide beam, widen sideways
-                    bud = (cell[0], cell[1], cell[2] + 1) if axis == "x" else \
-                          (cell[0] + 1, cell[1], cell[2])
-                    self.put_wood(*bud, "%s[axis=%s]" % (self.log, axis))
+                if w >= 2:                              # 多宽梁: 2=单侧, 3=L, 4=2x2
+                    offs = [(0, 1)] if axis == "x" else [(1, 0)]
+                    if w >= 3:
+                        offs.append((1, 0) if axis == "x" else (0, 1))
+                    if w >= 4:
+                        offs.append((1, 1))
+                    for ox, oz in offs:
+                        self.put_wood(cell[0] + ox, cell[1], cell[2] + oz,
+                                      "%s[axis=%s]" % (self.log, axis))
 
     def _twist_ridge(self):
         """盘旋棱脊(spiral 干专属): 沿干身绕轴每格一条棱线, pitch=ts*3+8 层
@@ -880,6 +921,8 @@ class Tree:
                 "mist": 0.75}.get(crown_mode, 0.65)
         if crown_mode == "mist":
             base_r = max(1.5, r * 0.17 * self.p["tuft_scale"])
+        if crown_mode == "umbrella":
+            base_r = max(1.8, r * 0.24 * self.p["tuft_scale"])  # 伞盖要成面(实机太稀)
         trunk_set = set(self.trunk_ids)
         tip = self.nodes[self.trunk_ids[-1]]
         h = self.p["height"]
@@ -942,10 +985,12 @@ class Tree:
                 tufts_along(chain, 0.45)
             self._foliage_blob(r, carve * 1.2)      # 壳层封口(更透: 簇团已扛纹理)
         elif crown_mode == "umbrella":
-            # 伞形平顶: 整枝盘面(近水平枝从 25% 起簇), 梢簇下垂成伞沿,
-            # 冠心一张顶盘收口
+            # 伞形平顶: 整枝盘面(近水平枝从 15% 起簇, 实机 25% 太稀不连续),
+            # 梢簇下垂成伞沿, 冠心一张顶盘收口
             for chain in limb_chains:
-                tufts_along(chain, 0.25)
+                tufts_along(chain, 0.15)
+            for chain in getattr(self, "sub_chains", []):
+                tufts_along(chain, 0.3)
             for tid in self.terminals:
                 x, y, z = self.nodes[tid]
                 tr = min(base_r * rng.uniform(0.8, 1.2), tcap)
