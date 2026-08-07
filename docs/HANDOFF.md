@@ -4,9 +4,12 @@
 
 ## 0. 三十秒恢复
 
-- **git 顶**:`b015c6b`(树 v5)← `6c79835`(山墙补板+活板门清退)← `741aead`…工作区干净
-- **部署**:`D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\aibuild-1.0.0.jar` = 最新(含一切,构建=`cd aibuild-mod && ./gradlew build`)
-- **系统在跑**:访谈(提案制)→风格卡(19)→抽签(参数+构图轴)→生成器(patterns/ 50+,卡 INDEX.md 索引)→验收器(validators/ 9)→渲染自检。资产文件 ~160
+- **git 顶**:`c527b3c`(树 v11 次主干+簇径缩放)← `c1a89a3`(v10 主枝粗分档/纵纹锚定)← `1a0caa5`(v8+v9 分枝骨架/叶形四式/aesthetic)← `5c8a4a5`(v6+v7 爬根/护栏/fantasy 系)…工作区干净
+- **部署**:`D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\aibuild-1.0.0.jar` = 最新(2026-08-08 01:49, 构建=`cd aibuild-mod && ./gradlew build`)
+- **树体系**: 真四级分枝骨架(主干>次主干>枝干>侧枝>细条)+叶形四式(layers 云片层档/blob 球形/umbrella 伞形/mist 雾团, 各配骨架拓扑)+fantasy 幻想系 4 卡+decor(光点/灯笼/垂藤)+aesthetic 构图约束(8 扇区覆盖强制)+贴地爬根 crawl/flare+干径>=冠幅/4 护栏+簇径随冠幅缩放;20 preset
+- **待用户验收**(2026-08-08 白天): v10/v11 未实机测——伞盖成面/次主干/130 高巨树(≈11 万块, 放置慢别当卡死)/樱木纵纹配色;他说的"明天再说"
+- **已知非 bug**: cherry/mist/gnarled 全 curved, spirit=spiral, ancient_oak/cherry 全 blob——"S 型干/两卡同风格"是卡面设计;若想直干地标樱花或拉开剪影差异, 调卡即可
+- **系统其余**: 访谈(提案制, 树二选一+约束/自由)→风格卡(19)→抽签→生成器(50+)→验收器(9)→渲染自检
 
 ## 1. 用户 08-12 回来时带什么(= 开工输入)
 
