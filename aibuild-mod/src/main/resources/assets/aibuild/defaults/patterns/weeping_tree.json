@@ -1,0 +1,23 @@
+{
+  "name": "weeping_tree",
+  "description": "垂柳(垂坠树)生成器: 粗壮短干(0.35-0.45h, 2x2/3x3) + 3-5 主枝陡峭上扬外展 + **垂坠叶帘**(主枝外侧 50% 节点 + 帘环锚点, 向下垂链长 0.35-0.6h, 摆动 ±0.3/格, 透缝率=carve, 末端渐稀, 贴地止) + 冠顶中心团+枝梢团(读得出是树不是一团线)。垂坠=重力向下, 与一切上扬逻辑相反 — 单独成生成器(拆分决议)。tree_common kernel, 同 seed 同树。",
+  "when_to_use": "水边/园林/庭院/沼泽的垂柳。giant_tree 的 weeping_willow 是近似卡(无垂坠), 要真垂帘用本生成器。",
+  "use_for": "垂柳/垂枝树/水边帘幕树",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "干基最小角格;y = 地面层"},
+    "height": {"type": "int", "range": "8-30", "default": 18, "notes": "总高;垂柳 12-22 最自然"},
+    "crown_radius": {"type": "int", "range": "4-12", "default": 7, "notes": "帘环半径(垂帘覆盖范围)"},
+    "trunk": {"type": "int", "values": [2, 3], "default": 2, "notes": "2x2 | 3x3(老柳)"},
+    "species": {"type": "enum", "values": ["oak", "dark_oak", "birch", "spruce", "jungle", "acacia", "cherry", "mangrove", "pale_oak"], "default": "oak", "notes": "birch 白干垂柳很出效果"},
+    "seed": {"type": "int", "default": 0, "notes": "枝形/帘长/透缝全由此定"},
+    "carve": {"type": "float", "range": "0-0.4", "default": 0.15, "notes": "帘透缝率;0.2 更飘逸, 0.05 更浓密"}
+  },
+  "pitfalls": [
+    "垂帘透缝是特征(风透帘), carve=0 是一堵绿墙不是柳",
+    "帘链贴地止(y>1), 水边造会把尖端悬在水面 — 正确读法",
+    "冠顶团必须有: 没它垂帘读成一团挂面;别删",
+    "叶全带 persistent=true"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/weeping_tree.py --params '{\"origin\":[100,64,100],\"height\":18,\"crown_radius\":7,\"species\":\"oak\",\"seed\":7}' --out willow.json"
+}

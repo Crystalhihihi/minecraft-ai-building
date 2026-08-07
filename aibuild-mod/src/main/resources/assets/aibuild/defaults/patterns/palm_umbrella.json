@@ -1,0 +1,23 @@
+{
+  "name": "palm_umbrella",
+  "description": "棕榈/平顶伞盖树生成器。 palm 棕榈: 微弯 1x1 细干(vline 防对角断开), 顶生 7-9 条羽状叶(抛物线先扬后垂, 纯叶无木, 中缝交错侧叶读羽状, 干顶→羽叶连通桥), 冠下 2-3 椰团(fence)。 flat_top 平顶金合欢: 干 0.75h(60% 基部分叉双干), 2-4 短枝上扬(vline), 顶部单块平顶微穹叶盘(撕裂边, 枝尖→盘心连通桥)。与 giant_tree 不同几何 — 拆分产物。tree_common kernel, 同 seed 同树。",
+  "when_to_use": "热带/沙漠/海滩/稀树草原场景的棕榈或平顶金合欢。giant_tree 的 umbrella_acacia 是近似卡, 要真伞盖/棕榈用本生成器。",
+  "use_for": "椰子树/棕榈/热带景观树/稀树草原金合欢(平顶伞)",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "干基格;y = 地面层"},
+    "height": {"type": "int", "range": "8-30", "default": 14, "notes": "总高;棕榈 10-20 自然, 伞盖 8-14"},
+    "crown_radius": {"type": "int", "range": "3-10", "default": 5, "notes": "羽叶长度/伞盘半径"},
+    "form": {"type": "enum", "values": ["palm", "flat_top"], "default": "palm", "notes": "palm 棕榈 / flat_top 平顶金合欢"},
+    "species": {"type": "enum", "values": ["oak", "dark_oak", "birch", "spruce", "jungle", "acacia", "cherry", "mangrove", "pale_oak"], "default": "jungle", "notes": "棕榈默认 jungle, 金合欢用 acacia(橙黄干)"},
+    "seed": {"type": "int", "default": 0, "notes": "弯向/羽叶数/分叉全由此定"},
+    "carve": {"type": "float", "range": "0-0.4", "default": 0.12, "notes": "叶镂空率"}
+  },
+  "pitfalls": [
+    "棕榈叶是纯叶无木(羽状叶), 羽根有连通桥 — 别手删桥格, 删了整条羽叶会被连通剪枝剪没",
+    "flat_top 的平顶在干顶 2-3 格上方, 靠枝尖→盘心叶桥连接, 不是悬浮",
+    "椰团是 fence 块, 挂在冠下;想要可可豆效果自行点缀",
+    "叶全带 persistent=true"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/palm_umbrella.py --params '{\"origin\":[100,64,100],\"height\":14,\"crown_radius\":5,\"form\":\"palm\",\"species\":\"jungle\",\"seed\":7}' --out palm.json && python patterns/palm_umbrella.py --params '{\"origin\":[130,64,100],\"height\":12,\"crown_radius\":6,\"form\":\"flat_top\",\"species\":\"acacia\",\"seed\":99}' --out acacia.json"
+}

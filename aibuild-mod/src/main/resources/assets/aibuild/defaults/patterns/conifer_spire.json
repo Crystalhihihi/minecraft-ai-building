@@ -1,0 +1,24 @@
+{
+  "name": "conifer_spire",
+  "description": "针叶塔形树生成器(云杉/雪松/松): 通直细干(vline 防对角断开) + 逐层裙边环盘(半径随高度递减±10% 层抖动, 外圈下垂 1 格, 边缘撕裂 ±0.8, carve 镂空), 尖顶小团。三形态: spire 云杉锥(0.25h 起逐层环收成尖塔) / cedar 雪松(3-5 厚平板层, 层间露空气) / pine 意大利伞松(0.55h 以下光干, 顶部 2-4 扁伞团)。与 giant_tree(阔叶云片)不同几何 — 拆分产物。tree_common kernel, 同 seed 同树。",
+  "when_to_use": "任何针叶树场合: 针叶林/雪原/高山/奇幻尖塔配树/城堡绿化。giant_tree 是阔叶云片, 表达不了裙边层叠 — 针叶一律走本生成器。",
+  "use_for": "云杉/冷杉/雪松/落叶松/伞松; spruce 深色杉, pine 伞松, cedar 分层塔杉",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "干基最小角格;y = 地面层"},
+    "height": {"type": "int", "range": "8-80", "default": 25, "notes": "总高;景观 15-30 / 背景林 30-50 / 巨杉 50-80"},
+    "base_radius": {"type": "int", "range": "2-12", "default": 4, "notes": "叶锥底半径(裙边最宽);高宽比 3-5:1 读塔形, 别给 20 高 8 宽的粽子"},
+    "form": {"type": "enum", "values": ["spire", "cedar", "pine"], "default": "spire", "notes": "spire 云杉锥 / cedar 分层塔 / pine 伞松"},
+    "species": {"type": "enum", "values": ["oak", "dark_oak", "birch", "spruce", "jungle", "acacia", "cherry", "mangrove", "pale_oak"], "default": "spruce", "notes": "材质四件套;针叶默认 spruce"},
+    "trunk": {"type": "int", "values": [1, 2], "default": 1, "notes": "1x1 | 2x2(巨杉, 0.5h 以上收 1x1)"},
+    "seed": {"type": "int", "default": 0, "notes": "层半径抖动/撕裂/镂空全由此定"},
+    "carve": {"type": "float", "range": "0-0.4", "default": 0.15, "notes": "叶层镂空率;雪松给 0.2 更透气"}
+  },
+  "pitfalls": [
+    "裙边下垂 1 格是针叶的灵魂, 别关;实心盘是冬青不是杉树",
+    "pine 的伞团在顶部, 0.55h 以下必须光干 — 那是伞松的特征, 不是秃",
+    "叶全带 persistent=true;干 2x2 时 0.5h 以上收 1x1 是刻意的(针叶树梢细)",
+    "高宽比即形态: 塔形 3-5:1;base_radius 给大了是灌木球不是塔"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/conifer_spire.py --params '{\"origin\":[100,64,100],\"height\":30,\"base_radius\":5,\"form\":\"spire\",\"species\":\"spruce\",\"seed\":7}' --out spruce.json && python patterns/conifer_spire.py --params '{\"origin\":[130,64,100],\"height\":22,\"base_radius\":6,\"form\":\"cedar\",\"seed\":99}' --out cedar.json"
+}

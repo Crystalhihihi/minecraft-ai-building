@@ -72,12 +72,17 @@
 | accent_detailing | 点缀学(碎件依附结构缝/成组 2~3/密度随面宽;palette=风格白名单 L4a:medieval/japanese/elven/industrial;seed 确定性) |
 | interior_rooms | 房间陈设模板(bedroom/kitchen/living/dining/study/corridor;碰撞+通道自动校验) |
 | staircase | 室内楼梯(straight/L/U 三形态+扶手+梯腹;facing=上行方向全自动推导,治手摆楼梯放歪) |
+| stair_row | 楼梯行/环推导(檐口/线脚/墙裙/梯段/檐口环/女儿墙; facing 几何推导, 转角游戏自动算 — 徒手摆排梯=翻车高发) |
 | fountain | 喷泉(圆/方,1~3 层,楼梯/半砖压边,中心墙柱) |
 | flower_field | 花海/花境(single/stripes/gradient/meadow;小径穿插;边缘渐稀) |
 | terrace_farm | 梯田(层高差 1、宽 2~4,田埂压边,zigzag 层间下灌) |
-| plaza | 广场铺装(同心圆/放射/棋盘/镶边;中心点缀位;灯椅节奏) |
+| facade_scan | 立面感知(门窗洞/平整区段/候选装饰锚点+budget,配 decoration_menu.md 选配方 — 装饰前先扫) |
+| plaza | 广场铺装(rect 矩形/circle 有机圆场(边缘抖动+磨损带,树下/喷泉必用);同心圆/放射/棋盘/镶边;中心点缀位;灯椅节奏) |
 | garden_tree | 庭院小树(<=4 格冠; 橡/桦/樱/杉; 更大的树一律 giant_tree) |
-| giant_tree | 巨树/景观大树 v3(顶梢干贯顶+主枝样条+云片盘链+盘内辐扇+盘壳叶; 直/弯/斜/螺旋干有界偏移, 渐进收分半砖过渡, 板根; 11 preset; 高 10-150 地标直出) |
+| giant_tree | 巨树/景观大树 v4(阔叶云片系: 顶梢干贯顶+主枝样条+辐扇+沿枝簇生叶+全程圆台+盘旋棱脊; 15 preset(含樱花/白桦/红树/苍白 4 材质卡); 高 10-150 地标直出; 针叶/棕榈/垂柳走开下面三个) |
+| conifer_spire | 针叶塔形(spire 云杉锥/cedar 分层塔/pine 伞松; 逐层裙边下垂撕裂; 高 8-80) |
+| palm_umbrella | 棕榈(palm 羽状叶先扬后垂+椰团)/平顶金合欢(flat_top 平顶微穹盘, 60% 分叉双干) |
+| weeping_tree | 垂柳(垂坠叶帘长 0.35-0.6h 带透缝渐稀, 水边/园林) |
 | round_plan | 圆环墙/收分圆塔(taper 逐层内收;solid 实心/空心;cap 封盘;圆塔/灯塔/精灵圆屋) |
 | altar | 祭坛(多层台座+顶饰) |
 | settlement | 聚落布局(产 scene 空间计划非方块;grid/radial/organic/park) |

@@ -36,7 +36,7 @@ DEFAULTS = {
     "origin": [0, 64, 0],       # [x,y,z] trunk base min corner, y = ground layer
     "height": 18,               # 10-150, total tree height in blocks
     "canopy_radius": 6,         # 3-50, crown envelope horizontal radius
-    "trunk": 2,                 # 2..5 = ts×ts bole at base (渐进收分到 1x1 顶梢)
+    "trunk": 2,                 # 2..7 = ts×ts bole at base (渐进收分; 粗高 ts≈h/15, 细高 ts≈h/25)
     "species": "oak",           # oak | dark_oak
     "seed": 0,                  # int; same seed = same tree
     "buttress": True,           # 板根: 4-6 stepped root fins around the base
@@ -51,7 +51,21 @@ DEFAULTS = {
 SPECIES = {"oak": ("minecraft:oak_log", "minecraft:oak_leaves", "minecraft:oak_fence",
                    "minecraft:oak_slab"),
            "dark_oak": ("minecraft:dark_oak_log", "minecraft:dark_oak_leaves",
-                        "minecraft:dark_oak_fence", "minecraft:dark_oak_slab")}
+                        "minecraft:dark_oak_fence", "minecraft:dark_oak_slab"),
+           "birch": ("minecraft:birch_log", "minecraft:birch_leaves",
+                     "minecraft:birch_fence", "minecraft:birch_slab"),
+           "spruce": ("minecraft:spruce_log", "minecraft:spruce_leaves",
+                      "minecraft:spruce_fence", "minecraft:spruce_slab"),
+           "jungle": ("minecraft:jungle_log", "minecraft:jungle_leaves",
+                      "minecraft:jungle_fence", "minecraft:jungle_slab"),
+           "acacia": ("minecraft:acacia_log", "minecraft:acacia_leaves",
+                      "minecraft:acacia_fence", "minecraft:acacia_slab"),
+           "cherry": ("minecraft:cherry_log", "minecraft:cherry_leaves",
+                      "minecraft:cherry_fence", "minecraft:cherry_slab"),
+           "mangrove": ("minecraft:mangrove_log", "minecraft:mangrove_leaves",
+                        "minecraft:mangrove_fence", "minecraft:mangrove_slab"),
+           "pale_oak": ("minecraft:pale_oak_log", "minecraft:pale_oak_leaves",
+                        "minecraft:pale_oak_fence", "minecraft:pale_oak_slab")}
 FORMS = ("straight", "curved", "leaning", "spiral")
 # 形态卡预设(scratch/giant_tree/tree_forms.json 调研固化, docs/research/tree-forms.md
 # 有每卡的形态依据与来源 URL)。preset 只填形态参数; height/canopy_radius/seed
@@ -67,16 +81,23 @@ PRESETS = {
     "cloud_disc":        {"form": "curved",   "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5},
     "spirit_candelabra": {"form": "spiral",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.45},
     "world_tree":        {"form": "straight", "limbs": 6, "canopy_layers": 3, "leaf_density": 0.6,
-                          "trunk": 4},
+                          "trunk": 5},
     "dead_snag":         {"form": "curved",   "limbs": 5, "canopy_layers": 1, "leaf_density": 0.1,
                           "no_foliage": True},
+    # 材质系新卡(同骨架换树皮树叶, 零成本扩多样性 — 2026-08-07 species 扩充)
+    "cherry_blossom":    {"form": "curved",   "limbs": 4, "canopy_layers": 2, "leaf_density": 0.7,
+                          "species": "cherry"},
+    "birch_grove":       {"form": "straight", "limbs": 4, "canopy_layers": 2, "leaf_density": 0.55,
+                          "species": "birch"},
+    "mangrove_swamp":    {"form": "straight", "limbs": 5, "canopy_layers": 2, "leaf_density": 0.6,
+                          "species": "mangrove"},
+    "pale_oak_garden":   {"form": "straight", "limbs": 5, "canopy_layers": 3, "leaf_density": 0.5,
+                          "species": "pale_oak"},
 }
 DIRS8 = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
 STEP = 1.0                                # 骨架步进(格)
 LOG_TIPS = 3                              # fence 梢阈值(不随体量变)
 MAX_NODES = 60000                         # 骨架节点安全上限
-SHELL_IN = 0.68                           # 盘壳内界(v>=SHELL_IN 为壳层)
-HUG = 2.4                                 # 盘内贴木生叶半径
 
 
 def h3(x, y, z, seed):
@@ -153,7 +174,7 @@ class Tree:
             return (ramp * R * math.sin(yy * w + self.curve_phase),
                     ramp * R * math.cos(yy * w + self.curve_phase))
         if f == "curved":
-            A = min(2.0, 0.5 * self.ts + 0.5)
+            A = min(3.0, 0.6 * self.ts + 0.6)          # 弯幅加大(实测"只弯了一点")
             return (ramp * A * math.sin(yy * self.curve_freq + self.curve_phase),
                     ramp * A * math.sin(yy * self.curve_freq * 0.7 + self.curve_phase * 1.3))
         return 0.0, 0.0
@@ -223,6 +244,7 @@ class Tree:
         self.discs = self._make_discs()
         self.pre_fan = len(self.nodes)              # 主干+主枝阶段节点界
         self.spoke_thick = set()                    # 大盘辐条根(2 宽)
+        self.spoke_chains = []                      # 每条辐条的节点链(叶簇用)
         self._disc_fans()
 
     def _make_discs(self):
@@ -243,21 +265,41 @@ class Tree:
                 chain.append(cur)
                 cur = self.parent[cur]
             chain.reverse()
-            for ci in range(int(len(chain) * 0.45), len(chain), spacing):
+            for ci in range(int(len(chain) * 0.25), len(chain), spacing):
                 x, y, z = self.nodes[chain[ci]]
                 discs.append((x, y, z, rl * 0.75, self.hl))
-            x, y, z = self.nodes[li]                     # 枝端盘(略大, 外推)
-            push = 0.3 * steps
-            discs.append((x + ldir[0] * push, y + ldir[1] * push, z + ldir[2] * push,
-                          rl, self.hl))
+            x, y, z = self.nodes[li]                     # 枝端盘(略大, 外推埋尖)
+            push = 0.4 * steps
+            ex, ey, ez = (x + ldir[0] * push, y + ldir[1] * push, z + ldir[2] * push)
+            discs.append((ex, ey, ez, rl, self.hl))
+            if self.rng.random() < 0.35:                 # 卫星小团(破轮廓重复感)
+                sat_az = self.rng.uniform(0, 2 * math.pi)
+                discs.append((ex + math.cos(sat_az) * rl * 0.9,
+                              ey + self.rng.uniform(-1.0, 1.5),
+                              ez + math.sin(sat_az) * rl * 0.9,
+                              rl * self.rng.uniform(0.35, 0.5), self.hl))
         if layers >= 2:
             tx, _, tz = self.nodes[self.trunk_ids[-1]]   # 顶梢干尖水平位
             discs.append((tx, self.p["height"] - self.hl, tz, r * 0.55, self.hl))
+            # 冠区干身盘链: 沿顶梢干 0.6/0.72/0.84 树高各一盘 — 实测裸干段
+            # (主枝盘顶到核心盘底之间 15-20 格无叶, 读成悬空光杆);叶裹上段干
+            h = self.p["height"]
+            for frac in (0.6, 0.72, 0.84):
+                ty = h * frac
+                if ty >= h - self.hl * 2:
+                    continue                             # 顶盘覆盖区不重复
+                nid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - ty))
+                x, _, z = self.nodes[nid]
+                discs.append((x, ty, z, r * 0.42, self.hl))
         # 核心盘: 主枝分叉区(yc 高度, 跟随该处干位) — 治小树/疏树冠心裸木感
         mid_id = min(self.trunk_ids, key=lambda nid: abs(self.nodes[nid][1] - self.yc))
         mx, _, mz = self.nodes[mid_id]
         discs.append((mx, self.yc, mz, max(2.5, r * 0.5), self.hl))
-        return discs
+        # 逐盘剪影抖动(治"每棵树都一样": 同 preset 同 seed 也不该盘盘同形)
+        return [(cx + self.rng.uniform(-1.0, 1.0), cy + self.rng.uniform(-0.5, 0.5),
+                 cz + self.rng.uniform(-1.0, 1.0),
+                 dr * self.rng.uniform(0.8, 1.25), dh * self.rng.uniform(0.75, 1.4))
+                for (cx, cy, cz, dr, dh) in discs]
 
     def _disc_fans(self):
         """每盘一轮辐扇: 最近节点链接到盘心(锚枝), 再从盘心辐射 n_spokes 条
@@ -286,9 +328,10 @@ class Tree:
             for k in range(n_spokes):
                 az = az0 + k * (2 * math.pi / n_spokes) + rng.uniform(-0.25, 0.25)
                 el = rng.uniform(-0.3, 0.6) if bare else rng.uniform(0.1, el_max)
-                steps = max(2, int(dr * rng.uniform(0.7, 0.9)))
+                steps = max(2, int(dr * rng.uniform(0.6, 0.8)))   # 辐条止于壳内(不捅出叶壳)
                 cur = center_id
                 pos = self.nodes[cur]
+                chain = [cur]
                 for s in range(steps):
                     dx = math.cos(az) * math.cos(el)
                     dy = math.sin(el)
@@ -296,10 +339,13 @@ class Tree:
                     pos = (pos[0] + dx * STEP, pos[1] + dy * STEP, pos[2] + dz * STEP)
                     self._add(cur, pos)
                     cur = len(self.nodes) - 1
+                    chain.append(cur)
                     if dr >= 10.0 and s < steps * 0.4:
                         self.spoke_thick.add(cur)
                     az += rng.uniform(-0.06, 0.06)
-                    el += rng.uniform(-0.03, 0.04)
+                    el = min(el_max, max(0.05,          # 钳在盘内: 下垂辐条出盘=裸枝
+                             el + rng.uniform(-0.03, 0.04)))
+                self.spoke_chains.append(chain)
 
     def _add(self, parent, pos):
         self.nodes.append(pos)
@@ -323,6 +369,17 @@ class Tree:
     def put_wood(self, x, y, z, spec):
         self.wood[(x, y, z)] = spec
 
+    def _trunk_size(self, frac):
+        """干柱截面边长(沿顶梢位置 frac∈[0,1]): 基部板根/基座区(frac0)足尺,
+        之上全程线性收分到 tip — 连续圆台, 不是"下段圆柱+上段收分"的电线杆
+        (实测反馈)。缩径层在 rasterize 铺半砖台阶。"""
+        tip = max(1, self.ts - 2)
+        span = max(1, len(self.trunk_ids))
+        frac0 = min(0.12, (self.ts + 2.0) / span)        # 基座足尺区(接板根)
+        if not self.p["taper"] or frac <= frac0:
+            return self.ts
+        return max(tip, int(round(self.ts - (self.ts - tip) * (frac - frac0) / (1 - frac0))))
+
     def _bole_section(self, cx, cz, y, size):
         """以 (cx,cz) 浮点为中心的 size×size 水平截面(收分用)。返回 (x,z) 集合。"""
         half = (size - 1) / 2.0
@@ -336,8 +393,8 @@ class Tree:
 
     def rasterize(self):
         desc, clear_h = self.desc, self.clear_h
-        # 顶梢干: 沿骨架链逐格截面(可弯/斜); 渐进收分 — 前 25% 足尺,
-        # 之后线性缩到 1x1 顶梢; 每档缩径层在旧截面外环铺 bottom 半砖,
+        # 顶梢干: 沿骨架链逐格截面(可弯/斜); 全程圆台收分(_trunk_size:
+        # 基座足尺区以上线性缩到 tip); 每档缩径层在旧截面外环铺 bottom 半砖,
         # 0.5 格台阶过渡取代 1 格突变(实测"粗细突变"反馈)
         trunk_set = set(self.trunk_ids)
         span = max(1, len(self.trunk_ids))
@@ -347,10 +404,7 @@ class Tree:
             x, y, z = self.nodes[nid]
             yy = rhu(y)
             frac = idx / span
-            if not self.p["taper"] or frac < 0.25:
-                size = self.ts
-            else:
-                size = max(1, int(round(self.ts - (self.ts - 1) * (frac - 0.25) / 0.75)))
+            size = self._trunk_size(frac)
             if prev_pos is not None and yy > prev_yy:
                 # 连通兜底: 弯/斜/螺旋干的截面中心漂移可能前后层xz各偏1格
                 # (对角接触=不连通, 实测把整段顶梢+顶盘剪没)。每层先用 vline
@@ -391,6 +445,30 @@ class Tree:
                           (cell[0] + 1, cell[1], cell[2])
                     self.put_wood(*bud, "%s[axis=%s]" % (self.log, axis))
 
+    def _twist_ridge(self):
+        """盘旋棱脊(spiral 干专属): 沿干身绕轴每格一条棱线, pitch=ts*3+8 层
+        一圈, 从截面表面贴出外缘(vline 保底连通)。中心线螺旋半径必须小
+        (大了干漂),"盘旋"靠棱脊读 — 树皮扭转条纹是 MC 经典手法(端面纹理)。
+        粗干(ts>=4)双棱对生。"""
+        span = max(1, len(self.trunk_ids))
+        pitch = self.ts * 3 + 8
+        for idx, nid in enumerate(self.trunk_ids):
+            frac = idx / span
+            if frac > 0.7:
+                break                                        # 冠区不刻(叶裹)
+            x, y, z = self.nodes[nid]
+            yy = rhu(y)
+            half = self._trunk_size(frac) / 2.0              # 棱贴当层截面外缘
+            phases = (0.0,) if self.ts < 4 else (0.0, math.pi)
+            for ph in phases:
+                ang = yy * (2 * math.pi / pitch) + self.curve_phase + ph
+                dx, dz = math.cos(ang), math.sin(ang)
+                axis = "x" if abs(dx) >= abs(dz) else "z"
+                sx, sz = rhu(x + dx * half), rhu(z + dz * half)
+                rx, rz = rhu(x + dx * (half + 0.5)), rhu(z + dz * (half + 0.5))
+                for cell in vline((sx, yy, sz), (rx, yy, rz)):
+                    self.put_wood(*cell, "%s[axis=%s]" % (self.log, axis))
+
     def buttress(self):
         """板根: 4-6 stepped fins; 长度/高度随干径缩放(大树大根)。"""
         n = 4 + self.rng.randrange(3)
@@ -419,46 +497,77 @@ class Tree:
                             self.log, axis if y == hgt - 1 else "y"))
 
     # ----------------------------------------------------------- foliage --
+    def _tuft(self, cx, cy, cz, r, carve):
+        """单个叶簇: 带镂空的小椭球(carve 用 seeded hash, 确定性)。"""
+        ry = max(1, int(round(r * 0.8)))
+        ri = max(1, int(round(r)))
+        for dy in range(-ry, ry + 1):
+            for dx in range(-ri, ri + 1):
+                for dz in range(-ri, ri + 1):
+                    v = (dx / r) ** 2 + (dy / max(0.6, r * 0.8)) ** 2 + (dz / r) ** 2
+                    if v > 1.0:
+                        continue
+                    if v > 0.5 and h3(cx + dx, cy + dy, cz + dz, self.seed) < carve:
+                        continue                    # 镂空
+                    cell = (cx + dx, cy + dy, cz + dz)
+                    if cell not in self.wood:
+                        self.leaves.add(cell)
+
     def foliage(self):
-        """盘壳叶: 每盘 v∈[SHELL_IN,1] 镂空壳层(剪影主体) + 盘内贴木簇
-        (HUG 内, 更稀) — 取代 v2 末梢绒球(葡萄串)。carve 由 leaf_density 控。"""
+        """v4 沿枝簇生(ez-tree generateLeaves 的体素化): 每条辐条/主枝的
+        外侧段分层撒叶簇(位置分层+抖动, 簇径带 ±30% 方差), 簇间交叠成
+        连续冠; 全部落完后边界格按概率补 1-2 格飞叶(蓬松感的两个来源:
+        尺寸方差+边界噪声)。取代 v3 盘壳(光滑椭球壳=塑料感/每棵一样)。
+        leaf_density 控簇距与镂空。"""
+        rng = self.rng
         ld = self.p["leaf_density"]
-        carve = 0.32 - 0.20 * ld                        # ld=0.6 → 0.20
-        hug2 = HUG * HUG
-        wb = {}
-        for (x, y, z) in self.wood:
-            wb.setdefault((x // 3, y // 3, z // 3), []).append((x, y, z))
+        bare = bool(self.p.get("no_foliage"))
+        if bare:
+            return
+        # 簇参数: 簇距(密度越大簇越密), 簇径基线随冠幅缩放
+        r = self.p["canopy_radius"]
+        base_r = max(1.6, r * 0.22)
+        gap = base_r * (1.9 - 0.8 * ld) + 0.4   # 簇距随簇径缩放(小树也连续成冠)
+        carve = 0.26 - 0.16 * ld
+        trunk_set = set(self.trunk_ids)
 
-        def near_wood(x, y, z):
-            gx, gy, gz = x // 3, y // 3, z // 3
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    for dz in (-1, 0, 1):
-                        for (wx, wy, wz) in wb.get((gx + dx, gy + dy, gz + dz), ()):
-                            if ((wx - x) ** 2 + (wy - y) ** 2 + (wz - z) ** 2) <= hug2:
-                                return True
-            return False
+        def tufts_along(chain, start_frac):
+            L = len(chain)
+            if L < 2:
+                return
+            n = max(2, int((L * (1 - start_frac)) / gap + 0.5))   # 每链至少 2 簇
+            for k in range(n):
+                frac = start_frac + (1 - start_frac) * (k + rng.uniform(-0.35, 0.35)) / n
+                frac = min(1.0, max(start_frac, frac))
+                nid = chain[int(frac * (L - 1))]
+                x, y, z = self.nodes[nid]
+                tr = min(base_r * rng.uniform(0.7, 1.3), 4.5)   # 大冠封顶防块数爆炸
+                self._tuft(round(x), round(y), round(z), tr, carve)
+            x, y, z = self.nodes[chain[-1]]      # 梢端大团(云片焦点, 半径封顶)
+            self._tuft(round(x), round(y), round(z),
+                       min(base_r * rng.uniform(1.0, 1.3), 5.0), carve)
 
-        for (cx, cy, cz, dr, dh) in self.discs:
-            R, H = math.ceil(dr), math.ceil(dh)
-            # 小盘壳薄, 降内界+减镂空补实(治小树"虫蛀冠"); 大盘保持透气
-            shell_in = SHELL_IN if dr >= 6.0 else 0.45
-            cscale = min(1.0, dr / 5.0)
-            for dx in range(-R, R + 1):
-                for dz in range(-R, R + 1):
-                    for dy in range(-H, H + 1):
-                        v = (dx / dr) ** 2 + (dy / dh) ** 2 + (dz / dr) ** 2
-                        if v > 1.0:
-                            continue
-                        x, y, z = rhu(cx) + dx, rhu(cy) + dy, rhu(cz) + dz
-                        shell = v >= shell_in
-                        if not shell and not near_wood(x, y, z):
-                            continue                  # 盘心深处不长(省块+镂空)
-                        c = (carve if shell else carve * 0.4) * cscale
-                        if h3(x, y, z, self.seed) < c:
-                            continue                  # 镂空 breathing pocket
-                        if (x, y, z) not in self.wood:
-                            self.leaves.add((x, y, z))
+        for chain in self.spoke_chains:         # 辐条: 外侧 40% 起簇
+            tufts_along(chain, 0.4)
+        for li, _ldir, _steps in self.limb_ends:   # 主枝: 外侧起簇(小树更靠根)
+            chain = []
+            cur = li
+            while cur not in trunk_set and cur > 0:
+                chain.append(cur)
+                cur = self.parent[cur]
+            chain.reverse()
+            tufts_along(chain, 0.55 if r >= 12 else 0.3)
+        # 边界飞叶: 叶格邻空处按概率向外补 1 格(连 2 轮 → 1-2 格毛边)
+        for fuzz_round, prob in ((0.10, 12345), (0.045, 54321)):
+            edge = []
+            for (x, y, z) in self.leaves:
+                for dx, dy, dz in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)):
+                    c = (x + dx, y + dy, z + dz)
+                    if c not in self.leaves and c not in self.wood and \
+                            h3(c[0], c[1], c[2], self.seed ^ prob) < fuzz_round:
+                        edge.append(c)
+            for c in edge:
+                self.leaves.add(c)
 
     def prune(self):
         """Flood fill from the bole base over wood+leaves; drop the rest."""
@@ -494,6 +603,8 @@ def build(p):
     t.rasterize()
     if p["buttress"]:
         t.buttress()
+    if p["form"] == "spiral":
+        t._twist_ridge()
     if not p.get("no_foliage"):
         t.foliage()
     t.prune()
@@ -517,9 +628,9 @@ def validate(p):
     try:
         p["trunk"] = int(p["trunk"])
     except (TypeError, ValueError):
-        die("trunk must be 2-5", {"trunk": [2, 5]})
-    if not 2 <= p["trunk"] <= 5:
-        die("trunk must be 2-5 (ts×ts 基部干柱, 渐进收分到 1x1 顶梢)", {"trunk": [2, 5]})
+        die("trunk must be 2-7", {"trunk": [2, 7]})
+    if not 2 <= p["trunk"] <= 7:
+        die("trunk must be 2-7 (ts×ts 基部干柱; 粗高 ts≈h/15, 细高 ts≈h/25)", {"trunk": [2, 7]})
     if p["species"] not in SPECIES:
         die("species must be one of %s" % (tuple(SPECIES),), {"species": list(SPECIES)})
     if p["form"] not in FORMS:
@@ -552,6 +663,20 @@ def validate(p):
         die("leaf_density must be 0.1-1.0", {"leaf_density": 0.6})
 
 
+# 高宽比护栏(height/canopy_diameter): 比例即形态语言, 越界直接拒生成 —
+# 实测翻车: 55 高 52 冠幅的"煎饼树"、115 高筷子干。preset 各有合法域。
+ASPECT = {
+    "ancient_oak": (0.9, 2.2), "sky_pillar": (2.2, 5.0),
+    "gnarled_twist": (1.0, 3.0), "leaning_river": (1.1, 2.8),
+    "banyan_court": (0.7, 1.8), "umbrella_acacia": (0.5, 1.2),
+    "weeping_willow": (0.9, 2.2), "cloud_disc": (1.2, 3.5),
+    "spirit_candelabra": (1.6, 4.5), "world_tree": (1.6, 4.5),
+    "dead_snag": (1.2, 4.0),
+    "cherry_blossom": (0.8, 2.2), "birch_grove": (1.6, 4.0),
+    "mangrove_swamp": (0.8, 2.0), "pale_oak_garden": (1.2, 3.0),
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--params", default="{}", help="JSON object of parameters")
@@ -573,6 +698,14 @@ def main():
     else:
         p.update(user)
     validate(p)
+    lo, hi = ASPECT.get(preset or "", (0.8, 4.5))
+    ratio = p["height"] / (2.0 * p["canopy_radius"])
+    if not lo <= ratio <= hi:
+        die("height/canopy_diameter %.2f 越界(%s 合法域 %.1f-%.1f): 调 height/canopy_radius"
+            % (ratio, preset or "自由形态", lo, hi),
+            {"height": "高宽比参考: 通直 3-4 / 开展 1-1.5 / 伞盖 0.5-0.8",
+             "canopy_radius": "当前 height=%d, 建议 %d-%d" % (
+                 p["height"], int(p["height"] / hi / 2), max(3, int(p["height"] / lo / 2)))})
     write_out(build(p), a.out)
 
 
