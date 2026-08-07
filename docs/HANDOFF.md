@@ -2,6 +2,29 @@
 
 > 读我即恢复全部关键状态。详细历史:git log;实验数据:`docs/experiments.md`;延后事项:`docs/BACKLOG.md`;调研:`docs/research/`(reflib 13 篇)。
 
+## 2026-08-07 深夜快照⑥(树体系定稿批: v5 球形/偏锋风骨/削圆收分 + 压测修复)
+
+**傍晚-深夜两批全落地部署。用户指令"全搞"。房屋细节目录已交付(用户手搓中)。**
+
+- **树 v5(用户四连骂: 球形/弯曲/收分/方柱/秃顶)**: ①叶形拆两函数 crown=layers|blob;**blob=球面辐条骨架成球**(冠心向椭球各向辐射, 簇随枝走+球壳封口 — 用户指正"球形是枝条不是叶壳");②curved 弯幅随树高 2.5-6;③收分 tip=round(ts*0.4)(看得见收细);④截面 size>=3 削角成圆(8+ 削两层成八边);⑤顶穹团治平顶/秃顶;⑥干径上限 12(板根封顶 8)
+- **偏锋风骨(leaning 重构, 用户引 ez-tree force 点单)**: 生长点吸引(远处一点持续拉弯, 强度随高度增 — 粗抗细弯迎客松式)+根部反向锚定(反方向板根×1.75 顺风×0.25)+冠心偏移 0.35r(F04 旧账)+顺风枝扇(lean_az±1.2, 背风面无枝);**踩坑: 盘心偏移/外推使锚枝桥裸奔, 桥 >=3 格入叶簇链**(裸木检测归零)
+- **fluffy_crown 蓬松档**(冠幅≈0.75-0.95 高, ASPECT 1.05-1.35)
+- **压测修复(傍晚批)**: roof_plan end_fill 自动外露端推导(山墙镂空根治)+gable_roof end_fill_ends;活板门全线清退(window_trim/eaves_trim fascia→slab/accent/balcony/chimney+blocks.md+手册)
+- **架构结论(与用户对齐)**: 形态=卡不是文件, 文件=算法族;grove 多柱林走 wrapper 多次调用, 悬空根走引擎 aerial_roots 钩子(候选), 分叉戟走 fork 参数;garden_tree 物种 if-else 保持
+- **房屋细节目录**: docs/specs/house-detail-catalog.md(房顶/墙面/门窗/支撑/内部/场地 37 件+反例, 用户手搓样板中)
+- 债: 精灵装饰 special 钩子(发光脉络/垂藤/灯笼);L 谷沟深化(等实机观感);grabcraft-to-schema
+
+## 2026-08-07 傍晚快照⑤(压测回收: 山墙补板/活板门清退/蓬松档)
+
+**用户压测(世界6: 地标树×2 过审 + 白桦木屋差评)后修复批,已部署(18:5x jar)。未提交。**
+
+- **树过审**: 用户确认"大树不错";加 fluffy_crown 蓬松档(冠幅直径≈0.75-0.95 高, ASPECT 1.05-1.35, 密叶三层) — 用户点单形态
+- **山墙镂空根因**: roof_plan 硬写 end_fill:"" + gable_roof 默认空 → 三角区没人填。修法: gable_roof 加 end_fill_ends(both/first/last/none), roof_plan 加 end_fill 参数并**按平面自动推导外露端**(端头外无平面格才填, 相接端不填 — 防堵内院连体);已验证 L 形两自由端三角成形、相接端留空;手册: 封闭建筑 gable 必传 end_fill=墙身主材, 镂空=建造失败
+- **活板门全线清退**(用户: AI 用不明白): window_trim 删 shutters/flowerbox(连带 trapdoor_material/flower_material 参数);eaves_trim fascia 封檐板下线→默认 edge=slab(传 fascia 直接 die 指路);accent_detailing 删 trapdoor_panel(日式白名单改石灯笼/苔/挂灯);balcony 删 trapdoor 栏杆;chimney 删 trapdoor 盖;blocks.md 标全线禁用;手册同步
+- **L 谷沟"硬凑"**: 未深挖(肉眼难评), 主要疑似山墙镂空+缺檐口收边的复合观感;先靠补板+slab 收边看实机, 谷沟深化留债
+- **"细节也是一坨"**: 未单独修 — facade_scan/菜单已就位, 本轮先收口结构级(山墙/活板门);细节口味等用户下一轮截图反馈
+- 部署纪律执行中(每次先查游戏进程=0 才覆盖)
+
 ## 2026-08-07 凌晨快照④(多样性四连: species/facade_scan/三树/stair_row)
 
 **用户拍板的四步全部落地部署(04:5x jar, 资产 157 文件)。全部未提交(连同前 3 批)。**

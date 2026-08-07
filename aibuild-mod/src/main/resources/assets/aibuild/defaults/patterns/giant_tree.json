@@ -2,35 +2,153 @@
   "name": "giant_tree",
   "description": "巨树生成器 v4: 顶梢干(leader)直贯树梢作树脊 + 显性主枝样条(低位起叉先平展再上扬) + 云片层盘定位 + 盘内确定性辐枝扇(锚枝到盘心, 辐条止壳内) + **沿枝簇生叶**(每条辐条/主枝外侧段分层撒叶簇, 位置分层+抖动, 簇径 ±30% 方差, 梢端大团, 边界 1-2 格飞叶 — 蓬松感来自尺寸方差+边界噪声, ez-tree 模型体素化) + 干形四式(straight/curved/leaning/spiral 解析有界偏移, spiral 附盘旋棱脊: 干身绕轴棱线, 粗干双棱) + **全程圆台收分**(基座足尺区以上线性缩到 tip=max(1,ts-2), 缩径层半砖台阶) + 板根阶梯鳍 + 高宽比硬护栏(按 preset 合法域拒生成) + 整树 flood-fill 剪不连通。11 张形态卡预设。同参同 seed 同树。骨架语义参考 dgreenheck/ez-tree: 子枝粗细随父枝局部半径, 扭曲度随 1/√半径。",
   "when_to_use": "任何需要树超过庭院小树的场合: 景观大树(15-25)/巨树(40-80)/地标树(80-150 直接生成, 无需分件)。选形态卡 preset 再按体量档给 height/canopy_radius —— 别自己调形态参数, 那是调研校准过的。seed 换形不重样。garden_tree 只管 4 格冠以下的庭院小树。",
-  "when_to_use": "任何需要树超过庭院小树的场合: 景观大树(15-25)/巨树(40-80)/地标树(80-150 直接生成, 无需分件)。选形态卡 preset 再按体量档给 height/canopy_radius —— 别自己调形态参数, 那是调研校准过的。seed 换形不重样。garden_tree 只管 4 格冠以下的庭院小树。",
   "use_for": "巨树/古树/奇幻圣树/世界树地标; preset 定形态, seed 换个体; spirit_candelabra=Ori 精灵树标杆形, world_tree=地标支柱(自带 trunk=4), sky_pillar=通直巨杉(高宽比 3-4:1 时给大 height 小 canopy)",
   "params": {
-    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "树干基部最小角格;y = 地面层(干柱自此升起;坡地先 terraform_pad)"},
-    "preset": {"type": "enum", "values": ["ancient_oak", "sky_pillar", "gnarled_twist", "leaning_river", "banyan_court", "umbrella_acacia", "weeping_willow", "cloud_disc", "spirit_candelabra", "world_tree", "dead_snag", "cherry_blossom", "birch_grove", "mangrove_swamp", "pale_oak_garden"], "default": "(空)", "notes": "形态卡 id;给了就按卡填 form/limbs/layers/density(/species), 显式参数仍可覆盖; 后四张是材质系卡(同骨架换树皮)"},
-    "height": {"type": "int", "default": 18, "notes": "10-150,总高;景观 15-25 / 巨树 40-80 / 地标 80-150;树顶实际到顶(误差 ±1), 不再缩水"},
-    "canopy_radius": {"type": "int", "default": 6, "notes": "3-50,冠幅半径;高宽比即形态语言: 通直 3-4:1 / 开展 1-1.5:1 / 伞盖 <=0.8:1, 别给 30 高 14 冠的墩布"},
-    "trunk": {"type": "int", "values": [2, 3, 4, 5, 6, 7], "default": 2, "notes": "基部干柱 ts×ts;粗高 ts≈h/15(地标 5-7), 细高 ts≈h/25(景观 2-3)。全程圆台收分(基部起一路收到 tip=max(1,ts-2)), 缩径处自动铺半砖台阶"},
-    "species": {"type": "enum", "values": ["oak", "dark_oak", "birch", "spruce", "jungle", "acacia", "cherry", "mangrove", "pale_oak"], "default": "oak", "notes": "log/leaves/fence/slab 材质四件套;cherry=樱花粉叶, birch=白干, pale_oak=苍白花园, mangrove=沼泽(配大板根)"},
-    "seed": {"type": "int", "default": 0, "notes": "形态+镂空+板根方位全由此定;同 seed 同树"},
-    "buttress": {"type": "bool", "default": true, "notes": "板根: 4-6 条阶梯根鳍, 尺寸随干径缩放;老树/热带/巨木必开"},
-    "leaf_density": {"type": "float", "default": 0.6, "notes": "0.1-1.0;壳层镂空率由此控(越大叶越密);preset 已校准, 一般别动"},
-    "form": {"type": "enum", "values": ["straight", "curved", "leaning", "spiral"], "default": "straight", "notes": "干形;spiral=绕轴螺旋+盘旋棱脊(干身棱线条纹, 粗干双棱 — 盘旋感靠棱脊不靠漂干);一般用 preset 代替直接选"},
-    "limbs": {"type": "int", "range": "0-6", "default": 0, "notes": "主枝数, 0=seed 自动 3-5"},
-    "canopy_layers": {"type": "int", "range": "1-4", "default": 2, "notes": "冠层盘密度: 1=疏朗, 2-4=云片分层渐密(奇幻感核心)"},
-    "taper": {"type": "bool", "default": true, "notes": "渐进收分(前 25% 足尺, 到顶缩 1x1);关了一路等宽, 一眼假"},
-    "no_foliage": {"type": "bool", "default": false, "notes": "true=纯骨架(枯立木卡用, 辐条更多更下垂)"}
+    "origin": {
+      "type": "[x,y,z]",
+      "default": "[0,64,0]",
+      "notes": "树干基部最小角格;y = 地面层(干柱自此升起;坡地先 terraform_pad)"
+    },
+    "preset": {
+      "type": "enum",
+      "values": [
+        "ancient_oak",
+        "sky_pillar",
+        "gnarled_twist",
+        "leaning_river",
+        "banyan_court",
+        "umbrella_acacia",
+        "weeping_willow",
+        "cloud_disc",
+        "spirit_candelabra",
+        "world_tree",
+        "dead_snag",
+        "cherry_blossom",
+        "birch_grove",
+        "mangrove_swamp",
+        "pale_oak_garden",
+        "fluffy_crown"
+      ],
+      "default": "(空)",
+      "notes": "形态卡 id;给了就按卡填 form/limbs/layers/density(/species), 显式参数仍可覆盖; 后四张是材质系卡(同骨架换树皮); fluffy_crown=蓬松档(冠幅直径≈0.8-0.9 高, 密叶三层)"
+    },
+    "height": {
+      "type": "int",
+      "default": 18,
+      "notes": "10-150,总高;景观 15-25 / 巨树 40-80 / 地标 80-150;树顶实际到顶(误差 ±1), 不再缩水"
+    },
+    "canopy_radius": {
+      "type": "int",
+      "default": 6,
+      "notes": "3-50,冠幅半径;高宽比即形态语言: 通直 3-4:1 / 开展 1-1.5:1 / 伞盖 <=0.8:1, 别给 30 高 14 冠的墩布"
+    },
+    "trunk": {
+      "type": "int",
+      "values": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "default": 2,
+      "notes": "基部干柱 ts×ts;粗高 ts≈h/15(地标 5-8), 细高 ts≈h/25(景观 2-3);全程圆台收分到 tip=round(ts*0.4)(看得见收细), size>=3 削角成圆(不再是方柱), 缩径处半砖台阶; 10-12 供刻纹路"
+    },
+    "species": {
+      "type": "enum",
+      "values": [
+        "oak",
+        "dark_oak",
+        "birch",
+        "spruce",
+        "jungle",
+        "acacia",
+        "cherry",
+        "mangrove",
+        "pale_oak"
+      ],
+      "default": "oak",
+      "notes": "log/leaves/fence/slab 材质四件套;cherry=樱花粉叶, birch=白干, pale_oak=苍白花园, mangrove=沼泽(配大板根)"
+    },
+    "seed": {
+      "type": "int",
+      "default": 0,
+      "notes": "形态+镂空+板根方位全由此定;同 seed 同树"
+    },
+    "buttress": {
+      "type": "bool",
+      "default": true,
+      "notes": "板根: 4-6 条阶梯根鳍, 尺寸随干径缩放;老树/热带/巨木必开"
+    },
+    "leaf_density": {
+      "type": "float",
+      "default": 0.6,
+      "notes": "0.1-1.0;壳层镂空率由此控(越大叶越密);preset 已校准, 一般别动"
+    },
+    "form": {
+      "type": "enum",
+      "values": [
+        "straight",
+        "curved",
+        "leaning",
+        "spiral"
+      ],
+      "default": "straight",
+      "notes": "干形;leaning=偏锋风骨(生长点吸引持续拉弯+根部反向锚定+冠心偏移+顺风枝扇);curved=蛇形(弯幅随树高 2.5-6);spiral=绕轴螺旋+盘旋棱脊;preset 优先"
+    },
+    "limbs": {
+      "type": "int",
+      "range": "0-6",
+      "default": 0,
+      "notes": "主枝数, 0=seed 自动 3-5"
+    },
+    "canopy_layers": {
+      "type": "int",
+      "range": "1-4",
+      "default": 2,
+      "notes": "冠层盘密度: 1=疏朗, 2-4=云片分层渐密(奇幻感核心)"
+    },
+    "taper": {
+      "type": "bool",
+      "default": true,
+      "notes": "渐进收分(前 25% 足尺, 到顶缩 1x1);关了一路等宽, 一眼假"
+    },
+    "no_foliage": {
+      "type": "bool",
+      "default": false,
+      "notes": "true=纯骨架(枯立木卡用, 辐条更多更下垂)"
+    },
+    "crown": {
+      "type": "enum",
+      "values": [
+        "layers",
+        "blob"
+      ],
+      "default": "layers",
+      "notes": "叶形函数: layers=云片分层(奇幻感) | blob=圆整球形(球面辐条骨架成球+簇随枝走+球壳封口 — 用户参考图款; ancient_oak/banyan/cherry/mangrove/fluffy 已默认 blob)"
+    }
   },
   "pitfalls": [
-    "高宽比有硬护栏(height/canopy_diameter 按 preset 合法域): 越界直接拒生成(实测翻车=55 高 52 冠幅的煎饼树)——被拒就调 height/canopy_radius, 别绕过",
-    "形态由 preset+seed 决定: 想换形态换 preset, 想换个体重摇 seed, 别手调 form/limbs/layers — 那是调研校准过的",
+    "高宽比有硬护栏(height/canopy_diameter 按 preset 合法域): 越界直接拒生成——被拒就调 height/canopy_radius, 别绕过",
+    "叶形二式: 奇幻/云片选 layers, 用户参考图那种圆整球选 blob(已在对应 preset 默认);顶穹团自动加盖, 树顶必须是穹面",
+    "偏锋(leaning)的冠只在顺风侧: 背风面裸干是风骨剪影不是秃;冠心偏移+根锚自动",
+    "干截面 size>=3 自动削角成圆, 别期待方柱;trunk 10+ 时板根鳍长封顶 9, 巨干靠粗不靠长",
+    "形态由 preset+seed 决定: 想换形态换 preset, 想换个体重摇 seed, 别手调 form/limbs/layers",
     "细梢 fence、粗枝 2 宽 log 梁、大盘辐根 2 宽是体素化惯例;整树已过 flood-fill 连通剪枝, 别删单格",
     "叶全带 persistent=true(实测教训:裸叶放下即消失);别批量替换成默认叶",
-    "spiral 干的盘旋感来自棱脊(干身绕轴棱线), 中心线偏移有界 — footprint 按 canopy_radius×2+6 圈地即可",
-    "块数参考: 22 高约 1.7 千 / 40 高约 3 千 / 60 高约 6 千 / 100+ 地标 3-4 万(叶簇蓬松后量涨, 大稿先小样试 seed);生成秒级(全确定性无迭代)",
-    "主枝前段无簇是刻意留白(可读枝构, 小树已收窄到 30%), 梢端/辐条全部埋进叶簇, 不会再出裸尖",
-    "banyan(多干)/willow(垂枝)是近似卡: 多干和垂坠钩子未实现, 当前=宽冠/疏冠近似",
-    "发光脉络/垂藤/灯笼等精灵装饰是 special 钩子欠债(见 docs/research/giant-tree-v3-status.md), 生成器不自动加"
+    "spiral/curved 干绕轴偏移, footprint 按 canopy_radius×2+弯幅 6 圈地",
+    "块数参考: 22 高约 1-2 千 / 40 高约 3-6 千(blob 更实) / 100+ 地标 3-4 万;生成秒级",
+    "banyan(多干)/willow(垂枝)是近似卡: 真垂柳走 weeping_tree.py, 多干未实现",
+    "发光脉络/垂藤/灯笼等精灵装饰是 special 钩子欠债, 生成器不自动加"
   ],
-  "validators": ["support_check"],
+  "validators": [
+    "support_check"
+  ],
   "example": "python patterns/giant_tree.py --params '{\"origin\":[100,64,100],\"preset\":\"spirit_candelabra\",\"height\":60,\"canopy_radius\":16,\"trunk\":3,\"seed\":7}' --out tree.json && python patterns/giant_tree.py --params '{\"origin\":[200,64,100],\"preset\":\"world_tree\",\"height\":100,\"canopy_radius\":26,\"trunk\":5,\"seed\":99}' --out tree2.json"
 }
