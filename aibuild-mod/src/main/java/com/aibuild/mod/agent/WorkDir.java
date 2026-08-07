@@ -169,6 +169,17 @@ public final class WorkDir {
             "patterns/validators/stair_corner_check.py",
             "patterns/validators/walkability_check.py",
             "patterns/validators/flatness_check.py",
+            "patterns/facade_scan.py",
+            "patterns/decoration_menu.md",
+            "patterns/tree_common.py",
+            "patterns/conifer_spire.py",
+            "patterns/conifer_spire.json",
+            "patterns/palm_umbrella.py",
+            "patterns/palm_umbrella.json",
+            "patterns/weeping_tree.py",
+            "patterns/weeping_tree.json",
+            "patterns/stair_row.py",
+            "patterns/stair_row.json",
             "blocks.md");
 
     private WorkDir() {
@@ -473,11 +484,24 @@ public final class WorkDir {
 
             The `patterns/` directory holds parameterized generator scripts:
             `<name>.py` (zero-dependency, runs with plain `python`) plus a
-            `<name>.json` parameter card (params, ranges, when_to_use). For
-            these elements you MUST run the matching script instead of
-            free-handing the shape. FIRST read `patterns/INDEX.md` (the
-            catalogue — every card has a one-line use_for) and pick the
-            cards your build needs. Frequent ones:
+            `<name>.json` parameter card (params, ranges, when_to_use). FIRST
+            read `patterns/INDEX.md` (the catalogue — every card has a
+            one-line use_for). Two tiers of generators:
+            - CORRECTNESS-CRITICAL (MANDATORY — these are where freehand
+              measurably fails): roofs incl. roof_plan.py on L/T/U plans,
+              staircase.py, doorway.py, connector.py, plan_shape.py,
+              terraform_pad.py, mirror_build.py (symmetry), room_partition.py,
+              and giant_tree.py for host trees. Freehanding THESE is a build
+              failure.
+            - EVERYTHING ELSE (strong defaults, not obligations): run the
+              generator when it fits the spot, skip or adjust when it
+              doesn't — either way, one line of justification in plan.md.
+              A generator's output is a DRAFT, not a decree: curate it for
+              taste (delete a third of the window trims, thin a tree's
+              foliage, drop plaza lamps). Only structural direction states
+              (stair facing/half/shape) are hands-off — fix params and
+              re-run instead of editing those cells.
+            Frequent ones:
 
             - roofs: gable/hip/gambrel/mansard/helm/xieshan -> *_roof.py; + dormer.py / chimney.py; L/T/U plan -> roof_plan.py (same seed as plan_shape); finish sloped roofs with eaves_trim.py (rafters+fascia — 有挑檐必有椽)
             - entrances: doorway.py (door recess/frame/lintel/leaf/steps/canopy — a bare vanilla door block on a flat wall is a build failure)
@@ -485,7 +509,7 @@ public final class WorkDir {
             - facade: window_trim.py (v2: recess/sill/shutters/flowerbox layers) / arch_window.py / facade_depth.py (base/string/cornice) / accent_detailing.py (ornaments, palette = your style family)
             - walls: wall_weathering.py (material mixing/aging)
             - interior: furniture.py (scene= room clusters: enchant/smelting/smithing/storage/workbench — work blocks in a ROW is a build failure) / interior_rooms.py
-            - landscape: garden_tree.py (courtyard-size only) / giant_tree.py (anything bigger; presets) / flower_field.py / terrace_farm.py / plaza.py / fountain.py
+            - landscape: garden_tree.py (courtyard-size only) / giant_tree.py (broadleaf giants, 15 presets; it REJECTS absurd height:canopy ratios — retune, don't bypass) / conifer_spire.py (conifers: spire/cedar/pine — needle trees go HERE, not giant_tree) / palm_umbrella.py (palm/flat-top acacia) / weeping_tree.py (willow by water) / flower_field.py / terrace_farm.py / plaza.py (rect for town squares; shape=circle for tree/fountain/statue spots — a lone rect pad under an organic host is a measured failure — sized as host canopy/footprint + 2-4, not bigger)
             - site: road_segment.py / terraform_pad.py / quadruped_statue.py / mirror_build.py (symmetric halves); masses joined by connector.py (bridge/corridor + door list)
 
             Workflow: read the .json card -> choose params (origin = world
@@ -496,12 +520,14 @@ public final class WorkDir {
             build free-hand what no pattern covers. Direction states in the
             output (stair facing/half/shape) are DERIVED by the scripts —
             never hand-edit them; fix params and re-run instead.
-            plan.md MUST map every signature element (rose window, spire,
-            antenna, flying buttress, carved gable, arch, tower...) to the
-            generator that produces it: `- element: rose_window.py --params
-            {...}`. An element no generator covers is marked `FREEHAND` and
-            gets a render self-check after placement. Freehanding an element
-            that HAS a generator is a build failure — the gothic west front
+            plan.md lists the pattern calls (element → generator + params).
+            Elements no generator covers are marked `FREEHAND` and get a
+            render self-check after placement. Ornament layers (vines /
+            lanterns / banners / flower boxes / smoke / fallen leaves) are
+            FREEHAND BY DESIGN — that is where your own taste goes in: small
+            groups of 2-3 at structural seams, never wallpapered. Signature
+            structural pieces that DO have generators (rose window, spire,
+            dormer, arch...) must not be freehanded — the gothic west front
             without rose_window.py is the reference incident.
 
             ## Symmetry, interiors, facade depth (MANDATORY)
@@ -515,37 +541,50 @@ public final class WorkDir {
               on-axis blocks are kept once; facing/shape states are remapped
               automatically. When symmetry is the point of the build, verify
               after placing with `patterns/validators/symmetry_check.py`.
-            - INTERIORS LAST: furniture and interior detail go in ONLY after
-              the walls are fully placed (all wall jobs done, failed == 0).
-              Keep >= 1 air block between interior pieces and wall blocks.
-              Record the wall positions in plan.md before decorating. ROOM
-              PARTITIONING IS PATTERN WORK: never freehand interior walls —
-              run `room_partition.py` with the room list from the brief
-              (`rooms` answer), your shell's inner bounds and the structural
-              grid. Its `window_hints` tell you where facade windows should
-              go — partition BEFORE cutting exterior windows, so windows and
-              rooms line up. Its `rooms[]` output feeds `interior_rooms.py`
-              directly. Before placing interiors, run
-              `python patterns/validators/collision_check.py --params '{"a":"walls.json","b":"furniture.json"}'`
-              — it must exit 0 (no overlap); place only then. AFTER placing
-              interiors you MUST run walkability_check (door → every furniture
-              piece, 2-block clearance): a room you cannot walk into is a
-              failed room — fix the layout and re-check until it passes.
-            - FACADE DEPTH: a flat unbroken wall is the #1 "AI look" giveaway.
-              Cornices / string courses / window surrounds / pilasters are
-              pattern work too: run facade_depth.py (base footing / string
-              course / cornice / recess panels — pick the profile your style
-              implies) plus pilaster.py and window_trim.py with the
-              `details.depth` values from your style card instead of
-              freehanding (or skipping) them; finish with accent_detailing.py
-              for small ornaments at structural seams (corners / eaves /
-              column bases, groups of 2-3). HARD GATE: after all exterior
-              detail is placed, run
+            - INTERIOR FIRST (从里到外): a build with interior assembles in
+              THIS order — shell-first is a measured failure mode (furniture
+              crammed into a finished box, doors blocked by wardrobes,
+              rooms that never fit):
+              1. plan_shape masses → `room_partition.py` with the brief's
+                 room list, the inner bounds and the structural grid. Its
+                 `window_hints` decide where facade windows go — partition
+                 BEFORE cutting any exterior window, so windows and rooms
+                 always line up. Partitioning is pattern work, never
+                 freehand interior walls. Its `rooms[]` feeds
+                 `interior_rooms.py` directly.
+              2. Interior floors + `staircase.py` between levels.
+              3. FURNITURE while the volume is still open: `furniture.py`
+                 per room (scene= room clusters: enchant/smelting/smithing/
+                 storage/workbench — work blocks in a ROW is a build
+                 failure). Keep >= 1 air block between pieces and where the
+                 walls will stand; then collision_check furniture vs the
+                 partition plan must exit 0.
+              4. NOW close the shell around the finished interior (walls,
+                 door at the partition hint, windows per hints, roof) —
+                 the exterior wraps the interior, not the reverse.
+              5. GATE: walkability_check (entrance → every furniture piece,
+                 2-block clearance). A room you cannot walk into is a
+                 failed room — fix the layout and re-check until it passes.
+            - FACADE DEPTH (with a budget): a flat unbroken wall is the #1
+              "AI look" giveaway — but a wall where EVERYTHING is decorated
+              is the #2 giveaway (实测翻车: 每扇窗都堆窗套, 老虎窗成群).
+              DON'T decorate blind: after the shell walls are placed, run
+              `python patterns/facade_scan.py --params '{"blocks":"<walls>.json"}'`
+              — it reports every face's openings, flat spans and ranked
+              CANDIDATE ANCHORS (corner pilaster / base footing / string
+              course / eave cornice / window trim / accent cluster) plus a
+              per-face decoration budget (2-4). Then decorate BY ANCHOR:
+              pick from `patterns/decoration_menu.md` (recipe-grade per
+              anchor type: what it looks like, how to build it, which
+              generator, its restraint rule). Anchors you don't use are
+              negative space, not failures. window_trim.py goes on the
+              front facade or every second window — never all of them;
+              accent_detailing.py in groups of 2-3 at seams; dormers only
+              if the lottery/brief says so. FLOOR GATE (not a quota): after
+              exterior detail is placed, run
               `python patterns/validators/flatness_check.py --params '{"blocks":"<walls+detail>.json","min_area":40}'`
-              — every significant face must show relief; a flat face means
-              you skipped the detail pass on it. Detailing is NOT optional:
-              a build with bare walls is a failed build, same as an
-              unreachable room.
+              — it flags faces with ZERO relief; fix those faces. Passing
+              it does NOT mean "decorate more".
             - VALIDATORS: `patterns/validators/` holds deterministic
               self-check scripts (symmetry_check.py, collision_check.py,
               support_check.py, flatness_check.py). They read the same JSON
@@ -555,10 +594,14 @@ public final class WorkDir {
             - STAIRS & SLABS (context states, not geometry): a stair's
               `facing` is the direction it ASCENDS toward — the tall back side
               faces uphill / against the wall, the step faces the walker.
-              State each stair row's facing in plan.md; never emit stairs
-              without facing. Interior staircases (any flight between floors)
-              are pattern work: run `staircase.py` — hand-placed flight
-              stairs are the #1 orientation bug in real builds. LEAVES: any
+              ANY run of stairs (eave rows / string courses / sill lines /
+              roof edge rows / parapet rings / smooth flights) is pattern
+              work: run `stair_row.py` — facing/half are derived, corners are
+              auto-shaped by the game on placement (L/U turns = split into
+              straight legs, the corner cell resolves itself). Hand-placed
+              stair rows are the #1 orientation bug in real builds (实测).
+              Interior staircases (any flight between floors) are also
+              pattern work: run `staircase.py`. LEAVES: any
               `*_leaves` block you place MUST carry `[persistent=true]` —
               bare leaf blocks use natural-generation semantics and decay
               away from logs (observed in real builds: decorative leaves

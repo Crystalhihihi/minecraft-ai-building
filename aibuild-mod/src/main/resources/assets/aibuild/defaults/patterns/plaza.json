@@ -1,6 +1,6 @@
 {
   "name": "plaza",
-  "description": "Parametric plaza / town square (广场): full paving floor with pattern concentric (同心环带) / radial (8 放射辐条) / checker (棋盘) / border (只镶边), an accent rim (border_width), a reserved center accent disc (centerpiece=fountain/statue: 留位,用对应生成器建) or an inline flagpole (fence mast + concrete flag flying +x), and a symmetric rhythm of benches (stair seats facing outward = 坐者面向场心) and lamp posts (3 fence + lantern) along the inner rim; corners always lit, center axes kept clear as walkways.",
+  "description": "Parametric plaza / town square (广场): full paving floor with pattern concentric (同心环带) / radial (8 放射辐条) / checker (棋盘) / border (只镶边), an accent rim (border_width), a reserved center accent disc (centerpiece=fountain/statue: 留位,用对应生成器建) or an inline flagpole (fence mast + concrete flag flying +x), and a rhythm of benches (stair seats facing outward = 坐者面向场心) and lamp posts (3 fence + lantern) along the inner rim. 两种形状: rect=规整矩形(城镇/前庭); circle=有机圆场(边缘按 seed 抖动±1 格, 外圈撒 dirt_path 磨损带)——树下/喷泉/神像等有机主体必用 circle。",
   "when_to_use": "Town squares, estate forecourts, market grounds, monument plinths. origin = min corner, y = floor layer (run terraform_pad first on rough terrain). Odd width/depth center best. centerpiece=fountain: run fountain.py with origin at the plaza center (origin y = plaza y, its basin rim rises one above the paving); centerpiece=statue: quadruped_statue.py on the disc.",
   "use_for": "城镇广场/庄园前庭/集市/纪念碑基座;同心环带读纪念性,放射读巴洛克,棋盘读市集,镶边读街角小广场",
   "params": {
@@ -8,6 +8,8 @@
     "width": {"type": "int", "range": "7-41", "default": 15, "notes": "沿 x;奇数居中最好"},
     "depth": {"type": "int", "range": "7-41", "default": 15, "notes": "沿 z"},
     "pattern": {"type": "enum", "values": ["concentric", "radial", "checker", "border"], "default": "concentric", "notes": "同心环带/放射/棋盘/纯镶边"},
+    "shape": {"type": "enum", "values": ["rect", "circle"], "default": "rect", "notes": "rect=城镇广场/建筑前庭;circle=有机圆场(边缘 seed 抖动±1+外圈 dirt_path 磨损带)——树下/喷泉/神像这类有机主体的广场必用, 孤立方垫子=实测翻车"},
+    "seed": {"type": "int", "default": 0, "notes": "circle 边缘抖动种子;换 seed 换边线"},
     "materials": {"type": "[block id x3]", "default": ["minecraft:stone_bricks", "minecraft:polished_andesite", "minecraft:polished_diorite"], "notes": "[主,次,强调];强调色要拉开明暗差(浅 quartz/深 blackstone 都常用)"},
     "border_width": {"type": "int", "range": "0-3", "default": 1, "notes": "镶边厚度"},
     "centerpiece": {"type": "enum", "values": ["none", "fountain", "statue", "flagpole"], "default": "none", "notes": "fountain/statue=只留强调色圆盘位;flagpole=脚本内建 6 高旗杆+双色旗"},

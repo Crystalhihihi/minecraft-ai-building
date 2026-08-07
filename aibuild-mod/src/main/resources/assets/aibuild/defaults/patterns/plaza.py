@@ -7,6 +7,12 @@ Paving patterns (community square recipes, parameterized):
 - checker:    alternating two-tone (棋盘);
 - border:     plain field, the accent does only the rim (镶边).
 
+Two shapes:
+- rect (default): 规整矩形, 城镇广场/建筑前庭;
+- circle: 有机圆场, 半径=(min(width,depth)-1)/2, 边缘按 seed 抖动 ±1 格且
+  外圈撒 dirt_path 磨损带 — 树下/喷泉/神像这类有机主体的广场必用
+  (实测翻车: 巨树下铺一块孤零零方垫子)。
+
 A `border_width` accent rim always frames the square. The center gets a
 reserved accent disc (`centerpiece` = fountain/statue: build those with
 their own generators on this exact spot; flagpole: built inline — fence
@@ -21,8 +27,9 @@ Output: {"blocks":[{x,y,z,block}...]}.
 
 Usage:
   python plaza.py --params '{"origin":[100,64,100],"width":15,"depth":15,"pattern":"concentric"}' [--out p.json]
+  python plaza.py --params '{"origin":[100,64,100],"width":35,"depth":35,"pattern":"concentric","shape":"circle","seed":7}'
 """
-import argparse, json, sys
+import argparse, json, math, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -33,6 +40,8 @@ DEFAULTS = {
     "width": 15,                   # along x, 7-41; odd centers best
     "depth": 15,                   # along z, 7-41
     "pattern": "concentric",       # concentric | radial | checker | border
+    "shape": "rect",               # rect(城镇广场) | circle(有机圆场,树下/喷泉必用)
+    "seed": 0,                     # circle 边缘抖动种子
     "materials": ["minecraft:stone_bricks", "minecraft:polished_andesite",
                   "minecraft:polished_diorite"],   # [main, secondary, accent]
     "border_width": 1,             # accent rim thickness, 0-3
@@ -46,8 +55,16 @@ DEFAULTS = {
 }
 
 PATTERNS = ("concentric", "radial", "checker", "border")
+SHAPES = ("rect", "circle")
 CENTERPIECES = ("none", "fountain", "statue", "flagpole")
 FLAG = ("minecraft:red_concrete", "minecraft:white_concrete")
+
+
+def h2(x, z, seed):
+    """Deterministic per-cell hash -> [0,1)."""
+    n = (x * 73428767) ^ (z * 58362839) ^ ((seed * 2654435761) & 0xFFFFFFFF) ^ 0x27d4eb2d
+    n = (n ^ (n >> 15)) * 2246822519 & 0xFFFFFFFF
+    return ((n ^ (n >> 13)) & 0xFFFF) / 65536.0
 
 
 def rhythm(inner, spacing):
@@ -72,9 +89,34 @@ def build(p):
         cells[(x, y, z)] = block
 
     # ---- paving ----
+    circle = p["shape"] == "circle"
+    radius = (min(w, d) - 1) / 2.0
+    seed = int(p.get("seed", 0))
     for z in range(d):
         for x in range(w):
             dx, dz = x - cx, z - cz
+            if circle:
+                dist = math.sqrt(dx * dx + dz * dz)
+                edgej = h2(x, z, seed) * 2.2 - 1.1     # 边缘抖动 ±1.1(有机撕裂边)
+                if dist > radius + edgej:
+                    if dist <= radius + edgej + 2.2 and h2(x, z, seed ^ 0x9e3779b9) < 0.3:
+                        put(ox + x, oy, oz + z, "minecraft:dirt_path")   # 外圈磨损带
+                    continue
+                if dist > radius - bw * 1.2 + edgej:
+                    mat = accent
+                else:
+                    r = int(round(dist))
+                    if p["pattern"] == "checker":
+                        mat = main if (x + z) % 2 == 0 else secondary
+                    elif p["pattern"] == "border":
+                        mat = main
+                    elif p["pattern"] == "concentric":
+                        mat = mats[r % len(mats)]
+                    else:  # radial
+                        spoke = dx == 0 or dz == 0 or abs(abs(dx) - abs(dz)) < 0.5
+                        mat = accent if spoke else (main if r % 2 == 0 else secondary)
+                put(ox + x, oy, oz + z, mat)
+                continue
             edge = min(x, z, w - 1 - x, d - 1 - z)
             if edge < bw:
                 mat = accent
@@ -109,6 +151,38 @@ def build(p):
         for i in range(1, 4):
             put(ox + x, oy + i, oz + z, p["lamp_material"])
         put(ox + x, oy + 4, oz + z, "minecraft:lantern")
+
+    if circle:
+        ring_r = max(2.0, radius - bw - 1.0)
+        circ = 2 * math.pi * ring_r
+        lamp_cells = set()
+        if p["lamps"]:
+            n_lamp = max(4, int(circ / int(p["lamp_spacing"])))
+            for k in range(n_lamp):
+                az = 2 * math.pi * k / n_lamp
+                lx = int(round(icx + ring_r * math.cos(az)))
+                lz = int(round(icz + ring_r * math.sin(az)))
+                lamp(lx, lz)
+                lamp_cells.add((lx, lz))
+        if p["benches"]:
+            n_bench = max(3, int(circ / int(p["bench_spacing"])))
+            for k in range(n_bench):
+                az = 2 * math.pi * (k + 0.5) / n_bench    # 与灯错位
+                bx = int(round(icx + ring_r * math.cos(az)))
+                bz = int(round(icz + ring_r * math.sin(az)))
+                if (bx, bz) in lamp_cells:
+                    continue
+                dxn, dzn = bx - cx, bz - cz
+                if min(abs(dxn), abs(dzn)) <= 1:          # 主轴走道留空
+                    continue
+                if abs(dxn) >= abs(dzn):
+                    facing = "east" if dxn > 0 else "west"
+                else:
+                    facing = "south" if dzn > 0 else "north"
+                put(ox + bx, oy + 1, oz + bz,
+                    "%s[facing=%s,half=bottom]" % (p["bench_material"], facing))
+        return [{"x": x, "y": y, "z": z, "block": b}
+                for (x, y, z), b in sorted(cells.items())]
 
     # sides: (along-length, coord-of-(t), facing-away-from-center)
     sides = [
@@ -151,6 +225,12 @@ def validate(p):
         die("border_width out of range", {"border_width": "0-3"})
     if p["pattern"] not in PATTERNS:
         die("pattern must be one of %s" % (PATTERNS,), {"pattern": list(PATTERNS)})
+    if p["shape"] not in SHAPES:
+        die("shape must be one of %s" % (SHAPES,), {"shape": list(SHAPES)})
+    try:
+        p["seed"] = int(p.get("seed", 0))
+    except (TypeError, ValueError):
+        die("seed must be an int", {"seed": 0})
     if p["centerpiece"] not in CENTERPIECES:
         die("centerpiece must be one of %s" % (CENTERPIECES,),
             {"centerpiece": list(CENTERPIECES)})

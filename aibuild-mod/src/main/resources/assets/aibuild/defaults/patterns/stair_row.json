@@ -1,0 +1,24 @@
+{
+  "name": "stair_row",
+  "description": "楼梯行/环推导器(治'外墙阶梯朝向一直错'): facing/half 由几何推导不写 shape — 游戏放置时 shape replay 自动算转角(原版逻辑)。三模式: run 平推行(檐口/线脚/窗台/滴水, back=高背朝向) / run 上升行(dy!=0, 每步+1y, facing 自动=上坡, smooth=踏面踢面交替光滑梯段) / ring 矩形环(back_mode=out 背朝外自动 inner 转角=檐口环/帽线;in 背朝心自动 outer=女儿墙)。L 弯拆两段各跑一遍, 转角格游戏自动补形。",
+  "when_to_use": "任何成排楼梯: 檐口线脚/墙裙/窗台压线/屋顶边行/光滑梯段/檐口环/女儿墙。徒手摆一排楼梯的朝向错误率实测最高 — 一律跑本脚本。",
+  "use_for": "檐口/线脚/墙裙/压顶/梯段/帽线环/女儿墙环",
+  "params": {
+    "a": {"type": "[x,y,z]", "notes": "起点(run)/最小角(ring)"},
+    "b": {"type": "[x,y,z]", "notes": "终点(run, 轴对齐)/最大角(ring, 同 y)"},
+    "mode": {"type": "enum", "values": ["run", "ring"], "default": "run", "notes": "直行/矩形环"},
+    "back": {"type": "enum", "values": ["north", "south", "east", "west"], "default": "north", "notes": "run 平推: 高背朝向(檐口=朝屋面/脊, 墙裙=朝墙, 压顶=朝外)"},
+    "back_mode": {"type": "enum", "values": ["out", "in"], "default": "out", "notes": "ring: out=背朝外(踏步向环心, inner 转角) / in=背朝心(outer)"},
+    "half": {"type": "enum", "values": ["bottom", "top"], "default": "bottom", "notes": "top=倒挂(檐下/拱腹/吊顶线脚)"},
+    "smooth": {"type": "bool", "default": false, "notes": "上升行: 踏面/踢面交替(光滑梯段)"},
+    "material": {"type": "block id (*_stairs)", "default": "minecraft:spruce_stairs", "notes": "楼梯 id"}
+  },
+  "pitfalls": [
+    "输出只带 facing/half 不带 shape — 不是漏, 是设计: 转角由游戏放置时自动算;别手填 shape",
+    "L/U 弯拆成多段直行各跑一遍, 转角交接格游戏自动补 corner 形 — 别自己算转角 shape(实测翻车高发)",
+    "run 上升行要求 |dy|=水平步数(每步一格高差), 不满足就调端点",
+    "facing=上行方向=高背侧: 檐口行 back 朝屋面/脊, 朝反了一排全倒挂"
+  ],
+  "validators": ["stair_corner_check"],
+  "example": "python patterns/stair_row.py --params '{\"a\":[0,-51,0],\"b\":[10,-51,0],\"back\":\"north\",\"material\":\"minecraft:spruce_stairs\",\"half\":\"top\"}' --out eave.json && python patterns/stair_row.py --params '{\"a\":[0,-51,0],\"b\":[10,-51,6],\"mode\":\"ring\",\"back_mode\":\"out\",\"material\":\"minecraft:spruce_stairs\",\"half\":\"top\"}' --out eave_ring.json"
+}
