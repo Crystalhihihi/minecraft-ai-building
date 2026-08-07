@@ -1,6 +1,67 @@
-# 交接文档 — 2026-07-31 傍晚(供压缩上下文后恢复)
+# 交接文档 — 新窗口冷启动恢复指南(2026-08-07 深夜封存,下次 08-12 续)
 
-> 读我即恢复全部关键状态。详细历史:git log;实验数据:`docs/experiments.md`;延后事项:`docs/BACKLOG.md`;调研:`docs/research/`(reflib 13 篇)。
+> **新窗口第一句给 AI:"读 docs/HANDOFF.md 置顶节"——本节即是全部。** 下方 ①-⑥ 快照为历史过程,需要细节再翻;更早见 git log。
+
+## 0. 三十秒恢复
+
+- **git 顶**:`b015c6b`(树 v5)← `6c79835`(山墙补板+活板门清退)← `741aead`…工作区干净
+- **部署**:`D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\aibuild-1.0.0.jar` = 最新(含一切,构建=`cd aibuild-mod && ./gradlew build`)
+- **系统在跑**:访谈(提案制)→风格卡(19)→抽签(参数+构图轴)→生成器(patterns/ 50+,卡 INDEX.md 索引)→验收器(validators/ 9)→渲染自检。资产文件 ~160
+
+## 1. 用户 08-12 回来时带什么(= 开工输入)
+
+1. **找茬反馈**:这几天他实机找的问题(截图/坐标/会话号)——按点修,先取证再动刀
+2. **手搓的房屋细节样板**:他照 `docs/specs/house-detail-catalog.md`(房顶/墙面/门窗/支撑/内部/场地 37 件+反例清单)手搓的参考件。**先问他在哪个世界/坐标**(或看他放进 `优秀建筑图片/` 的截图),然后:逐件读回(get_region_summary/render)→ 蒸馏成生成器参数/新卡 → 迭代到他点头
+3. 可能的额度:他会员周期性刷新,大活(蒸馏批/精灵标杆)等额度足再上
+
+## 2. 任务队列(按序,别主动扩 scope)
+
+1. **修他带回来的茬**(最高优先,树和房都可能)
+2. **蒸馏手搓样板**(房顶件: 脊/檐/谷/山墙收边;支撑: 牛腿/托臂/斜撑;装饰件按目录)
+3. **精灵树标杆六条**(验收锚点=他 8-06 发的 bilibili 巨树广场图): 干发光脉络/冠内光点/垂藤/环形拱廊(arcade_ring 生成器没有)/拼花广场/花坛基座——冻结到样板蒸馏后,除非他点名
+4. L 谷沟深化(屋顶交接,等他实机观感);grove 多柱林(wrapper 多次调用);aerial_roots 悬空根(引擎钩子);grabcraft-to-schema 评估
+5. 冻结中: B12 大串烧/B1 集群(精灵标杆后);外部 packs 目录(单人用,只做本地投放口)
+
+## 3. 树体系现状(v5,刚定稿别乱动)
+
+- giant_tree.py: 干形四式(straight/curved 弯幅随高 2.5-6/leaning 偏锋风骨=生长点吸引+根锚+冠心偏+顺风枝扇/spiral+盘旋棱脊), 收分 tip=0.4ts 全程圆台+削角成圆(size>=3), 干径 2-12, 叶形两函数 crown=layers(云片簇生)|blob(球面辐条成球), 顶穹团, 比例护栏按 preset 拒生成
+- 15 preset(含 fluffy_crown 蓬松档冠幅≈0.75-0.95 高 / cherry_blossom 樱花等 4 材质卡);species 9 种
+- conifer_spire(针叶裙边)/palm_umbrella(棕榈/平顶)/weeping_tree(垂柳)独立;tree_common 共享 kernel
+- **形态=卡不是文件, 文件=算法族**(与用户对齐的架构结论)
+- 离线验证工具: `scratch/giant_tree/tree_png.py`(matplotlib voxel 渲染,**单视角会骗人,评形态必须 az 多角+纯叶/纯木对照或直接读块数据**)
+
+## 4. 房屋体系现状
+
+- 手册(WorkDir.java AGENTS_MD): INTERIOR FIRST 从里到外五阶段;生成器两层制(正确性关键件强制: 屋顶/楼梯/门口/连廊/平面/整地/镜像/分隔/宿主树/gable 补板;其余=可删改草稿);装饰预算(先 facade_scan 扫锚点,按 decoration_menu.md 配方,次立面可留白)
+- 山墙: gable_roof/roof_plan `end_fill`=墙身主材必填(roof_plan 自动只填外露端);**活板门全线禁用**(window_trim 无百叶花箱/eaves_trim fascia→slab/balcony/chimney/accent 已清)
+- 已知待打磨: L 谷沟交接观感;家具/细节口味(等样板蒸馏)
+
+## 5. 血泪纪律(每条都是事故换的)
+
+- **DEFAULT_ASSETS 手工清单**(WorkDir.java:37 起): 新 .py/.json/卡不登记=游戏 agent 收不到;新文件四处同步(DEFAULT_ASSETS+INDEX.md+手册提及+.json 卡)
+- **部署 jar 前必查游戏进程**: powershell `Get-CimInstance Win32_Process java.exe` 过滤命令行 Mojang|natives 排除 Daemon,**计数=0 才覆盖**(热替换曾炸 JVM 缓存)
+- **git 提交每次向用户确认**(他说提交才提交);scratch/ 在 .gitignore,收录用 `git add -f`
+- 用户测试期间并行子代理 ≤2;他的 5 小时额度会耗尽,断线后 agent 状态用 TaskList 查
+- Windows python 不认 /d/ /tmp;JSON 写盘带 encoding='utf-8';控制台中文乱码是 GBK 显示问题不是文件坏
+- jar≈2.7-2.8MB 稳定: 文本资源 zip 高压缩,加生成器几乎不涨,不是没打进去
+- 游戏里 agent 状态: saves/<世界>/aibuild/sessions.json;sessions/s<N>/logs/ 有全部 plan/渲染/调用记录(取证先翻这)
+
+## 6. 环境事实
+
+- mod 项目: `aibuild-mod/`(Fabric 1.21,Gradle);bridge: `mc-mcp-bridge/`;dev server: `cd aibuild-mod && ./gradlew runServer`(后台,死活用 `python run/rcon.py "list"` 探)
+- 测试存档: PCL saves/ 下 `111`(超平坦)/`新的世界(4)(5)(6)`(最近两轮压测在 6)
+- 参考库: `优秀建筑图片/`(用户口味样本), `精灵树图片/`(Ori 参照), `docs/research/`(调研: tree-forms/realworld-vocab/detail-techniques/giant-tree-v3-status 等), `scratch/`(实验场,gc_probe 3666 件语料+53182 层图 PNG)
+- 他的机器挂着跑抓取没问题(零额度);别动 `D:\建筑资产`(另一个 agent 的产出区,只读)
+
+## 7. 我不知道的(别猜,问或查)
+
+- 用户样板建在哪(回来先问世界+坐标)
+- 他找茬找出了什么(等他反馈,别预判)
+- dev server 当前死活(用 RCON 探)
+- 额度余量(大活前先问)
+
+---
+# 历史快照(过程记录,新窗口可略读)
 
 ## 2026-08-07 深夜快照⑥(树体系定稿批: v5 球形/偏锋风骨/削圆收分 + 压测修复)
 
