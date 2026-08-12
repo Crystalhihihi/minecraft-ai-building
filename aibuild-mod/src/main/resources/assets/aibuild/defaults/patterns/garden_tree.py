@@ -6,8 +6,9 @@ hand-building recipes from custom-tree tutorials, fully deterministic
 (no worldgen randomness — same params, same tree):
 - visible branch structure: branches climb OUTWARD as face-connected
   staircases (never diagonal floaters), each tipped with a leaf blob;
-- canopies are ellipsoid blobs with hashed surface carving (airy edges,
-  not solid balls) — sized per species and per `size` (3 体量);
+- canopies are metaball density-field surfaces (tree_common.Field, 阶段2
+  迁移: 团源同场融合+噪声边缘, 不再是镂空椭球串) — sized per species and
+  per `size` (3 体量);
 - species silhouettes: oak = branched round crown (large gets a 2x2 trunk
   + buttress roots); birch = tall slim trunk + elongated canopy; cherry =
   low fork, two slanted stems + wide flat pink canopy; spruce = conical
@@ -32,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from roof_common import die, write_out
+from tree_common import Field
 
 DEFAULTS = {
     "origin": [0, 64, 0],          # [x,y,z] trunk base cell (min corner of the trunk) at ground y
@@ -73,6 +75,9 @@ class Tree:
         self.fence = "minecraft:%s_fence" % wood
         self.slab = "minecraft:%s_slab" % wood
         self.logs, self.leaves = {}, set()
+        # 阶段2: 叶全部走 metaball 密度场(tree_common.Field); 种子沿用
+        # origin 派生(本生成器无 seed 参数, 确定性锚 origin)
+        self.field = Field(int(h3(self.ox, self.oy, self.oz) * 8))
 
     def put_log(self, x, y, z, axis="y"):
         self.logs[(x, y, z)] = "%s[axis=%s]" % (self.log, axis)
@@ -82,18 +87,21 @@ class Tree:
         self.logs[(x, y, z)] = spec
 
     def blob(self, cx, cy, cz, rx, ry, carve=0.12):
-        """Ellipsoid leaf blob with hashed surface carving."""
-        for dy in range(-ry, ry + 1):
-            for dx in range(-rx, rx + 1):
-                for dz in range(-rx, rx + 1):
-                    v = (dx / (rx + 0.0)) ** 2 + (dy / (ry + 0.0)) ** 2 + (dz / (rx + 0.0)) ** 2
-                    if v > 1.0:
-                        continue
-                    wx, wy, wz = self.ox + cx + dx, self.oy + cy + dy, self.oz + cz + dz
-                    if v > 0.5 and h3(wx, wy, wz) < carve:
-                        continue          # air pocket on the surface
-                    if (cx + dx, cy + dy, cz + dz) not in self.logs:
-                        self.leaves.add((cx + dx, cy + dy, cz + dz))
+        """叶团 → 场源簇(阶段2 场成面, 旧镂空椭球废弃): 心源+6 向环源,
+        同场融合成连贯团(噪声边缘取代逐格 carve; carve 形参保留兼容)。"""
+        flat = max(0.5, min(1.2, ry / max(0.1, rx)))
+        self.field.add(cx, cy, cz, max(0.7, rx * 0.62), flat)
+        if rx >= 2:
+            for k in range(6):
+                a = math.pi * k / 3
+                self.field.add(cx + round(rx * 0.5 * math.cos(a)), cy,
+                               cz + round(rx * 0.5 * math.sin(a)),
+                               max(0.6, rx * 0.42), flat)
+
+    def rasterize_field(self):
+        """全部场源一次成面(小树尺度: 短波长噪声, 壳 2 层)。"""
+        self.leaves |= self.field.rasterize(
+            self.logs, T=0.55, amp=0.42, noise_L=2.5, shell=2)
 
     def branch(self, bx, by, bz, d, reach, tip_r, level=1):
         """Face-connected ascending staircase outward; blob at the tip.
@@ -150,18 +158,17 @@ class Tree:
                 self.put_log(bx + 2 * dx + px, 0, bz + 2 * dz + pz, ax)  # grounded outer root
 
     def drape(self, cx, cy, cz, r):
-        """willow 垂枝: leaf strands hang from the crown rim, deterministic.
-        A strand starts only under a real rim leaf, so it never floats."""
+        """willow 垂枝: 冠缘垂链场源(阶段2 场成面, 旧叶链直写废弃),
+        长 2-4 渐断; 垂链顶部与冠缘场源同场融合 → 不浮空。"""
         for k in range(max(8, r * 4)):
             a = 2 * math.pi * k / max(8, r * 4)
             dx, dz = round(r * math.cos(a)), round(r * math.sin(a))
-            if (cx + dx, cy, cz + dz) not in self.leaves:
-                continue
             wx, wz = self.ox + cx + dx, self.oz + cz + dz
             length = 2 + int(h3(wx, self.oy + cy, wz) * 3)
             for m in range(1, length + 1):
                 if (cx + dx, cy - m, cz + dz) not in self.logs:
-                    self.leaves.add((cx + dx, cy - m, cz + dz))
+                    self.field.add(cx + dx, cy - m, cz + dz,
+                                   0.85 * (1.0 - 0.3 * m / (length + 1)), 0.9)
 
     def prune_orphans(self):
         """Drop leaf cells not face-connected to the woody skeleton (through
@@ -242,21 +249,24 @@ def build(p):
         t.trunk(h)
         for y in range(2, h + 1):
             r = max(0, round(cr * (h - y) / max(1, h - 2)))
-            for dx in range(-r, r + 1):
-                for dz in range(-r, r + 1):
-                    if (dx, dz) == (0, 0):
-                        continue
-                    if abs(dx) == r and abs(dz) == r and r > 1:
-                        continue                      # cut corners
-                    if h3(t.ox + dx, t.oy + y, t.oz + dz) < 0.10:
-                        continue
-                    t.leaves.add((dx, y, dz))
-        t.leaves.add((0, h, 0))                       # tip
-        t.leaves.add((0, h + 1, 0))
+            if r < 1:
+                t.field.add(0, y, 0, 0.85, 0.8)             # 尖段层心(防露干)
+                continue
+            # 逐层环源(阶段2 场成面; 层环半径随高递减 — 与 conifer_spire 同构)
+            for k in range(max(4, int(2 * math.pi * r / 1.5))):
+                a = 2 * math.pi * k / max(4, int(2 * math.pi * r / 1.5))
+                dx, dz = round(r * math.cos(a)), round(r * math.sin(a))
+                if h3(t.ox + dx, t.oy + y, t.oz + dz) < 0.10:
+                    continue
+                t.field.add(dx, y, dz, 1.0, 0.7)
+            t.field.add(0, y, 0, 0.9, 0.7)                # 层心
+        t.field.add(0, h, 0, 1.0, 0.8)                    # tip
+        t.field.add(0, h + 1, 0, 0.9, 0.8)
         if variant == "buttress_root":
             t.buttress()
     if variant == "willow" and canopy:
         t.drape(*canopy)                              # spruce keeps its clean cone
+    t.rasterize_field()                               # 场源一次成面
     if p["branching"] or p["taper"] or variant != "none":
         t.prune_orphans()                             # new-mode trees: no leaf floats
     return t.emit()

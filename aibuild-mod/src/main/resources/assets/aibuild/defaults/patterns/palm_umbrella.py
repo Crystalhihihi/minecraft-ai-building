@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """palm_umbrella.py — 棕榈/平顶伞盖树生成器.
 
-与 giant_tree(阔叶云片)不同几何:
+与 giant_tree(阔叶云片)不同几何(阶段2: 叶全部 metaball 场源成面):
 - palm 棕榈: 微弯 1x1 细干, 顶生 7-9 条羽状叶(抛物线先扬后垂, 无木纯叶,
-  中缝交错侧叶读羽状), 冠下 2-3 椰团(fence 块)
+  脊源+交错侧源场成面 → 叶条有体积, carve→沿条透缝), 冠下 2-3 椰团(fence 块)
 - flat_top 平顶金合欢: 干 0.75h 处 2-4 短枝上扬(60% 概率基部分叉双干),
-  顶部单块平顶微穹叶盘(半径 crown_radius, 撕裂边)
+  顶部单块平顶微穹叶盘(盘面方格场源+噪声撕裂缘)
 
 参考: 热带棕榈/稀树草原金合欢形态, MC 社区惯例。
 Fully deterministic; stdlib only; tree_common kernel.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from roof_common import die, write_out
-from tree_common import SPECIES, h3, rhu, vline, Voxel
+from tree_common import SPECIES, h3, rhu, vline, Voxel, Field
 
 DEFAULTS = {
     "origin": [0, 64, 0],
@@ -56,7 +56,10 @@ def build(p):
         top = (rhu(x), h, rhu(z))
         for cc in vline(prev, top):
             t.put_wood(*cc, "%s[axis=y]" % t.log)
-        # ---- 羽状叶: 7-9 条抛物线叶(先扬后垂)
+        # ---- 羽状叶: 7-9 条抛物线叶(先扬后垂; 阶段2: 叶链改场源成面,
+        # 叶条有体积不再是 1 格线; carve→沿条透缝)。K 小=条带细(1.8),
+        # 羽条间距拉开才读得出"羽"而不是一坨
+        fld = Field(p["seed"], K=2.0)
         n = rng.randint(7, 9)
         az0 = rng.uniform(0, 2 * math.pi)
         for k in range(n):
@@ -64,6 +67,7 @@ def build(p):
             fx, fz = top[0], top[2]
             L = r + rng.randint(-1, 1)
             first = None
+            prev_sp = None
             for s in range(L):
                 # 抛物线: 前 40% 微扬, 之后垂落
                 frac = s / max(1, L - 1)
@@ -76,15 +80,20 @@ def build(p):
                     for cc in vline(top, first):
                         if cc not in t.wood:
                             t.leaves.add(cc)
-                if h3(fx, fy, fz, p["seed"]) < p["carve"]:
-                    continue
-                t.leaves.add((fx, fy, fz))
+                # 脊源沿 vline 面连通格逐格布(对角步进不断管 → prune 安全;
+                # 脊源不吃 carve, 透缝只由侧源/噪声扛)
+                cur_sp = (fx, fy, fz)
+                for cc in (vline(prev_sp, cur_sp)[1:] if prev_sp else [cur_sp]):
+                    fld.add(cc[0], cc[1], cc[2], 0.85, 0.7)
+                prev_sp = cur_sp
                 # 中缝交错侧叶(羽状)
                 side = 1 if s % 2 == 0 else -1
                 sx = fx + rhu(math.cos(faz + math.pi / 2) * side)
                 sz = fz + rhu(math.sin(faz + math.pi / 2) * side)
                 if h3(sx, fy, sz, p["seed"] ^ 7) >= p["carve"]:
-                    t.leaves.add((sx, fy, sz))
+                    fld.add(sx, fy, sz, 0.6, 0.7)
+        t.leaves |= fld.rasterize(t.wood, T=0.55, amp=0.3 + p["carve"],
+                                  noise_L=max(2.5, r / 2.0), shell=2)
         # ---- 椰团
         for _ in range(rng.randint(2, 3)):
             cx = top[0] + rng.randint(-1, 1)
@@ -130,19 +139,19 @@ def build(p):
             for cc in vline((tx0, ty0, tz0), (ccx, cy, ccz)):
                 if cc not in t.wood:
                     t.leaves.add(cc)
-        for dx in range(-r, r + 1):
-            for dz in range(-r, r + 1):
-                d = math.sqrt(dx * dx + dz * dz)
-                rag = (h3(dx, cy, dz, p["seed"]) - 0.5) * 1.4
-                if d > r + rag:
+        # ---- 平顶叶盘: 盘面方格场源(阶段2 场成面, 微穹保留; 旧逐格直写废弃)
+        fld = Field(p["seed"])
+        for gx in range(-r, r + 1, 2):
+            for gz in range(-r, r + 1, 2):
+                d = math.sqrt(gx * gx + gz * gz)
+                if d > r:
                     continue
-                dome = 1 if d < r * 0.35 else 0          # 微穹
-                if h3(dx, cy + 55, dz, p["seed"]) < p["carve"]:
-                    continue
-                cell = (ccx + dx, cy + dome, ccz + dz)
-                if cell not in t.wood:
-                    t.leaves.add(cell)
-        t.tuft(ccx, cy + 1, ccz, max(1.5, r * 0.3), p["carve"])
+                fld.add(ccx + gx, cy, ccz + gz, 1.5, 0.45)
+                if d < r * 0.28:                        # 微穹(缓起, 不是台阶)
+                    fld.add(ccx + gx, cy + 1, ccz + gz, 1.0, 0.5)
+        fld.add(ccx, cy + 1, ccz, max(1.5, r * 0.3), 0.6)
+        t.leaves |= fld.rasterize(t.wood, T=0.55, amp=0.3 + p["carve"],
+                                  noise_L=max(2.5, r / 2.0), shell=2)
 
     t.prune(1)
     return t.emit()

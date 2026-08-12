@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """conifer_spire.py — 针叶塔形树(云杉/雪松/松)生成器.
 
-与 giant_tree(阔叶云片)不同几何: 通直细干 + 逐层裙边(半径随高度递减,
-边缘下垂+撕裂), 三形态:
-- spire 云杉锥: 从 0.25h 起每层环盘, 半径线性收成尖塔, 裙边下垂 1 格
+与 giant_tree(阔叶云片)不同几何: 通直细干 + 逐层环裙边(半径随高度递减,
+外环垂唇下垂, metaball 密度场成面 — 阶段2 kernel 迁移, 旧盘链近似废弃),
+三形态:
+- spire 云杉锥: 从 0.25h 起逐层环(真云杉=枝轮非满盘), 半径线性收成尖塔,
+  裙边下垂 1 格, 层间竖向融合
 - cedar 雪松: 3-5 块厚平板层, 层间露空气(分层塔)
 - pine 松: 0.55h 以下光干, 顶部 2-4 个扁伞团(意大利伞松)
 
 参考: 真实针叶形态 + MC 社区杉树惯例(裙边=叶层外圈下垂 1 格)。
-Fully deterministic; stdlib only; tree_common kernel.
+Fully deterministic; stdlib only; tree_common kernel(Field 密度场).
 Output: {"blocks":[{x,y,z,block}...]}.
 
 Usage:
@@ -19,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from roof_common import die, write_out
-from tree_common import SPECIES, h3, rhu, vline, Voxel
+from tree_common import SPECIES, rhu, vline, Voxel, Field
 
 DEFAULTS = {
     "origin": [0, 64, 0],
@@ -53,26 +55,33 @@ def build(p):
                 t.put_wood(*cc, "%s[axis=y]" % t.log)
         prev = (rhu(c + jx), y, rhu(c + jz))
     tx, tz = c + jx, c + jz
+    ftx, ftz = rhu(tx), rhu(tz)
+
+    # ---- 叶: metaball 场源(阶段2 kernel 迁移) — 旧版逐格直写 leaves 的
+    # 盘链近似废弃; 真云杉=逐层环(枝轮, 半径随高递减)+裙边下垂, 环源同场
+    # 成面天然连续(层间竖向融合, 层内环面+噪声撕裂缘)
+    fld = Field(p["seed"])
 
     def skirt(y, r, droop=True, solid_disc=True):
-        """一层裙边环盘: 半径 r(带 ±10% 层抖动+±1 格边撕裂), 外圈下垂 1 格。"""
+        """一层裙边的场源: 外环(+垂唇 y-1 = 裙边下垂), solid_disc 补内环;
+        层心小源防穿。环源成面后 = 连续环面带撕裂缘(非满盘非球串)。"""
         r = r * rng.uniform(0.9, 1.1)
-        ri = max(1, int(round(r)))
-        for dx in range(-ri, ri + 1):
-            for dz in range(-ri, ri + 1):
-                d = math.sqrt(dx * dx + dz * dz)
-                rag = (h3(dx, y, dz, p["seed"]) - 0.5) * 1.6   # 边撕裂 ±0.8
-                if d > r + rag or (not solid_disc and d < r - 1.2 + rag):
-                    continue
-                if h3(dx, y + 99, dz, p["seed"]) < p["carve"]:
-                    continue
-                cell = (rhu(tx) + dx, y, rhu(tz) + dz)
-                if cell not in t.wood:
-                    t.leaves.add(cell)
-                if droop and d > r - 1.3 + rag:               # 裙边: 外圈下垂 1 格
-                    cell2 = (cell[0], y - 1, cell[2])
-                    if cell2 not in t.wood and y - 1 > 0:
-                        t.leaves.add(cell2)
+        src = min(2.0, max(1.2, r * 0.4))
+        step = src * 1.5
+        n = max(6, int(2 * math.pi * r / step))
+        for k in range(n):
+            az = 2 * math.pi * k / n
+            ring = (ftx + rhu(math.cos(az) * r), ftz + rhu(math.sin(az) * r))
+            fld.add(ring[0], y, ring[1], src, 0.6)
+            if droop:                                # 垂唇(裙边下垂 1 格)
+                fld.add(ring[0], y - 1, ring[1], src * 0.9, 0.7)
+        if solid_disc and r > 2.2:                   # 满盘层补内环(雪松平板)
+            ri = r * 0.5
+            for k in range(max(4, int(2 * math.pi * ri / step))):
+                az = 2 * math.pi * k / max(4, int(2 * math.pi * ri / step))
+                fld.add(ftx + rhu(math.cos(az) * ri), y,
+                        ftz + rhu(math.sin(az) * ri), src, 0.6)
+        fld.add(ftx, y, ftz, max(0.9, r * 0.35), 0.6)
 
     form = p["form"]
     if form == "spire":
@@ -82,8 +91,8 @@ def build(p):
             if (y - y0) % dy:
                 continue
             frac = (y - y0) / max(1, h - y0)
-            skirt(y, rb * (1 - frac * 0.85) + 0.5)
-        t.tuft(rhu(tx), h - 1, rhu(tz), 1.6, p["carve"] * 0.5)   # 尖顶
+            skirt(y, rb * (1 - frac * 0.85) + 0.5, solid_disc=False)  # 逐层环
+        fld.add(ftx, h - 1, ftz, 1.6, 0.8)          # 尖顶
     elif form == "cedar":
         n_plates = max(3, min(5, h // 8))
         for k in range(n_plates):
@@ -91,7 +100,7 @@ def build(p):
             r = rb * (1 - 0.7 * k / max(1, n_plates - 1)) + 0.5
             for yy in (y, y + 1):
                 skirt(yy, r, droop=(yy == y))
-        t.tuft(rhu(tx), h - 1, rhu(tz), 1.5, p["carve"] * 0.5)
+        fld.add(ftx, h - 1, ftz, 1.5, 0.8)
     else:  # pine
         n_puffs = rng.randint(2, 4)
         for k in range(n_puffs):
@@ -99,8 +108,11 @@ def build(p):
             px = tx + math.cos(az) * rb * 0.4
             pz = tz + math.sin(az) * rb * 0.4
             py = h - rng.randint(1, max(2, h // 6))
-            t.tuft(rhu(px), py, rhu(pz), rb * rng.uniform(0.45, 0.6), p["carve"])
-        t.tuft(rhu(tx), h - 1, rhu(tz), rb * 0.5, p["carve"])
+            fld.add(rhu(px), py, rhu(pz), rb * rng.uniform(0.45, 0.6), 0.65)
+        fld.add(ftx, h - 1, ftz, rb * 0.5, 0.65)
+    # 成面: carve(旧镂空率)→ 噪声振幅(边缘撕裂度); T 略高=针叶透光感
+    t.leaves |= fld.rasterize(t.wood, T=0.55, amp=0.3 + p["carve"],
+                              noise_L=max(2.5, rb / 2.0), shell=2)
 
     t.prune(p["trunk"])
     return t.emit()

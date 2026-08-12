@@ -2,9 +2,10 @@
 """weeping_tree.py — 垂柳(垂坠树)生成器.
 
 与 giant_tree 不同几何: 粗壮短干(0.35-0.45h) + 3-5 主枝陡峭上扬外展 +
-**垂坠叶帘**(从主枝外侧段和帘环垂下的叶链, 长 0.35-0.6h, 带摆动与透缝,
-末端渐稀) + 冠顶簇团(读得出是树, 不是一团线)。
-垂坠是重力向下生长, 与一切上扬逻辑相反 — 单独成生成器(拆分决议)。
+**垂坠叶帘**(重力垂链: 主枝外侧段+帘环锚点向下, 顶粗渐细+尾部渐断,
+相邻垂链顶部场融合成帘幕 — 阶段2 metaball 场成面) + 冠顶簇团(读得出
+是树, 不是一团线)。垂坠是重力向下生长, 与一切上扬逻辑相反 — 单独成
+生成器(拆分决议)。
 
 参考: GrabCraft willow 蓝图 + 真实垂柳形态(帘从枝外沿垂下, 帘内有透缝)。
 Fully deterministic; stdlib only; tree_common kernel.
@@ -18,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from roof_common import die, write_out
-from tree_common import SPECIES, h3, rhu, vline, Voxel
+from tree_common import SPECIES, h3, rhu, vline, Voxel, Field
 
 DEFAULTS = {
     "origin": [0, 64, 0],
@@ -39,6 +40,7 @@ def build(p):
     top_y = int(h * rng.uniform(0.35, 0.45))
     for y in range(top_y):
         t.bole_section(c, c, y, p["trunk"])
+    fld = Field(p["seed"])          # 叶全部走 metaball 场源(阶段2)
 
     # ---- 主枝: 3-5 条陡峭上扬外展, 记录链(垂帘锚点)
     n_limbs = rng.randint(3, 5)
@@ -60,16 +62,18 @@ def build(p):
             t.put_wood(*cell, "%s[axis=%s]" % (
                 t.log, "x" if abs(math.cos(az)) >= abs(math.sin(az)) else "z"))
         limb_chains.append(chain)
-        t.tuft(chain[-1][0], chain[-1][1], chain[-1][2], r * 0.3, p["carve"] * 0.6)
+        fld.add(chain[-1][0], chain[-1][1], chain[-1][2], r * 0.3, 0.8)
     # 冠顶中心团(读得出是树)
-    t.tuft(rhu(c), top_y + int(r * 0.5), rhu(c), max(2.0, r * 0.45), p["carve"] * 0.6)
+    fld.add(rhu(c), top_y + int(r * 0.5), rhu(c), max(2.0, r * 0.45), 0.8)
 
-    # ---- 垂坠叶帘: 主枝外侧 50% 的节点 + 帘环, 向下垂链
+    # ---- 垂坠叶帘(真垂坠修形, 阶段2): 主枝外侧 50% 的节点 + 帘环为锚,
+    # 重力垂链 = 沿随机游走链逐格布场源, 顶粗(1.5)渐细(0.7), 尾部概率
+    # 渐断; 相邻垂链顶部同场融合成帘幕, 尾段各自散开成条 — 不是疙瘩串
     anchors = []
     for chain in limb_chains:
-        anchors.extend(chain[len(chain) // 2:])
+        anchors.extend(chain[len(chain) // 2::2])      # 隔一取一, 帘条才分开
     ring_y = top_y + int(r * 0.4)
-    n_ring = max(6, int(2 * math.pi * r * 0.8 / 2))
+    n_ring = max(6, int(2 * math.pi * r * 0.8 / 2.5))  # 帘环间距 2.5
     for k in range(n_ring):
         az = 2 * math.pi * k / n_ring
         anchors.append((rhu(c + math.cos(az) * r * 0.8), ring_y,
@@ -83,16 +87,19 @@ def build(p):
             y = ay - k
             if y <= 1:
                 break
-            fade = 1.0 - 0.6 * k / max(1, length)        # 末端渐稀
-            sx += rng.uniform(-0.3, 0.3)
-            sz += rng.uniform(-0.3, 0.3)
+            sx += rng.uniform(-0.25, 0.25)
+            sz += rng.uniform(-0.25, 0.25)
             cell = (rhu(ax + sx), y, rhu(az + sz))
             if cell in t.wood:
                 continue
-            if h3(cell[0], cell[1], cell[2], p["seed"] ^ 31) > fade * 0.25:
-                t.leaves.add(cell)
-            if k < 3 and h3(cell[0], y, cell[2], p["seed"] ^ 77) < 0.5:
-                t.leaves.add((cell[0] + (1 if cell[0] % 2 == 0 else -1), y, cell[2]))
+            tail = k / max(1, length)
+            if tail > 0.6 and h3(cell[0], cell[1], cell[2],
+                                 p["seed"] ^ 31) < (tail - 0.6) * 1.5:
+                continue                                 # 尾部渐断
+            fld.add(cell[0], y, cell[2], 1.05 * (1.0 - 0.48 * tail), 0.9)
+    # 成面: 垂链是 1-3 格细条, 噪声收小(amp 0.2)防断链; T 低=帘更垂实
+    t.leaves |= fld.rasterize(t.wood, T=0.5, amp=0.2,
+                              noise_L=max(2.5, r / 2.0), shell=2)
     t.prune(p["trunk"])
     return t.emit()
 

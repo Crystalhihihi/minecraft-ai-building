@@ -4,10 +4,11 @@
 
 ## 0. 三十秒恢复
 
-- **git 顶**:`c527b3c`(树 v11 次主干+簇径缩放)← `c1a89a3`(v10 主枝粗分档/纵纹锚定)← `1a0caa5`(v8+v9 分枝骨架/叶形四式/aesthetic)← `5c8a4a5`(v6+v7 爬根/护栏/fantasy 系)…工作区干净
-- **部署**:`D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\aibuild-1.0.0.jar` = 最新(2026-08-08 01:49, 构建=`cd aibuild-mod && ./gradlew build`)
+- **git 顶**:`c527b3c`(树 v11 次主干+簇径缩放)← `c1a89a3`(v10 主枝粗分档/纵纹锚定)← `1a0caa5`(v8+v9 分枝骨架/叶形四式/aesthetic)← `5c8a4a5`(v6+v7 爬根/护栏/fantasy 系)…**工作区有未提交改动: 密度场叶图元(阶段1)**
+- **树全线修复(grill-me 定稿,计划=docs/plans/2026-08-08-tree-overhaul.md)**: 阶段1+2 已完成离线验证,**已暂停,08-12 续阶段3**(stubby+fork;有 8:57 one-shot cron 提醒)。阶段1=密度场叶图元(metaball+相干噪声等值面, 壳体+内部空);阶段2=kernel 下沉 tree_common.py(Field/vnoise3,旧 tuft/_tuft 已删)+conifer/palm/weeping/garden 四器迁移+针叶层环裙边/垂柳真垂坠两笔旧债;giant_tree 5 preset 回归逐字节一致。产物 scratch/giant_tree/df_*(阔叶)/df2_*(其余,基名=终版,_b=改前对照)
+- **部署**:`D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\aibuild-1.0.0.jar` = 最新(2026-08-08 14:57, 构建=`cd aibuild-mod && ./gradlew build`;含密度场阶段1+2+价格分档);**游戏 agent 模型已切 `deepseek/v4-flash`**(`<游戏目录>/aibuild/config.json`,原 k3-256k;费用粗估已按模型分档: flash ¥1/¥2/¥0.02 vs Kimi K3 ¥20/¥100/¥2[K3 官方价, 2026-08-13 账单重算修正: 旧记录误用 K2 价 ¥4/¥16/¥1, 实际全程 K3, 总额 ¥144→¥345, 详见 docs/quant-audit-2026-08-13.md; AgentRunner.roughCost 的分档常量待改])
 - **树体系**: 真四级分枝骨架(主干>次主干>枝干>侧枝>细条)+叶形四式(layers 云片层档/blob 球形/umbrella 伞形/mist 雾团, 各配骨架拓扑)+fantasy 幻想系 4 卡+decor(光点/灯笼/垂藤)+aesthetic 构图约束(8 扇区覆盖强制)+贴地爬根 crawl/flare+干径>=冠幅/4 护栏+簇径随冠幅缩放;20 preset
-- **待用户验收**(2026-08-08 白天): v10/v11 未实机测——伞盖成面/次主干/130 高巨树(≈11 万块, 放置慢别当卡死)/樱木纵纹配色;他说的"明天再说"
+- **待用户验收**(2026-08-08): ①密度场首版(优先! 阶段2 在其上施工): scratch/giant_tree/df_oak22/umb40/spirit60/fworld100.json 放树看实机剪影——球串是否消失、伞盖侧面、薄壳观感、块数(umb40 2.27万/fworld100 9.7万) ②v10/v11 旧账: 伞盖成面/次主干/130 高巨树(≈11 万块, 放置慢别当卡死)/樱木纵纹配色
 - **已知非 bug**: cherry/mist/gnarled 全 curved, spirit=spiral, ancient_oak/cherry 全 blob——"S 型干/两卡同风格"是卡面设计;若想直干地标樱花或拉开剪影差异, 调卡即可
 - **系统其余**: 访谈(提案制, 树二选一+约束/自由)→风格卡(19)→抽签→生成器(50+)→验收器(9)→渲染自检
 

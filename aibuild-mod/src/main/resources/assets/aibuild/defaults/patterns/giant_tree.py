@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 """giant_tree.py — 巨树(景观大树/巨树/地标树)生成器. EXPERIMENTAL.
 
+v11 (2026-08-08, 治"树叶全是一个个球" — 密度场重写, docs/plans/2026-08-08):
+- 叶图元: 独立镂空椭球簇 → metaball 密度场等值面。簇位摆放逻辑(四冠形
+  簇心/半径/flat)全部保留, 成面改为: 全簇心(含顶穹团)作场源叠加
+  F(p)=Σ max(0,1-d²)² (各向异性 flat 压扁, 2.2×半径截断, 逐源 splat),
+  低频 seeded value noise(vnoise3, 波长≈冠幅/3)扰动阈值, 剥壳 2-3 层
+  (冠内留空可藏灯); 逐格 carve 镂空废弃(高频毛边由边界飞叶 2 轮扛)
+- blob 壳层改为 v≈0.9 包络面上的场源环(同场融合, 不再直接栅格化薄皮)
+- 阶段2: 成面 kernel 下沉 tree_common.Field/vnoise3(行为不变, 回归逐字节
+  一致); _aesthetic_fix 补簇也走场源+重成面, 旧 _tuft 椭球已删
+
 v10 (2026-08-12 深夜, 治实机"伞盖不成面/主枝只有一根/树皮斑马"):
 - 主枝粗细分档: 叉口 max(2,ts//2) 宽(封顶 4=2x2 梁), 沿程 0.35/0.7 两档
   收细到 1 — 大树的粗枝也是干(多干合抱感), 1 宽梁撑不起巨冠
@@ -77,6 +87,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from roof_common import die, write_out
+from tree_common import Field
 
 DEFAULTS = {
     "origin": [0, 64, 0],       # [x,y,z] trunk base min corner, y = ground layer
@@ -942,25 +953,34 @@ class Tree:
                             self.log, axis if y == hgt - 1 else "y"))
 
     # ----------------------------------------------------------- foliage --
-    def _tuft(self, cx, cy, cz, r, carve, flat=0.8):
-        """单个叶簇: 带镂空的小椭球(carve 用 seeded hash, 确定性);
-        flat=y 向压扁度(layers 云片 0.5 扁, blob 球团 0.9 近圆)。
-        簇心记 tuft_centers(美学约束扇区覆盖统计用)。"""
+    def _field_tuft(self, cx, cy, cz, r, carve, flat=0.8):
+        """密度场版叶簇(v11): 不再逐簇栅格化, 只把簇心+半径收进 Field 场源表,
+        成面由 _rasterize_field 统一做; carve 形参保留兼容(逐簇镂空已由
+        场阈值噪声+剥壳取代)。簇心照记 tuft_centers(扇区覆盖统计用)。"""
         if hasattr(self, "tuft_centers"):
             self.tuft_centers.append((cx, cy, cz))
-        ry = max(1, int(round(r * flat)))
-        ri = max(1, int(round(r)))
-        for dy in range(-ry, ry + 1):
-            for dx in range(-ri, ri + 1):
-                for dz in range(-ri, ri + 1):
-                    v = (dx / r) ** 2 + (dy / max(0.6, r * flat)) ** 2 + (dz / r) ** 2
-                    if v > 1.0:
-                        continue
-                    if v > 0.5 and h3(cx + dx, cy + dy, cz + dz, self.seed) < carve:
-                        continue                    # 镂空
-                    cell = (cx + dx, cy + dy, cz + dz)
-                    if cell not in self.wood:
-                        self.leaves.add(cell)
+        self.field.add(cx, cy, cz, r, flat)
+
+    def _rasterize_field(self):
+        """metaball 密度场等值面(治"树叶全是一个个球"): 全部簇心(含顶穹团)
+        同场叠加, 低频 value noise(波长≈冠幅/3)扰动阈值, 剥壳 2-3 层(冠内
+        留空可藏灯) — 成面 kernel 在 tree_common.Field, 这里只定调参。
+        可重复调用(aesthetic 补簇后重成面): 幂等超集, 确定性不变。"""
+        field = getattr(self, "field", None)
+        if not field or not field.sources:
+            return
+        r = self.p["canopy_radius"]
+        ld = self.p["leaf_density"]
+        # 低频噪声扰动阈值 T_eff=T*(1+amp*(2n-1)): 剪影连贯起伏而非麻点
+        T = 0.5 - 0.15 * (ld - 0.6)                 # 密度高→阈值低→冠更饱满
+        # 扁平冠(伞形 flat 0.4)板厚有限, 噪声满幅会在薄处断开桥面穿孔
+        # (实机穿帮) → 收小 amp; 球团/雾团/层盘(>=0.45)厚冠满幅起伏
+        flat_min = min(s[4] for s in field.sources)
+        amp = 0.4 if flat_min >= 0.45 else 0.25
+        Ln = max(3, rhu(r / 3.0))
+        layers = 2 if r <= 10 else 3
+        self.leaves |= field.rasterize(self.wood, T=T, amp=amp,
+                                       noise_L=Ln, shell=layers)
 
     def foliage(self):
         """叶形四式(crown 参数, 骨架拓扑已在 grow 分形):
@@ -970,8 +990,10 @@ class Tree:
           枝梢簇下垂 1-2 格成伞沿;
         - mist 蓬松雾团: 侧枝加密, 小簇(0.13r)沿全部枝链高方差叠放,
           无层无壳;
-        - blob 圆整球形: 球面辐条+薄壳(v6, 真实系) / 幻想宽幅=枝梢簇并集。
-        共享: 顶穹团(治平顶/秃顶) + 边界 2 轮飞叶。leaf_density 控簇距/镂空。"""
+        - blob 圆整球形: 球面辐条+壳层场源环(v11) / 幻想宽幅=枝梢簇并集。
+        共享: 顶穹团(治平顶/秃顶) + 边界 2 轮飞叶。leaf_density 控簇距/场阈值。
+        v11: 簇位摆放逻辑不变, 成面改为 metaball 密度场等值面(全簇同场
+        融合+低频噪声阈值+剥壳 2-3 层, 冠内留空) — 剪影不再是球串。"""
         rng = self.rng
         ld = self.p["leaf_density"]
         if bool(self.p.get("no_foliage")):
@@ -990,6 +1012,7 @@ class Tree:
         tip = self.nodes[self.trunk_ids[-1]]
         h = self.p["height"]
         self.tuft_centers = []                          # 美学约束扇区统计用
+        self.field = Field(self.seed)                   # metaball 场源(v11)
 
         gap = base_r * (1.9 - 0.8 * ld) + 0.4   # 簇距随簇径缩放(小树也连续成冠)
         # 幻想档大叶团: 簇径上限按冠幅放开(0.3r, 封顶 7), 簇距拉稀 —
@@ -1019,10 +1042,10 @@ class Tree:
                 nid = chain[int(frac * (L - 1))]
                 x, y, z = self.nodes[nid]
                 tr = min(base_r * rng.uniform(0.7, 1.3), tcap)   # 大冠封顶防块数爆炸
-                self._tuft(round(x), round(y), round(z), tr, carve, flat)
+                self._field_tuft(round(x), round(y), round(z), tr, carve, flat)
             x, y, z = self.nodes[chain[-1]]      # 梢端大团(云片焦点, 半径封顶)
-            self._tuft(round(x), round(y), round(z),
-                       min(base_r * rng.uniform(1.0, 1.3), ecap), carve, flat)
+            self._field_tuft(round(x), round(y), round(z),
+                             min(base_r * rng.uniform(1.0, 1.3), ecap), carve, flat)
 
         limb_chains = []
         for li, _ldir, _steps in self.limb_ends:
@@ -1041,12 +1064,12 @@ class Tree:
             for tid in self.terminals:
                 x, y, z = self.nodes[tid]
                 tr = min(base_r * rng.uniform(0.9, 1.4), tcap)
-                self._tuft(round(x), round(y), round(z), tr, carve, flat)
+                self._field_tuft(round(x), round(y), round(z), tr, carve, flat)
             # 冠心团: 枝梢簇全在外圈, 冠中心上空会漏干(实测"心形缺口")
             mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
             mx, my, mz = self.nodes[mid]
-            self._tuft(round(mx), round(my + self.ry * 0.7), round(mz),
-                       min(base_r * 1.3, ecap), carve, flat)
+            self._field_tuft(round(mx), round(my + self.ry * 0.7), round(mz),
+                             min(base_r * 1.3, ecap), carve, flat)
             for chain in limb_chains:               # 主枝中段稀疏补簇(遮骨干)
                 tufts_along(chain, 0.6)
         elif crown_mode == "blob":
@@ -1065,12 +1088,12 @@ class Tree:
             for tid in self.terminals:
                 x, y, z = self.nodes[tid]
                 tr = min(base_r * rng.uniform(0.8, 1.2), tcap)
-                self._tuft(round(x), round(y) - rng.randint(1, 2), round(z),
-                           tr, carve, flat)
+                self._field_tuft(round(x), round(y) - rng.randint(1, 2), round(z),
+                                 tr, carve, flat)
             mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
             mx, my, mz = self.nodes[mid]
-            self._tuft(round(mx), round(my + self.ry * 0.4), round(mz),
-                       min(base_r * 1.4, ecap), carve, flat)
+            self._field_tuft(round(mx), round(my + self.ry * 0.4), round(mz),
+                             min(base_r * 1.4, ecap), carve, flat)
         elif crown_mode == "mist":
             # 蓬松雾团: 全部枝链(主枝+侧枝)小簇高方差叠放 — 要"雾"不要"稀"
             # (实测 0.3 起簇+标准簇距=半枯), 起簇更早簇距更密
@@ -1081,8 +1104,8 @@ class Tree:
                 tufts_along(chain, 0.1)
             for tid in self.terminals:
                 x, y, z = self.nodes[tid]
-                self._tuft(round(x), round(y), round(z),
-                           base_r * rng.uniform(0.7, 1.3), carve, flat)
+                self._field_tuft(round(x), round(y), round(z),
+                                 base_r * rng.uniform(0.7, 1.3), carve, flat)
         else:
             # layers 云片层盘: 簇沿主枝+侧枝外侧段成盘(flat 0.5 压扁),
             # 层档=骨架起叉高度, 层间缝=层档间距; 侧枝梢补同层小盘
@@ -1094,10 +1117,15 @@ class Tree:
             for tid in self.terminals:
                 x, y, z = self.nodes[tid]
                 tr = min(base_r * rng.uniform(0.7, 1.1), tcap)
-                self._tuft(round(x), round(y), round(z), tr, carve, flat)
+                self._field_tuft(round(x), round(y), round(z), tr, carve, flat)
         # 顶穹团: 树尖上方一个半球团(治平顶/秃顶 — 树冠顶部必须是穹面不是平台)
-        self._tuft(rhu(tip[0]), int(h) - 1, rhu(tip[2]),
-                   min(max(2.0, base_r * 1.2), ecap), carve * 0.6, flat)
+        self._field_tuft(rhu(tip[0]), int(h) - 1, rhu(tip[2]),
+                         min(max(2.0, base_r * 1.2), ecap), carve * 0.6, flat)
+        # 冠心桥接团: 填顶穹团与冠面之间的场鞍部(旧版干顶穿冠露木点, 实测)
+        self._field_tuft(rhu(tip[0]), int(h) - 3, rhu(tip[2]),
+                         min(max(1.6, base_r * 0.9), tcap), carve, flat)
+        # 全部场源一次成面(metaball 等值面+剥壳, 治"树叶全是一个个球")
+        self._rasterize_field()
         # 边界飞叶: 叶格邻空处按概率向外补 1 格(连 2 轮 → 1-2 格毛边)
         for fuzz_round, prob in ((0.10, 12345), (0.045, 54321)):
             edge = []
@@ -1111,33 +1139,32 @@ class Tree:
                 self.leaves.add(c)
 
     def _foliage_blob(self, r, carve):
-        """crown=blob 圆整球形冠的壳层: 只铺 v∈[0.85,1] 的薄皮(带镂空,
-        外缘更稀) — 主体由辐条链上的 tuft 簇扛(簇随枝走), 壳层只填簇间
-        缝隙让剪影读成球, 不再整球糊实(旧 v∈[0.5,1] 实心壳抹掉一切枝纹
-        = "棒棒糖"翻车的根源)。"""
+        """crown=blob 圆整球形冠的壳层(v11): 不再直接栅格化薄皮, 改为在
+        v≈0.9 包络面上按弧长均布 metaball 场源(与辐条链簇同场叠加) —
+        壳层职责不变(填簇间缝隙让剪影读成球), 成面交给 _rasterize_field,
+        团块边界由场融合自然消除。carve 形参保留兼容(不再逐格镂空)。"""
         mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
         mx, _, mz = self.nodes[mid]
         dr, dh = r * 0.8, max(2.0, self.ry * 0.8)
         cy = self.yc + self.ry * 0.1
-        # 幻想档: 壳只留 v∈[0.92,1] 极薄皮+更透 — 壳糊平=花椰菜变蘑菇盘
-        # (实测: 大簇+满壳=团块全粘连, 沟壑消失, 干被吞);
-        # r>=30 巨冠同样极薄皮(壳体量随 r³ 涨, 18 万块事故)
-        v_lo = 0.92 if (self.p["fantasy"] or r >= 30) else 0.85
-        if self.p["fantasy"]:
-            carve = min(0.55, carve * 1.6)
-        R, H = math.ceil(dr), math.ceil(dh)
-        for dx in range(-R, R + 1):
-            for dz in range(-R, R + 1):
-                for dy in range(-H, H + 1):
-                    v = (dx / dr) ** 2 + (dy / dh) ** 2 + (dz / dr) ** 2
-                    if not v_lo <= v <= 1.0:
-                        continue                    # 只要薄皮
-                    cell = (rhu(mx) + dx, rhu(cy) + dy, rhu(mz) + dz)
-                    c = carve * (0.6 + 0.5 * v)     # 外缘更透(毛糙球面)
-                    if h3(cell[0], cell[1], cell[2], self.seed) < c:
-                        continue
-                    if cell not in self.wood:
-                        self.leaves.add(cell)
+        base_r = max(1.6, r * 0.22 * self.p["tuft_scale"])
+        tcap = min(9.0, max(4.5, r * 0.18))
+        if r >= 30:
+            tcap = min(8.0, max(4.5, r * 0.14))
+        tr = min(base_r * 1.1, tcap)
+        step = tr * 1.2                          # 场源弧长间距(保证重叠融合)
+        n_el = max(3, int(math.pi * dh / step))
+        for i in range(n_el + 1):
+            el = -math.pi / 2 + math.pi * i / n_el
+            ring_r = dr * 0.9 * math.cos(el)
+            if ring_r < 0.5:
+                continue
+            y = cy + dh * 0.9 * math.sin(el)
+            n_az = max(3, int(2 * math.pi * ring_r / step))
+            for j in range(n_az):
+                az = 2 * math.pi * j / n_az
+                self._field_tuft(rhu(mx + ring_r * math.cos(az)), rhu(y),
+                                 rhu(mz + ring_r * math.sin(az)), tr, 0, 0.9)
 
     # ------------------------------------------------------------ decor --
     def _decorate(self):
@@ -1248,8 +1275,9 @@ class Tree:
                               (rhu(tx), rhu(ty), rhu(tz)))
                 for c in cells[1:]:
                     self.put_wood(*c, "%s[axis=%s]" % (self.log, axis))
-                self._tuft(rhu(tx), rhu(ty), rhu(tz),
-                           min(base_r * 1.2, tcap), carve, flat)
+                self._field_tuft(rhu(tx), rhu(ty), rhu(tz),
+                                 min(base_r * 1.2, tcap), carve, flat)
+        self._rasterize_field()         # 补簇场源重成面(幂等超集)
 
     def prune(self):
         """Flood fill from the bole base over wood+leaves; drop the rest."""

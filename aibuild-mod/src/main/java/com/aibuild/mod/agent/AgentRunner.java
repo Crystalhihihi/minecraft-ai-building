@@ -647,12 +647,20 @@ public final class AgentRunner {
                 + AgentSession.formatTokens(input) + " 输入 / "
                 + AgentSession.formatTokens(output) + " 输出 / "
                 + AgentSession.formatTokens(cacheRead) + " 缓存命中 — "
-                + roughCost(input, output, cacheRead));
+                + roughCost(input, output, cacheRead, config.agentModel()));
     }
 
-    /** 粗估费用感受:按 Kimi K2 量级价(输入 ¥4/M、输出 ¥16/M、缓存读 ¥1/M),只表数量级,以实际账单为准。 */
-    private static String roughCost(long input, long output, long cacheRead) {
-        double yuan = input * 4.0 / 1_000_000 + output * 16.0 / 1_000_000 + cacheRead * 1.0 / 1_000_000;
+    /**
+     * 粗估费用感受:只表数量级,以实际账单为准。按会话模型分档:
+     * deepseek/*(V4-Flash, 2026-08 官价:输入 ¥1/M、输出 ¥2/M、缓存读 ¥0.02/M,峰谷浮动忽略);
+     * 其余按 Kimi K2 量级价(输入 ¥4/M、输出 ¥16/M、缓存读 ¥1/M)。
+     */
+    private static String roughCost(long input, long output, long cacheRead, String model) {
+        boolean flash = model != null && model.toLowerCase(java.util.Locale.ROOT).contains("deepseek");
+        double inRate = flash ? 1.0 : 4.0;
+        double outRate = flash ? 2.0 : 16.0;
+        double cacheRate = flash ? 0.02 : 1.0;
+        double yuan = input * inRate / 1_000_000 + output * outRate / 1_000_000 + cacheRead * cacheRate / 1_000_000;
         if (yuan < 0.01) {
             return "粗估费用不到 1 分钱";
         }
