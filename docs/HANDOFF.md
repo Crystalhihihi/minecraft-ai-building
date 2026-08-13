@@ -4,11 +4,11 @@
 
 ## 0. 三十秒恢复
 
-- **git 顶**:`c527b3c`(树 v11 次主干+簇径缩放)← `c1a89a3`(v10 主枝粗分档/纵纹锚定)← `1a0caa5`(v8+v9 分枝骨架/叶形四式/aesthetic)← `5c8a4a5`(v6+v7 爬根/护栏/fantasy 系)…**工作区有未提交改动: 密度场叶图元(阶段1)**
-- **树全线修复(grill-me 定稿,计划=docs/plans/2026-08-08-tree-overhaul.md)**: 阶段1+2 已完成离线验证,**已暂停,08-12 续阶段3**(stubby+fork;有 8:57 one-shot cron 提醒)。阶段1=密度场叶图元(metaball+相干噪声等值面, 壳体+内部空);阶段2=kernel 下沉 tree_common.py(Field/vnoise3,旧 tuft/_tuft 已删)+conifer/palm/weeping/garden 四器迁移+针叶层环裙边/垂柳真垂坠两笔旧债;giant_tree 5 preset 回归逐字节一致。产物 scratch/giant_tree/df_*(阔叶)/df2_*(其余,基名=终版,_b=改前对照)
-- **部署**:`D:\PCL 正式版 2.13.0.1\word\versions\1.21.11-aibuilding-test\mods\aibuild-1.0.0.jar` = 最新(2026-08-08 14:57, 构建=`cd aibuild-mod && ./gradlew build`;含密度场阶段1+2+价格分档);**游戏 agent 模型已切 `deepseek/v4-flash`**(`<游戏目录>/aibuild/config.json`,原 k3-256k;费用粗估已按模型分档: flash ¥1/¥2/¥0.02 vs Kimi K3 ¥20/¥100/¥2[K3 官方价, 2026-08-13 账单重算修正: 旧记录误用 K2 价 ¥4/¥16/¥1, 实际全程 K3, 总额 ¥144→¥345, 详见 docs/quant-audit-2026-08-13.md; AgentRunner.roughCost 的分档常量待改])
-- **树体系**: 真四级分枝骨架(主干>次主干>枝干>侧枝>细条)+叶形四式(layers 云片层档/blob 球形/umbrella 伞形/mist 雾团, 各配骨架拓扑)+fantasy 幻想系 4 卡+decor(光点/灯笼/垂藤)+aesthetic 构图约束(8 扇区覆盖强制)+贴地爬根 crawl/flare+干径>=冠幅/4 护栏+簇径随冠幅缩放;20 preset
-- **待用户验收**(2026-08-08): ①密度场首版(优先! 阶段2 在其上施工): scratch/giant_tree/df_oak22/umb40/spirit60/fworld100.json 放树看实机剪影——球串是否消失、伞盖侧面、薄壳观感、块数(umb40 2.27万/fworld100 9.7万) ②v10/v11 旧账: 伞盖成面/次主干/130 高巨树(≈11 万块, 放置慢别当卡死)/樱木纵纹配色
+- **git 顶**:`139d7da`(quant 审计,含密度场全部代码)←…**工作区未提交: 阶段3/4/5(stubby+fork/门洞根+banyan_tree.py/根锚+半砖) + roughCost K3 修正**
+- **树全线修复(计划=docs/plans/2026-08-08-tree-overhaul.md,各阶段状态在里面)**: 阶段1-5 全部完成离线验证,**只待用户实机**;阶段6 根瀑(地形耦合)未启,等 1-5 实机反馈+地形接口讨论。阶段3=stubby_oak/forked_halberd 两新卡(fork 参数 0|2|3, stubby=干形第5式);阶段4=roots="gate" 门洞根(参数化,默认不变)+banyan_tree.py 新文件(气生根垂帘+触地成柱,多柱共冠);阶段5=curved/spiral 根锚权重+主枝/次主干 2→1 半砖过渡(5 卡差异审计:只动根区/半砖邻域)。产物 scratch/giant_tree/df_*、df2_*、df3_*、df4_*、df5_*
+- **部署**:jar = 最新(2026-08-13 18:58;找茬三刀+**访谈形态题改造**: GIANT TREES 题从"真实/幻想"改为剪影先行 9 选项[通直支柱/圆冠/平顶伞/云片/尖塔针叶/垂帘/榕林/矮胖墩/分叉戟], 气质(真实/幻想+decor)降级为后半题不再绑形态, INDEX.md giant_tree 行加剪影→preset 映射);**游戏 agent 模型 `deepseek/v4-flash`**;费用粗估三档: flash ¥1/¥2/¥0.02 / kimi-for-coding ¥4/¥16/¥1 / K3 ¥20/¥100/¥2(2026-08-13 审计修正已落码, docs/quant-audit-2026-08-13.md)
+- **树体系**: 四级分枝骨架+叶形四式(密度场壳体)+stubby/fork/门洞根/banyan 新拓扑;22 giant_tree preset + banyan_tree;conifer/palm/weeping/garden 全迁移密度场
+- **待用户验收(全链)**: ⓪找茬修复复验: 同参重生成那棵 world_tree+umbrella+fantasy 105 高(seed 1647486075),看伞面鼓包是否消/灯是否全露——产物 scratch/giant_tree/fix_wt105.json 可直接灌 ①密度场(df_oak22/umb40/spirit60/fworld100) ②针叶垂柳(df2_spire30/willow28) ③新干形(df3_stubby45/fork45,墩感/戟可读性) ④门洞根穿行手感(df4_gate40,离线读不准,重点!)+榕树林感(df4_banyan50) ⑤阶段5半砖台阶实机观感 ⑥旧账: 130 高巨树放置耗时/樱木纵纹。灌入文件都在 scratch/giant_tree/(基名=终版)
 - **已知非 bug**: cherry/mist/gnarled 全 curved, spirit=spiral, ancient_oak/cherry 全 blob——"S 型干/两卡同风格"是卡面设计;若想直干地标樱花或拉开剪影差异, 调卡即可
 - **系统其余**: 访谈(提案制, 树二选一+约束/自由)→风格卡(19)→抽签→生成器(50+)→验收器(9)→渲染自检
 

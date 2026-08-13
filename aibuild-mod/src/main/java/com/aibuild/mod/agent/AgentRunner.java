@@ -653,13 +653,20 @@ public final class AgentRunner {
     /**
      * 粗估费用感受:只表数量级,以实际账单为准。按会话模型分档:
      * deepseek/*(V4-Flash, 2026-08 官价:输入 ¥1/M、输出 ¥2/M、缓存读 ¥0.02/M,峰谷浮动忽略);
-     * 其余按 Kimi K2 量级价(输入 ¥4/M、输出 ¥16/M、缓存读 ¥1/M)。
+     * kimi-for-coding(K2.7 量级:输入 ¥4/M、输出 ¥16/M、缓存读 ¥1/M,沿用 K2 刊例);
+     * 其余按 Kimi K3 刊例(输入 ¥20/M、输出 ¥100/M、缓存读 ¥2/M;
+     * 2026-08-13 账单审计修正,旧 K2 常量低估输入 5×/输出 6.25×,见 docs/quant-audit-2026-08-13.md)。
      */
     private static String roughCost(long input, long output, long cacheRead, String model) {
-        boolean flash = model != null && model.toLowerCase(java.util.Locale.ROOT).contains("deepseek");
-        double inRate = flash ? 1.0 : 4.0;
-        double outRate = flash ? 2.0 : 16.0;
-        double cacheRate = flash ? 0.02 : 1.0;
+        String m = model == null ? "" : model.toLowerCase(java.util.Locale.ROOT);
+        double inRate, outRate, cacheRate;
+        if (m.contains("deepseek")) {
+            inRate = 1.0; outRate = 2.0; cacheRate = 0.02;
+        } else if (m.contains("kimi-for-coding")) {
+            inRate = 4.0; outRate = 16.0; cacheRate = 1.0;
+        } else {
+            inRate = 20.0; outRate = 100.0; cacheRate = 2.0;
+        }
         double yuan = input * inRate / 1_000_000 + output * outRate / 1_000_000 + cacheRead * cacheRate / 1_000_000;
         if (yuan < 0.01) {
             return "粗估费用不到 1 分钱";

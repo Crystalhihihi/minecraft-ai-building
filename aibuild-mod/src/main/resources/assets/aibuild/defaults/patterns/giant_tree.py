@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 """giant_tree.py — 巨树(景观大树/巨树/地标树)生成器. EXPERIMENTAL.
 
+v12 (2026-08-13, 阶段3+4, docs/plans/2026-08-08-tree-overhaul.md):
+- stubby 矮胖墩(干形第5式): 冠压极低(ry~0.35h, 冠底下探 ~0.3h) + 近地
+  平展枝(起叉 0.2-0.35h, el 0.10-0.25, 枝长 0.5-0.75r) + ASPECT 护栏放行
+  矮胖比(仅 stubby); preset stubby_oak(粗干 blob 冠)
+- fork 分叉戟(与 form 正交新参数, 0=off|2|3): leader 0.25-0.35h 分裂,
+  侧叉微张(0.55)后近平行(0.08)上冲贯入冠底壳带, 0.45ts 收分, 共享整冠
+  (leader=中叉贯到树梢, 顶穹团单顶); preset forked_halberd
+- roots="gate" 门洞露根: 3-4 主根抛物线拱起(净高≥3 可穿行, 起拱 2 高/
+  拱脚 2 宽+根盘入土), 其余方位低爬让出走廊; _crawl_root 逐根体抽出复用
+  (crawl/flare 路径 rng 序不变); 幻想系卡配 roots=gate 食用
+- 阶段5 小债两笔: 主枝/次主干 2→1 收细处铺 bottom 半砖台阶(对齐主干
+  缩径做法, 治突变); 板根方向与干形解耦 — curved/spiral 按干基初段偏移
+  方向反向补强抓地根(crawl/buttress 两支路, 与 leaning 同权变)
+- 阶段3/4 的改动保持旧 preset 逐字节不变; 阶段5 两笔小债按预期只动
+  枝 2→1 收细半砖与根方位/根长(差异审计见 HANDOFF/df5 报告)
+
 v11 (2026-08-08, 治"树叶全是一个个球" — 密度场重写, docs/plans/2026-08-08):
 - 叶图元: 独立镂空椭球簇 → metaball 密度场等值面。簇位摆放逻辑(四冠形
   簇心/半径/flat)全部保留, 成面改为: 全簇心(含顶穹团)作场源叠加
@@ -98,10 +114,13 @@ DEFAULTS = {
     "seed": 0,                  # int; same seed = same tree
     "buttress": True,           # 兼容旧参数: False 等价 roots=none
     "roots": "crawl",           # 根式: crawl=贴地爬根(默认) | flare=钟形基座+短根 |
-                                #       buttress=旧板根鳍 | none=无根
+                                #       buttress=旧板根鳍 | gate=门洞露根(拱起可穿行,
+                                #       幻想地标基座, v12) | none=无根
     "tuft_scale": 1.0,          # 0.6-1.6 叶簇径倍率(大=蓬松大肉, 小=碎叶透光)
     "leaf_density": 0.6,        # 0.1-1.0; scales shell carving (越大叶越密)
-    "form": "straight",         # straight | curved | leaning | spiral (干形)
+    "form": "straight",         # straight | curved | leaning | spiral | stubby(矮胖墩, v12)
+    "fork": 0,                  # 0=off | 2|3=分叉戟(v12): leader 0.25-0.45h 分裂,
+                                #   侧叉微张后近平行上冲贯入冠底, 共享整冠
     "crown": "layers",          # 叶形函数: layers=云片分层 | blob=圆整球形(近似球, 用户参考图款)
     "preset": "",               # 形态卡 id(PRESETS 之一); 给了就按卡填形态参数
     "no_foliage": False,        # True = 纯骨架(枯立木); 正常树别动
@@ -133,7 +152,7 @@ SPECIES = {"oak": ("minecraft:oak_log", "minecraft:oak_leaves", "minecraft:oak_f
                         "minecraft:mangrove_fence", "minecraft:mangrove_slab", "minecraft:stripped_mangrove_log"),
            "pale_oak": ("minecraft:pale_oak_log", "minecraft:pale_oak_leaves",
                         "minecraft:pale_oak_fence", "minecraft:pale_oak_slab", "minecraft:stripped_pale_oak_log")}
-FORMS = ("straight", "curved", "leaning", "spiral")
+FORMS = ("straight", "curved", "leaning", "spiral", "stubby")
 # 形态卡预设(scratch/giant_tree/tree_forms.json 调研固化, docs/research/tree-forms.md
 # 有每卡的形态依据与来源 URL)。preset 只填形态参数; height/canopy_radius/seed
 # 由调用方按体量档给, 显式参数永远覆盖预设。
@@ -167,6 +186,12 @@ PRESETS = {
                           "species": "pale_oak"},
     "fluffy_crown":      {"form": "straight", "limbs": 5, "canopy_layers": 3, "leaf_density": 0.8,
                           "crown": "blob"},
+    # 新干形卡(v12): stubby 矮胖墩=超短 leader+近地平展枝+冠压极低(粗干矮个);
+    # forked_halberd 分叉戟=leader 0.25-0.45h 裂 3 叉近平行上冲贯入冠底, 共享整冠
+    "stubby_oak":        {"form": "stubby",  "limbs": 6, "canopy_layers": 2, "leaf_density": 0.7,
+                          "crown": "blob", "trunk": 6},
+    "forked_halberd":    {"form": "straight", "fork": 3, "limbs": 4, "canopy_layers": 2,
+                          "leaf_density": 0.65, "crown": "blob", "trunk": 4},
     # 幻想地标系(2026-08-12 用户参考图 bilibili 展示树蒸馏): 矮胖撑伞比例
     # (ASPECT 0.7-1.3, 冠幅可大于身高)+大叶团+弯幅x2+冠底下压+基座巨化+
     # 粗干双材质纵纹。真实系卡一行不动。decor 另传。
@@ -233,6 +258,10 @@ class Tree:
         if p["fantasy"]:
             # 幻想档: 宽幅矮冠(ry<=0.45r) + 冠底≈0.3h(人站伞下但干可读)
             self.ry = max(2, min(self.ry, rhu(r * 0.45), (h * 5) // 16))
+        if p["form"] == "stubby":
+            # 矮胖墩: 冠压极低 — 半高抬到 ~0.35h(冠底下探 ~0.3h),
+            # 冠横竖比 ~2:1 起(墩感), 与 fantasy 档无关(干形自带)
+            self.ry = max(2, min((h - 3) // 2, max(rhu(r * 0.45), int(h * 0.35))))
         self.hl = max(1.5, self.ry * 0.3)               # 层盘半高
         self.yc = h - self.ry                           # crown centre y
         self.nodes = [(self.c, 0.0, self.c)]            # float skeleton
@@ -336,6 +365,39 @@ class Tree:
                     self.costem_ids.add(cur)
                     caz += self.rng.uniform(-0.04, 0.04)
                 self.costem_chains.append(chain)
+        # ---- phase 1.6: 分叉戟(fork 参数, 与 form 正交; forked straight 典型):
+        # leader 在 0.25-0.45h 分裂, 侧叉先微张(spread 0.35)再近平行上冲
+        # (0.05, 锐、直), 叉梢贯入冠底壳带(戟可读, 不停在冠下变裸枝);
+        # leader 自身=中叉贯到树梢(顶穹团只有一个 — 共享整冠不多顶)
+        self.fork_chains = []
+        self.fork_ids = set()
+        n_fork = int(self.p.get("fork") or 0)
+        if n_fork >= 2:
+            split_y = h * (0.25 + self.rng.uniform(0.0, 0.1))   # 低位裂(戟身长)
+            sid = min(self.trunk_ids,
+                      key=lambda nid: abs(self.nodes[nid][1] - split_y))
+            tip_y = h - self.ry * 1.6                 # 贯入冠底壳带(不裸梢)
+            f_az0 = self.rng.uniform(0, 2 * math.pi)
+            for k in range(n_fork - 1):
+                faz = f_az0 + k * (2 * math.pi / (n_fork - 1)) + \
+                    self.rng.uniform(-0.2, 0.2)
+                cur, pos = sid, self.nodes[sid]
+                chain = []
+                while pos[1] < tip_y and len(self.nodes) < MAX_NODES:
+                    prog = (pos[1] - split_y) / max(1.0, tip_y - split_y)
+                    # 微张(0.55, 裂口段快速离干成缝)再近平行上冲(0.08, 锐直)
+                    spread = 0.55 * max(0.0, 1.0 - prog * 2.5) + 0.08
+                    dx = math.cos(faz) * spread
+                    dz = math.sin(faz) * spread
+                    ln = math.sqrt(dx * dx + 1.0 + dz * dz)
+                    pos = (pos[0] + dx / ln * STEP, pos[1] + STEP / ln,
+                           pos[2] + dz / ln * STEP)
+                    self._add(cur, pos)
+                    cur = len(self.nodes) - 1
+                    chain.append(cur)
+                    self.fork_ids.add(cur)
+                    faz += self.rng.uniform(-0.03, 0.03)
+                self.fork_chains.append(chain)
         # ---- phase 2: 显性主枝(先平展再上扬样条; 拓扑随叶形分形 —
         # 实测"六形一味": 云片=起叉高度聚成离散层档, 伞形=高位单点近水平
         # 共点射出, 雾团=侧枝加密; 一套主枝撒所有叶形=全塌成小团)
@@ -348,7 +410,17 @@ class Tree:
         for i in range(n_limbs):
             # 起叉高度: 0.35-0.55 树高(形态规律: 低位起叉才有巨木感),
             # 映射到顶梢干链上最近的节点
-            if crown_mode == "umbrella":
+            if self.p["form"] == "stubby":
+                # 矮胖墩: 近地起叉(0.2-0.35h, 现有 0.35-0.55 系数的下方;
+                # 梢端要收进冠底缘内, 再低会戳出冠沿变裸枝)
+                h_start = h * (0.2 + 0.15 * (i / max(1, n_limbs - 1)) +
+                               self.rng.uniform(-0.02, 0.02))
+            elif n_fork:
+                # 分叉戟: 主枝压到冠底缘(0.62-0.75h)起叉, 叶融进共享整冠;
+                # 裂口→冠底的叉身段保持裸挺 = 戟身(中段另起叶团=两球串翻车)
+                h_start = h * (0.65 + 0.10 * (i / max(1, n_limbs - 1)) +
+                               self.rng.uniform(-0.02, 0.02))
+            elif crown_mode == "umbrella":
                 # 伞形: 全部主枝从 0.7-0.8h 同一节点共点射出
                 h_start = h * (0.75 + self.rng.uniform(-0.02, 0.02))
             elif crown_mode == "layers" and tiers >= 2:
@@ -376,6 +448,10 @@ class Tree:
                 el = self.rng.uniform(0.03, 0.12)       # 近水平射出(伞面, 实机太翘)
                 tilt = self.rng.uniform(0.01, 0.03)
                 el_cap = self.rng.uniform(0.2, 0.3)     # 顶多微扬(伞沿不下扣)
+            elif self.p["form"] == "stubby":
+                el = self.rng.uniform(0.10, 0.25)       # 平展为主(墩)
+                tilt = self.rng.uniform(0.02, 0.05)
+                el_cap = self.rng.uniform(0.4, 0.6)
             else:
                 el = self.rng.uniform(0.25, 0.45)       # 起角抬高(低角=蜘蛛腿)
                 tilt = self.rng.uniform(0.04, 0.08)     # 上扬段每步仰角抬升
@@ -385,6 +461,8 @@ class Tree:
             # 伞盖枝最长(0.8-1.0r, 伞面半径全靠它)
             if crown_mode == "umbrella":
                 lo, hi2 = (0.8, 1.0)
+            elif self.p["form"] == "stubby":
+                lo, hi2 = (0.5, 0.75)               # 矮胖墩: 枝不戳出冠沿
             elif self.p["fantasy"]:
                 lo, hi2 = (0.7, 0.9)
             else:
@@ -784,10 +862,12 @@ class Tree:
                 f = ci / max(1, len(chain) - 1)
                 w = w0 if f < 0.35 else (max(1, w0 - 2) if f < 0.7 else 1)
                 limb_w[nid] = max(w, limb_w.get(nid, 1))
-        # 次主干: 0.55ts 截面沿程收分到 1(削角成圆同主干), 通用循环跳过
+        # 次主干: 0.55ts 截面沿程收分到 1(削角成圆同主干), 通用循环跳过;
+        # 缩径层同主干做法铺 bottom 半砖台阶(债①: 0.5 格台阶取代突变)
         for chain in self.costem_chains:
             size0 = max(2, int(round(self.ts * 0.55)))
             prev = None
+            prev_cells, prev_size = None, None
             for idx, nid in enumerate(chain):
                 x, y, z = self.nodes[nid]
                 yy = rhu(y)
@@ -801,11 +881,37 @@ class Tree:
                 elif yy > prev[1]:                          # 层间连通桥
                     for cell in vline((prev[0], yy, prev[2]), (rhu(x), yy, rhu(z))):
                         self.put_wood(*cell, "%s[axis=y]" % self.log)
+                cells = self._bole_section(x, z, yy, size)
+                if prev_cells is not None and size < prev_size and yy > prev[1]:
+                    for (lx, lz) in prev_cells - cells:
+                        c2 = (lx, yy, lz)
+                        if c2 not in self.wood:
+                            self.put_wood(*c2, "%s[type=bottom]" % self.slab)
+                prev_cells, prev_size = cells, size
+                prev = (rhu(x), yy, rhu(z))
+        # 分叉戟侧叉: 0.45ts 截面沿程收分到 1(折减 — 分裂后各叉细于母干;
+        # 连通桥/层间桥同次主干, 从主干裂出连通天然)
+        for chain in self.fork_chains:
+            size0 = max(2, int(round(self.ts * 0.45))) if self.ts >= 4 else 1
+            prev = None
+            for idx, nid in enumerate(chain):
+                x, y, z = self.nodes[nid]
+                yy = rhu(y)
+                frac = idx / max(1, len(chain) - 1)
+                size = max(1, int(round(size0 - (size0 - 1) * frac)))
+                if prev is None:                            # 裂口连通桥
+                    pa = self.parent[chain[0]]
+                    ax, ay, az = self.nodes[pa]
+                    for cell in vline((rhu(ax), yy, rhu(az)), (rhu(x), yy, rhu(z))):
+                        self.put_wood(*cell, "%s[axis=y]" % self.log)
+                elif yy > prev[1]:                          # 层间连通桥
+                    for cell in vline((prev[0], yy, prev[2]), (rhu(x), yy, rhu(z))):
+                        self.put_wood(*cell, "%s[axis=y]" % self.log)
                 self._bole_section(x, z, yy, size)
                 prev = (rhu(x), yy, rhu(z))
         for i in range(1, len(self.nodes)):
-            if i in trunk_set or i in self.costem_ids:
-                continue                                # 顶梢干/次主干已画
+            if i in trunk_set or i in self.costem_ids or i in self.fork_ids:
+                continue                                # 顶梢干/次主干/侧叉已画
             pa = self.parent[i]
             a = tuple(rhu(v) for v in self.nodes[pa])
             b = tuple(rhu(v) for v in self.nodes[i])
@@ -818,6 +924,33 @@ class Tree:
             if w < 2 and ((i < self.pre_fan and desc[i] >= self.thick_tips) or
                           i in self.spoke_thick):
                 w = 2
+            # 债①: 主枝 2→1 收细突变 → 对齐主干缩径, 在收窄处的旧加宽格
+            # 铺 bottom 半砖台阶(装饰性附加, 侧邻承重; 不压已有木/占位);
+            # 父段宽度按同一套 bump 规则折算(否则 bump 后过渡点全被吞)
+            if not in_trunk_zone:
+                w_pa = limb_w.get(pa, 1)
+                if w_pa < 2 and ((pa < self.pre_fan and desc[pa] >= self.thick_tips) or
+                                 pa in self.spoke_thick):
+                    w_pa = 2
+            else:
+                w_pa = 1
+            if w < 2 <= w_pa and not in_trunk_zone:
+                ga = self.parent[pa]
+                if ga >= 0:
+                    g = tuple(rhu(v) for v in self.nodes[ga])
+                    ddx, ddz = a[0] - g[0], a[2] - g[2]
+                    ax_prev = "x" if abs(ddx) >= abs(ddz) else "z"
+                    offs = [(0, 1)] if ax_prev == "x" else [(1, 0)]
+                    if w_pa >= 3:
+                        offs.append((1, 0) if ax_prev == "x" else (0, 1))
+                    if w_pa >= 4:
+                        offs.append((1, 1))
+                    for ox, oz in offs:
+                        # 半砖落在收窄后首格 b 的撤宽侧(a+off 是粗段末格,
+                        # 本身是原木 — 铺那是覆盖木头不是台阶)
+                        c2 = (b[0] + ox, b[1], b[2] + oz)
+                        if c2 not in self.wood:
+                            self.put_wood(*c2, "%s[type=bottom]" % self.slab)
             spec = self.fence if (not in_trunk_zone and desc[i] < LOG_TIPS) else \
                 "%s[axis=%s]" % (self.log, axis)
             for cell in vline(a, b):
@@ -868,56 +1001,120 @@ class Tree:
         ts_eff = min(self.ts, 8)
         n = min(10, 5 + ts_eff // 2 + rng.randrange(3))
         az0 = rng.uniform(0, 2 * math.pi)
+        for k in range(n):
+            self._crawl_root(az0 + k * (2 * math.pi / n), ts_eff, flare)
+
+    def _crawl_root(self, az_base, ts_eff, flare):
+        """单条贴地爬根(_crawl_roots 逐根体, 抽出供 gate 模式复用;
+        rng 抽取序与旧版逐根一致 — 回归逐字节)。"""
+        rng = self.rng
         bcx, bcz = self.c, self.c                      # 干基中心(local)
         half = (self.ts - 1) / 2.0
-        for k in range(n):
-            az = az0 + k * (2 * math.pi / n) + rng.uniform(-0.35, 0.35)
-            dx, dz = math.cos(az), math.sin(az)
-            L = ts_eff + 2 + rng.randrange(4)          # 基础长
-            if self.p["fantasy"]:
-                L = int(L * 2.5)                       # 幻想档根巨化(根拱下能钻人)
-            if rng.random() < 0.4:                     # 长短混编(破均布感)
-                L = max(2, int(L * 0.6))
-            if flare:
-                L = max(2, int(L * 0.6))
-            if self.p["form"] == "leaning":
-                # 根部抓地补偿(风骨): 倾斜反方向的根加长锚定, 顺风向缩短
-                dot = dx * math.cos(self.lean_az) + dz * math.sin(self.lean_az)
+        az = az_base + rng.uniform(-0.35, 0.35)
+        dx, dz = math.cos(az), math.sin(az)
+        L = ts_eff + 2 + rng.randrange(4)          # 基础长
+        if self.p["fantasy"]:
+            L = int(L * 2.5)                       # 幻想档根巨化(根拱下能钻人)
+        if rng.random() < 0.4:                     # 长短混编(破均布感)
+            L = max(2, int(L * 0.6))
+        if flare:
+            L = max(2, int(L * 0.6))
+        if self.p["form"] == "leaning":
+            # 根部抓地补偿(风骨): 倾斜反方向的根加长锚定, 顺风向缩短
+            dot = dx * math.cos(self.lean_az) + dz * math.sin(self.lean_az)
+            L = max(2, int(round(L * (1.0 - 0.5 * dot))))
+        elif self.p["form"] in ("curved", "spiral"):
+            # 债②: 板根方向与干形解耦 — 干基往哪偏(_trunk_offset 初段方向),
+            # 反向爬根加长抓地(与 leaning 同权变); 偏移微小(直干段)不加权
+            bx0, bz0 = self._trunk_offset(8.0)
+            m2 = bx0 * bx0 + bz0 * bz0
+            if m2 > 0.25:
+                bn = math.sqrt(m2)
+                dot = (dx * bx0 + dz * bz0) / bn
                 L = max(2, int(round(L * (1.0 - 0.5 * dot))))
-            # y 轮廓: 出干处拱高 hump(随干径), 每 2 步降 1 格直到入土
-            hump = max(1, min(3, ts_eff // 2))
-            if self.p["fantasy"]:
-                hump = max(2, min(5, ts_eff // 2 + 1))  # 幻想档拱高(根下成门洞)
-            if flare:
-                hump = 1
-            px, pz = bcx + dx * half, bcz + dz * half  # 干基表面起点
-            prev_top = None
-            wide = ts_eff >= 4                          # 粗干近段双宽
-            for t in range(L):
-                cx, cz = rhu(px + dx * t), rhu(pz + dz * t)
-                # 幻想档降速减半(每 3 步降 1 格): 长根才能爬得远
-                sink = 3 if self.p["fantasy"] else 2
-                y_top = hump - max(0, (t - 1) // sink)    # 第 0/1 步保持拱高
-                axis = "x" if abs(dx) >= abs(dz) else "z"
-                if y_top >= 0:
-                    for y in range(y_top + 1):         # 地表实心柱
-                        self.put_wood(cx, y, cz, "%s[axis=%s]" % (
-                            self.log, axis if y == y_top else "y"))
-                else:                                   # 入土段(半埋收梢)
-                    self.put_wood(cx, -1, cz, "%s[axis=y]" % self.log)
-                    if t + 1 < L:                       # 再送一格入土尾
-                        self.put_wood(rhu(px + dx * (t + 1)), -1,
-                                      rhu(pz + dz * (t + 1)),
-                                      "%s[axis=y]" % self.log)
-                    break
-                if prev_top is not None:                # 连通兜底
-                    for cell in vline(prev_top, (cx, y_top, cz)):
-                        self.put_wood(*cell, "%s[axis=%s]" % (self.log, axis))
-                if wide and t < L * 0.4:                # 近干段侧向加宽
-                    bx, bz = (-dz, dx) if abs(dx) >= abs(dz) else (dz, -dx)
-                    self.put_wood(rhu(cx + bx), y_top, rhu(cz + bz),
-                                  "%s[axis=%s]" % (self.log, axis))
-                prev_top = (cx, y_top, cz)
+        # y 轮廓: 出干处拱高 hump(随干径), 每 2 步降 1 格直到入土
+        hump = max(1, min(3, ts_eff // 2))
+        if self.p["fantasy"]:
+            hump = max(2, min(5, ts_eff // 2 + 1))  # 幻想档拱高(根下成门洞)
+        if flare:
+            hump = 1
+        px, pz = bcx + dx * half, bcz + dz * half  # 干基表面起点
+        prev_top = None
+        wide = ts_eff >= 4                          # 粗干近段双宽
+        for t in range(L):
+            cx, cz = rhu(px + dx * t), rhu(pz + dz * t)
+            # 幻想档降速减半(每 3 步降 1 格): 长根才能爬得远
+            sink = 3 if self.p["fantasy"] else 2
+            y_top = hump - max(0, (t - 1) // sink)    # 第 0/1 步保持拱高
+            axis = "x" if abs(dx) >= abs(dz) else "z"
+            if y_top >= 0:
+                for y in range(y_top + 1):         # 地表实心柱
+                    self.put_wood(cx, y, cz, "%s[axis=%s]" % (
+                        self.log, axis if y == y_top else "y"))
+            else:                                   # 入土段(半埋收梢)
+                self.put_wood(cx, -1, cz, "%s[axis=y]" % self.log)
+                if t + 1 < L:                       # 再送一格入土尾
+                    self.put_wood(rhu(px + dx * (t + 1)), -1,
+                                  rhu(pz + dz * (t + 1)),
+                                  "%s[axis=y]" % self.log)
+                break
+            if prev_top is not None:                # 连通兜底
+                for cell in vline(prev_top, (cx, y_top, cz)):
+                    self.put_wood(*cell, "%s[axis=%s]" % (self.log, axis))
+            if wide and t < L * 0.4:                # 近干段侧向加宽
+                bx, bz = (-dz, dx) if abs(dx) >= abs(dz) else (dz, -dx)
+                self.put_wood(rhu(cx + bx), y_top, rhu(cz + bz),
+                              "%s[axis=%s]" % (self.log, axis))
+            prev_top = (cx, y_top, cz)
+
+    def _gate_roots(self):
+        """门洞露根(roots="gate", 阶段4): 3-5 主根拱起成门洞 — 离地起拱
+        (抛物线起平收陡)→ 悬空跨(拱下全空, 净高≥3 净宽≥2 可穿行)→
+        下扎入土(拱脚 2 宽+小根盘); 其余方位正常爬根。拱体 vline 连续
+        (flood-fill 不剪断头拱)。服务幻想地标基座; 红树高跷根不做。"""
+        rng = self.rng
+        ts_eff = min(self.ts, 8)
+        n = min(9, 4 + ts_eff // 2 + rng.randrange(2))
+        az0 = rng.uniform(0, 2 * math.pi)
+        n_gate = min(4, max(3, ts_eff // 3 + 2))        # 门洞主根 3-4 根
+        gate_at = set(rhu(k * n / n_gate) % n for k in range(n_gate))
+        for k in range(n):
+            if k in gate_at:
+                az = az0 + k * (2 * math.pi / n) + rng.uniform(-0.35, 0.35)
+                self._gate_arch(az, ts_eff)
+            else:
+                # 非门洞根走低爬款(flare: 短而矮) — 让出门洞走廊上空
+                self._crawl_root(az0 + k * (2 * math.pi / n), ts_eff, True)
+
+    def _gate_arch(self, az, ts_eff):
+        """单条门洞拱根: 干基 y=A 处水平起拱, 抛物线 y=A(1-(t/D)²) 悬空跨,
+        t=D 处落地(入土 1 格+根盘); 起拱段 2 高加粗, 拱脚 2 宽。"""
+        rng = self.rng
+        dx, dz = math.cos(az), math.sin(az)
+        half = (self.ts - 1) / 2.0
+        A = max(3, min(6, ts_eff // 2 + 3))         # 起拱高(洞中净高≥3)
+        D = ts_eff + 5 + rng.randrange(3)           # 跨距(长跨成券)
+        px, pz = self.c + dx * half, self.c + dz * half
+        axis = "x" if abs(dx) >= abs(dz) else "z"
+        prev = None
+        cx = cz = rhu(px)
+        for t in range(0, D + 1):
+            y = max(0, rhu(A * (1.0 - (t / D) ** 2)))
+            cx, cz = rhu(px + dx * t), rhu(pz + dz * t)
+            if prev is not None:                        # 拱体连续(vline 桥)
+                for cell in vline(prev, (cx, y, cz)):
+                    self.put_wood(*cell, "%s[axis=%s]" % (self.log, axis))
+            self.put_wood(cx, y, cz, "%s[axis=y]" % self.log)
+            if t < 2:                                   # 起拱段 2 高
+                self.put_wood(cx, y + 1, cz, "%s[axis=%s]" % (self.log, axis))
+            if t >= D - 1:                              # 拱脚 2 宽
+                bx, bz = (-dz, dx) if abs(dx) >= abs(dz) else (dz, -dx)
+                self.put_wood(rhu(cx + bx), y, rhu(cz + bz),
+                              "%s[axis=%s]" % (self.log, axis))
+            prev = (cx, y, cz)
+        self.put_wood(cx, -1, cz, "%s[axis=y]" % self.log)      # 下扎入土
+        for ox, oz in ((1, 0), (-1, 0), (0, 1), (0, -1)):       # 柱脚小根盘
+            self.put_wood(cx + ox, 0, cz + oz, "%s[axis=y]" % self.log)
 
     def buttress(self):
         """板根: 4-6 stepped fins; 长度/高度随干径缩放(封顶 8, 巨干靠粗不靠长)。"""
@@ -942,6 +1139,15 @@ class Tree:
                 # 根部抓地补偿(风骨): 倾斜反方向的板根加长锚定, 顺风向缩短
                 dot = ddx * math.cos(self.lean_az) + ddz * math.sin(self.lean_az)
                 fin_len = max(1, int(round(length * (1.0 - 0.75 * dot))))
+            elif self.p["form"] in ("curved", "spiral"):
+                # 债②: 板根方向与干形解耦 — 干基初段偏移方向的反向鳍加长
+                # (与 leaning 同权变), 偏移微小(直干段)不加权
+                bx0, bz0 = self._trunk_offset(8.0)
+                m2 = bx0 * bx0 + bz0 * bz0
+                if m2 > 0.25:
+                    bn = math.sqrt(m2)
+                    dot = (ddx * bx0 + ddz * bz0) / bn
+                    fin_len = max(1, int(round(length * (1.0 - 0.75 * dot))))
             for k in range(1, fin_len + 1):
                 hgt = max(1, ts_eff + 1 - k)        # 递减鳍高(封顶 9)
                 cols = [(px + k * ddx, pz + k * ddz)]
@@ -1026,7 +1232,9 @@ class Tree:
             tcap = min(8.0, max(4.5, r * 0.14))
             ecap = tcap + 0.5
             gap *= 1.6
-        if self.p["fantasy"]:
+        if self.p["fantasy"] and crown_mode == "blob":
+            # 幻想膨胀(大叶团/稀簇距)只配 blob 花椰菜 — 实机翻车: 对 umbrella
+            # 生效=伞面变一堆鼓包(西兰花), layers/mist 同理不适用
             tcap = min(10.0, max(4.5, r * 0.3))
             ecap = tcap + 0.5
             gap *= 1.6                      # 簇距(幻想主靠枝梢簇, 沿链簇是配角)
@@ -1085,6 +1293,21 @@ class Tree:
                 tufts_along(chain, 0.15)
             for chain in getattr(self, "sub_chains", []):
                 tufts_along(chain, 0.3)
+            # 冠底过渡桥接源(实机翻车"伞盘坐在裸杆上/不是从枝干上长出来"):
+            # 盘下侧面 y-2 补源, 伞盖下缘融到枝身(与盘面同场融合)
+            for chain in limb_chains:
+                L = len(chain)
+                if L < 2:
+                    continue
+                n = max(2, int(L * 0.6 / gap))
+                for k in range(n):
+                    frac = 0.4 + 0.6 * (k + rng.uniform(-0.3, 0.3)) / n
+                    frac = min(1.0, max(0.4, frac))
+                    nid = chain[min(L - 1, int(frac * (L - 1)))]
+                    x, y, z = self.nodes[nid]
+                    self._field_tuft(round(x), round(y) - 2, round(z),
+                                     base_r * rng.uniform(0.5, 0.8), carve,
+                                     min(0.6, flat + 0.15))
             for tid in self.terminals:
                 x, y, z = self.nodes[tid]
                 tr = min(base_r * rng.uniform(0.8, 1.2), tcap)
@@ -1169,8 +1392,11 @@ class Tree:
     # ------------------------------------------------------------ decor --
     def _decorate(self):
         """装饰后处理(foliage 之后, prune 之前): 展示树的"戏"层。
-        lights=冠内光点(叶团深处的叶换 shroomlight, 透光); lanterns=辐条
-        外段挂 chain+lantern 灯笼串; vines=冠底垂藤(叶链下垂 3-8 渐断)。
+        壳感知(v12 实机翻车修复: 壳体树冠内全空+水密封面, 旧"埋在叶团深处"
+        放出的灯 6/10 被 6 面封死): lights=外壳面光点(邻接外部空气的壳格,
+        ≥1 空气面保证外露, 8 扇区均布+冠底下缘配额); lanterns=枝锚点垂链
+        穿到冠底壳以下再挂灯(灯体 5 面露气); vines=逐列最低叶(冠底外壳)
+        起垂, 垂链在壳外(内壳面贴冠内空腔, 旧逻辑会把藤藏进冠腔)。
         装饰块记 self.decor_blocks, emit 单独输出(叶不覆盖)。"""
         modes = set(m.strip() for m in str(self.p["decor"]).lower().split(",") if m.strip())
         if not modes or "none" in modes or not self.leaves:
@@ -1182,17 +1408,79 @@ class Tree:
         self.decor_blocks = {}
         leaves_list = sorted(self.leaves)
         adj6 = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
+        # ---- 外壳面与冠底: 外部空气洪泛(叶 bbox 外扩 1 格, 从边界 BFS;
+        # 不经过叶/木) — 邻接外部空气的叶格=外壳面; 逐列最低叶=冠底外壳
+        xs = [c[0] for c in leaves_list]
+        ys = [c[1] for c in leaves_list]
+        zs = [c[2] for c in leaves_list]
+        x0, x1 = min(xs) - 1, max(xs) + 1
+        y0, y1 = min(ys) - 1, max(ys) + 1
+        z0, z1 = min(zs) - 1, max(zs) + 1
+        blocked = set(self.wood)
+        outside = set()
+        stack = []
+        for x in range(x0, x1 + 1):
+            for y in (y0, y1):
+                for z in range(z0, z1 + 1):
+                    stack.append((x, y, z))
+        for x in (x0, x1):
+            for y in range(y0, y1 + 1):
+                for z in range(z0, z1 + 1):
+                    stack.append((x, y, z))
+        for x in range(x0, x1 + 1):
+            for y in range(y0, y1 + 1):
+                for z in (z0, z1):
+                    stack.append((x, y, z))
+        while stack:
+            c = stack.pop()
+            if c in outside or c in self.leaves or c in blocked:
+                continue
+            outside.add(c)
+            x, y, z = c
+            for dx, dy, dz in adj6:
+                n2 = (x + dx, y + dy, z + dz)
+                if x0 <= n2[0] <= x1 and y0 <= n2[1] <= y1 and z0 <= n2[2] <= z1:
+                    stack.append(n2)
+        outer_shell = [c for c in leaves_list if any(
+            (c[0] + dx, c[1] + dy, c[2] + dz) in outside for dx, dy, dz in adj6)]
+        col_bottom = {}
+        for c in leaves_list:
+            k = (c[0], c[2])
+            if k not in col_bottom or c[1] < col_bottom[k][1]:
+                col_bottom[k] = c
+        mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
+        mx, mz = self.nodes[mid][0], self.nodes[mid][2]
+
+        def pick_even(cands, m):
+            """8 扇区均布选取(扇区内 shuffle, 轮转取 — 展示树光点要均匀)。"""
+            bins = {}
+            for (x, y, z) in cands:
+                sec = int((math.atan2(z - mz, x - mx) + math.pi) / (math.pi / 4)) % 8
+                bins.setdefault(sec, []).append((x, y, z))
+            pools = list(bins.values())
+            for pl in pools:
+                rng.shuffle(pl)
+            out = []
+            while len(out) < m and any(pools):
+                for pl in pools:
+                    if pl and len(out) < m:
+                        out.append(pl.pop())
+            return out
+
         if "lights" in modes:
-            # 埋在叶团里(>=4 面被叶包围)才透光自然, 数量随冠幅
-            cands = [c for c in leaves_list if sum(
-                (c[0] + dx, c[1] + dy, c[2] + dz) in self.leaves
-                for dx, dy, dz in adj6) >= 4]
-            rng.shuffle(cands)
-            for c in cands[:max(2, r // 2)]:
+            # 外壳面光点(嵌在冠面, MC 幻想树经典读法): 2/3 冠上/侧面 +
+            # 1/3 冠底下缘(仰视图可见); 全部 ≥1 空气面 — 不许再出 0 面灯
+            quota = max(2, r // 2)
+            n_bottom = max(1, quota // 3)
+            face = [c for c in outer_shell if c[1] >= self.yc]
+            bot = [c for c in outer_shell if c[1] < self.yc]
+            chosen = pick_even(face, quota - n_bottom) + pick_even(bot, n_bottom)
+            for c in chosen:
                 self.leaves.discard(c)
                 self.decor_blocks[c] = "minecraft:shroomlight"
         if "lanterns" in modes:
-            # 辐条/主枝外段节点下方: 2-4 格链 + 挂灯; 无辐条(幻想宽幅)用枝梢
+            # 辐条/主枝外段节点为锚, 垂链穿到冠底壳以下再挂灯(壳下 2 格,
+            # 链长封顶 8); 灯体 5 面露气; 无辐条(幻想宽幅)用枝梢
             spots = []
             for chain in self.spoke_chains:
                 if len(chain) >= 3:
@@ -1202,22 +1490,23 @@ class Tree:
             rng.shuffle(spots)
             for (x, y, z) in spots[:2 + r // 6]:
                 bx, by, bz = rhu(x), rhu(y), rhu(z)
-                L = rng.randint(2, 4)
-                for i in range(1, L + 1):
-                    c = (bx, by - i, bz)
+                bot = col_bottom.get((bx, bz))
+                ly = (bot[1] - 2) if bot else (by - 3)
+                ly = max(ly, by - 8)
+                for cy in range(by - 1, ly, -1):
+                    c = (bx, cy, bz)
                     if c in self.wood:
                         break
                     self.leaves.discard(c)
                     self.decor_blocks[c] = "minecraft:chain"
-                c = (bx, by - L - 1, bz)
+                c = (bx, ly, bz)
                 if c not in self.wood:
                     self.leaves.discard(c)
                     self.decor_blocks[c] = "minecraft:lantern[hanging=true]"
         if "vines" in modes:
-            # 冠底外缘(下方无叶的叶格)垂叶链: 短(2-5)+带横向摆动 —
+            # 冠底外壳(逐列最低叶)垂叶链: 短(2-5)+带横向摆动 —
             # 实测"垂藤像冰锥": 长直杆是翻车剪影, 藤要歪歪斜斜
-            bottom = [c for c in leaves_list if c[1] < self.yc and
-                      (c[0], c[1] - 1, c[2]) not in self.leaves]
+            bottom = [c for c in col_bottom.values() if c[1] < self.yc]
             rng.shuffle(bottom)
             for (x, y, z) in bottom[:r]:
                 vx, vz = x, z
@@ -1237,7 +1526,9 @@ class Tree:
         """美学约束(aesthetic=1, foliage 之后): 树冠包络 8 扇区 x 上下 2 层
         的簇覆盖检查 — 空洞扇区在最近骨架节点徒手补一条短枝(vline 木)+
         端簇。心形/双塔/大缺口翻车全部是扇区空洞(实测), 这条直接掐死;
-        自由生成(aesthetic=0)不做任何修补, 野生感保留。"""
+        自由生成(aesthetic=0)不做任何修补, 野生感保留。
+        密度场时代端簇铁律: fantasy+blob 只补贴枝小团(fix_r≤3.5) —
+        包络面大源会融成外皮填平团块沟壑(实机"巨伞外面套了一层")。"""
         if not getattr(self, "tuft_centers", None):
             return
         r = self.p["canopy_radius"]
@@ -1250,14 +1541,23 @@ class Tree:
                 (int((math.atan2(z - mz, x - mx) + math.pi) / (math.pi / 4)) % 8,
                  0 if y < my else 1), 0) + 1
         base_r = max(1.6, r * 0.22 * self.p["tuft_scale"])
-        tcap = (min(10.0, max(4.5, r * 0.3)) if self.p["fantasy"]
-                else min(9.0, max(4.5, r * 0.18)))
+        tcap = min(9.0, max(4.5, r * 0.18))
         carve = 0.26 - 0.16 * self.p["leaf_density"]
         flat = {"blob": 0.9, "layers": 0.5, "umbrella": 0.4,
                 "mist": 0.75}.get(self.p["crown"], 0.65)
+        if self.p["fantasy"] and self.p["crown"] == "blob":
+            # 修复簇=贴在新枝梢的小团(长枝不长皮): 密度场时代大源在包络上
+            # 融成连续外皮填平花椰菜沟壑(实机翻车"巨伞外面套了一层");
+            # 小团补进空扇区即可, 团块间低区保留
+            fix_r = min(base_r * 0.6, 3.5)
+        else:
+            fix_r = min(base_r * 1.2, tcap)
+        skip_tier0 = self.p["crown"] in ("umbrella", "mist")
         for sec in range(8):
             for tier in (0, 1):
-                if bins.get((sec, tier), 0) >= 1:
+                if tier == 0 and skip_tier0:
+                    continue                # 伞下/雾下本应空旷 — 下层空扇区
+                if bins.get((sec, tier), 0) >= 1:  # 不补(v9 设计冲突: 补出悬空盘)
                     continue
                 ang = (sec + 0.5) * (math.pi / 4) - math.pi
                 tx = mx + math.cos(ang) * r * 0.6
@@ -1275,8 +1575,7 @@ class Tree:
                               (rhu(tx), rhu(ty), rhu(tz)))
                 for c in cells[1:]:
                     self.put_wood(*c, "%s[axis=%s]" % (self.log, axis))
-                self._field_tuft(rhu(tx), rhu(ty), rhu(tz),
-                                 min(base_r * 1.2, tcap), carve, flat)
+                self._field_tuft(rhu(tx), rhu(ty), rhu(tz), fix_r, carve, flat)
         self._rasterize_field()         # 补簇场源重成面(幂等超集)
 
     def prune(self):
@@ -1320,6 +1619,8 @@ def build(p):
         t.buttress()
     elif roots_mode in ("crawl", "flare"):
         t._crawl_roots(flare=(roots_mode == "flare"))
+    elif roots_mode == "gate":
+        t._gate_roots()
     if p["form"] == "spiral":
         t._twist_ridge()
     if not p.get("no_foliage"):
@@ -1361,9 +1662,9 @@ def validate(p):
         die("aesthetic must be 0|1", {"aesthetic": 0})
     if p["aesthetic"] not in (0, 1):
         die("aesthetic must be 0|1", {"aesthetic": 0})
-    if p["roots"] not in ("crawl", "flare", "buttress", "none"):
-        die("roots must be crawl|flare|buttress|none",
-            {"roots": ["crawl", "flare", "buttress", "none"]})
+    if p["roots"] not in ("crawl", "flare", "buttress", "none", "gate"):
+        die("roots must be crawl|flare|buttress|none|gate",
+            {"roots": ["crawl", "flare", "buttress", "none", "gate"]})
     try:
         p["tuft_scale"] = float(p["tuft_scale"])
     except (TypeError, ValueError):
@@ -1374,6 +1675,13 @@ def validate(p):
         die("species must be one of %s" % (tuple(SPECIES),), {"species": list(SPECIES)})
     if p["form"] not in FORMS:
         die("form must be one of %s" % (FORMS,), {"form": list(FORMS)})
+    try:
+        p["fork"] = int(p["fork"])
+    except (TypeError, ValueError):
+        die("fork must be 0|2|3", {"fork": 0})
+    if p["fork"] not in (0, 2, 3):
+        die("fork must be 0|2|3 (分叉戟: leader 0.25-0.45h 分裂, 侧叉贯入冠底, 共享整冠)",
+            {"fork": 3})
     try:
         p["limbs"] = int(p["limbs"])
     except (TypeError, ValueError):
@@ -1426,6 +1734,8 @@ ASPECT = {
     "cherry_blossom": (0.8, 2.2), "birch_grove": (1.6, 4.0),
     "mangrove_swamp": (0.8, 2.0), "pale_oak_garden": (1.2, 3.0),
     "fluffy_crown": (1.05, 1.35),   # 蓬松档: 冠幅直径 ≈ 0.75-0.95 × 高度(用户点单)
+    "stubby_oak": (0.4, 0.9),       # 矮胖墩: 矮壮比同伞盖档(墩=矮而宽)
+    "forked_halberd": (1.6, 3.2),   # 分叉戟: 高瘦(戟), 与烛台档生态位错开
     # 幻想地标系: 矮胖撑伞(冠幅直径可 = 0.75-1.4 × 身高)
     "fantasy_sakura": (0.7, 1.2), "fantasy_world": (0.7, 1.3),
     "fantasy_oak": (0.7, 1.2), "fantasy_spirit": (0.9, 1.6),
@@ -1454,6 +1764,8 @@ def main():
         p.update(user)
     validate(p)
     lo, hi = ASPECT.get(preset or "", (0.8, 4.5))
+    if p["form"] == "stubby":
+        lo = min(lo, 0.4)           # 矮胖墩干形自带矮胖比, 护栏放行(仅 stubby)
     ratio = p["height"] / (2.0 * p["canopy_radius"])
     if not lo <= ratio <= hi:
         die("height/canopy_diameter %.2f 越界(%s 合法域 %.1f-%.1f): 调 height/canopy_radius"

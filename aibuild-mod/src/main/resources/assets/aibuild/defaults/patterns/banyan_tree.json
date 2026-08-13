@@ -1,0 +1,23 @@
+{
+  "name": "banyan_tree",
+  "description": "榕树(气生根成柱多柱林)生成器: 中央短干(收分)+5-7 近平展主枝(起角 0.4-0.7 渐走平, 长 0.7-0.9r) + **气生根**(主枝外侧 40-90% 节点垂链微摆下落; 3-7 根强制触地, 末段 2 宽成柱+柱脚小根盘+入土, 其余过 55% 行程概率渐断成帘) + 共享整冠(metaball 密度场壳体, tree_common.Field, 双层源+纵向抖动成厚冠)。冠幅>柱距, 柱间冠底可读 = 多柱林。取代 giant_tree 的 banyan_court 近似卡。同 seed 同树。",
+  "when_to_use": "热带雨林/湿地/庭院的榕树、多柱林(一树成林)。giant_tree 的 banyan_court 是近似卡(无气生根柱), 要真榕树林用本生成器。",
+  "use_for": "榕树/多柱林/气生根景观树; 神庙旁圣树、沼泽巨榕",
+  "params": {
+    "origin": {"type": "[x,y,z]", "default": "[0,64,0]", "notes": "干基最小角格;y = 地面层(柱脚入土 1 格, 坡地先整地)"},
+    "height": {"type": "int", "range": "15-60", "default": 30, "notes": "总高;干只有上半截(0.5h 分叉), 雨林榕 25-40 最自然"},
+    "crown_radius": {"type": "int", "range": "6-25", "default": 12, "notes": "冠幅半径(共享整冠);要大于柱距(柱在 0.4-0.9r)"},
+    "trunk": {"type": "int", "values": [2, 3, 4], "default": 3, "notes": "中央干 ts×ts(上半收 1);多柱的中央柱"},
+    "species": {"type": "enum", "values": ["oak", "dark_oak", "birch", "spruce", "jungle", "acacia", "cherry", "mangrove", "pale_oak"], "default": "oak", "notes": "jungle/mangrove 最榕"},
+    "pillars": {"type": "int", "range": "0-7", "default": 0, "notes": "触地成柱的气生根数 3-7;0=seed 自动(3-7)"},
+    "seed": {"type": "int", "default": 0, "notes": "枝形/柱位/帘根渐断全由此定"}
+  },
+  "pitfalls": [
+    "悬空垂根段(未触地渐断成帘)是形态本体不是断头;成柱根必触地",
+    "柱间冠底可读是'林'的读法 — 别把 crown_radius 给小于柱距(柱 0.4-0.9r)",
+    "垂根/柱脚入土 1 格, 坡地先 terraform_pad;整树过 flood-fill 连通剪枝, 别删单格",
+    "叶全带 persistent=true"
+  ],
+  "validators": ["support_check"],
+  "example": "python patterns/banyan_tree.py --params '{\"origin\":[100,64,100],\"height\":30,\"crown_radius\":12,\"trunk\":3,\"seed\":7}' --out banyan.json"
+}

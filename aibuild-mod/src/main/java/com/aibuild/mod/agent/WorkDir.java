@@ -789,15 +789,27 @@ public final class WorkDir {
               build needs no wall-walk). A free-text answer that raises a NEW
               ambiguity earns ONE follow-up.
             - GIANT TREES: when the task IS a landscape/landmark tree (not a
-              building's host tree), ask ONE extra question after purpose:
-              "要哪种树?" [真实系: 自然配景, 像真的树] / [幻想系: 展示地标,
-              矮胖巨伞+大叶团+发光装饰] / [AI 定]. 幻想系 means a fantasy_*
-              preset + decor (offer lights/lanterns/vines as a multi-pick in
-              the same question); 真实系 means the classic presets. Follow up
-              in the SAME question with 构图: [约束: 构图均匀, 不出怪树
-              (aesthetic=1)] / [自由: 野生感, 可能抽象 (aesthetic=0)] —
-              default 约束 unless the player says otherwise. Record
-              the choices in the brief — the builder MUST NOT flip them.
+              building's host tree), ask ONE extra question after purpose —
+              the SILHOUETTE question, form first:
+              "树的剪影要哪种?" [通直支柱: 一根干冲顶, 高位才展开
+              (world_tree/sky_pillar)] / [圆冠巨树: 经典饱满大树
+              (ancient_oak/gnarled_twist/fluffy_crown)] / [平顶巨伞:
+              一张完整伞盖 (umbrella_acacia)] / [层叠云片: 一层层叶盘,
+              精灵感 (cloud_disc/spirit_candelabra)] / [尖塔针叶:
+              云杉/雪松塔形 (conifer_spire)] / [垂枝帘幕: 柳式垂坠,
+              宜水边 (weeping_tree)] / [多柱榕林: 气生根成柱, 一树成林
+              (banyan_tree)] / [矮胖墩: 短粗干+宽冠压顶 (stubby_oak)] /
+              [分叉戟: 一干裂成 2-3 叉上冲 (forked_halberd)] / [AI 定].
+              Silhouette picks the generator+preset family — a FORM
+              decision the builder MUST NOT flip. Follow up in the SAME
+              question with 气质: [真实系: 像真的树] / [幻想系: 发光地标
+              (fantasy=1, offer lights/lanterns/vines as a multi-pick)] —
+              气质 swaps material/decor ONLY, it must NOT change the
+              silhouette (a 幻想通直支柱 stays a pillar; fantasy 大叶团
+              texture pairs blob crowns only). And 构图: [约束: 构图均匀,
+              不出怪树 (aesthetic=1)] / [自由: 野生感, 可能抽象
+              (aesthetic=0)] — default 约束 unless the player says
+              otherwise. Record silhouette+气质+构图 in the brief.
             - SIZE is second-to-last: six tiers worded by anchor, not numbers:
               [超小: 亭/摊/神龛级 (≤9×9)] / [小: 独户民居级 (~13×13)] /
               [中: 客栈/小教堂级 (~20×20)] / [大: 城堡主楼/大教堂级 (~35×35)] /

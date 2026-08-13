@@ -79,10 +79,11 @@
 | facade_scan | 立面感知(门窗洞/平整区段/候选装饰锚点+budget,配 decoration_menu.md 选配方 — 装饰前先扫) |
 | plaza | 广场铺装(rect 矩形/circle 有机圆场(边缘抖动+磨损带,树下/喷泉必用);同心圆/放射/棋盘/镶边;中心点缀位;灯椅节奏) |
 | garden_tree | 庭院小树(<=4 格冠; 橡/桦/樱/杉; 更大的树一律 giant_tree) |
-| giant_tree | 巨树/景观大树 v9(阔叶系: 真四级分枝骨架+叶形四式分形(云片层档/球形/伞形共点/雾团密枝)+贴地爬根+干径护栏+fantasy 幻想地标系 4 卡+decor 装饰钩子(光点/灯笼/垂藤)+aesthetic 构图约束(扇区空洞自动补); 20 preset; 高 10-150 地标直出; 针叶/棕榈/垂柳走开下面三个) |
+| giant_tree | 巨树/景观大树 v12(阔叶系: 真四级分枝骨架+metaball 密度场叶+干径护栏+decor 壳感知装饰(光点/灯笼/垂藤)+aesthetic 构图约束(扇区空洞补枝不补皮); 22 preset; 高 10-150 地标直出)。剪影→preset: 通直支柱=world_tree/sky_pillar; 圆冠=ancient_oak/gnarled_twist/fluffy_crown; 平顶伞=umbrella_acacia; 云片=cloud_disc/spirit_candelabra; 怪树=stubby_oak(矮胖墩)/forked_halberd(分叉戟); 幻想=fantasy_sakura/world/oak/spirit(膨胀只配 blob); 材质系=cherry_blossom/birch_grove/mangrove_swamp/pale_oak_garden; 特殊=leaning_river 偏锋/mist_crown 雾团/dead_snag 枯立木/banyan_court(近似,真榕走下)。根部 crawl/flare/buttress/gate 门洞拱根; 针叶/棕榈/垂柳走下面三个 |
 | conifer_spire | 针叶塔形(spire 云杉锥/cedar 分层塔/pine 伞松; 逐层裙边下垂撕裂; 高 8-80) |
 | palm_umbrella | 棕榈(palm 羽状叶先扬后垂+椰团)/平顶金合欢(flat_top 平顶微穹盘, 60% 分叉双干) |
 | weeping_tree | 垂柳(垂坠叶帘长 0.35-0.6h 带透缝渐稀, 水边/园林) |
+| banyan_tree | 榕树多柱林(气生根垂链触地成柱 3-7, 共享密度场整冠, 冠幅>柱距; 高 15-60) |
 | round_plan | 圆环墙/收分圆塔(taper 逐层内收;solid 实心/空心;cap 封盘;圆塔/灯塔/精灵圆屋) |
 | altar | 祭坛(多层台座+顶饰) |
 | settlement | 聚落布局(产 scene 空间计划非方块;grid/radial/organic/park) |

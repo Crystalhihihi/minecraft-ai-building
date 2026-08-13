@@ -29,13 +29,15 @@
         "pale_oak_garden",
         "fluffy_crown",
         "mist_crown",
+        "stubby_oak",
+        "forked_halberd",
         "fantasy_sakura",
         "fantasy_world",
         "fantasy_oak",
         "fantasy_spirit"
       ],
       "default": "(空)",
-      "notes": "形态卡 id;给了就按卡填 form/limbs/layers/density(/species), 显式参数仍可覆盖; 后四张是材质系卡(同骨架换树皮); fluffy_crown=蓬松档; fantasy_* 四张=幻想地标系(矮胖撑伞+大叶团+基座巨化+干纵纹, 配 decor 用)"
+      "notes": "形态卡 id;给了就按卡填 form/limbs/layers/density(/species), 显式参数仍可覆盖; 后四张是材质系卡(同骨架换树皮); fluffy_crown=蓬松档; stubby_oak=矮胖墩(新干形, 粗干矮个宽冠压地); forked_halberd=分叉戟(fork=3, 高瘦); fantasy_* 四张=幻想地标系(矮胖撑伞+大叶团+基座巨化+干纵纹, 配 decor 用)"
     },
     "height": {
       "type": "int",
@@ -97,10 +99,11 @@
         "crawl",
         "flare",
         "buttress",
+        "gate",
         "none"
       ],
       "default": "crawl",
-      "notes": "根式: crawl=贴地爬根(干基样条拱出再下扎入土, 长短混编, 老树/巨木默认) | flare=钟形基座(干基膨大~1.7ts, 温带老树)+短根 | buttress=旧板根阶梯鳍(热带板根风味) | none=光杆"
+      "notes": "根式: crawl=贴地爬根(干基样条拱出再下扎入土, 长短混编, 老树/巨木默认) | flare=钟形基座(干基膨大~1.7ts, 温带老树)+短根 | buttress=旧板根阶梯鳍(热带板根风味) | gate=门洞露根(3-4 主根抛物线拱起, 净高≥3 可穿行, 幻想地标基座) | none=光杆"
     },
     "tuft_scale": {
       "type": "float",
@@ -119,10 +122,21 @@
         "straight",
         "curved",
         "leaning",
-        "spiral"
+        "spiral",
+        "stubby"
       ],
       "default": "straight",
-      "notes": "干形;leaning=偏锋风骨(生长点吸引持续拉弯+根部反向锚定+冠心偏移+顺风枝扇);curved=蛇形(弯幅随树高 2.5-6);spiral=绕轴螺旋+盘旋棱脊;preset 优先"
+      "notes": "干形;leaning=偏锋风骨(生长点吸引持续拉弯+根部反向锚定+冠心偏移+顺风枝扇);curved=蛇形(弯幅随树高 2.5-6);spiral=绕轴螺旋+盘旋棱脊;stubby=矮胖墩(近地起叉 0.2-0.35h+平展枝+冠压极低, ASPECT 护栏放行矮胖比);preset 优先"
+    },
+    "fork": {
+      "type": "int",
+      "values": [
+        0,
+        2,
+        3
+      ],
+      "default": 0,
+      "notes": "分叉戟(与 form 正交, forked straight 典型): 0=off; 2|3=leader 在 0.25-0.35h 分裂, 侧叉微张后近平行上冲贯入冠底, 共享整冠(顶穹团单顶); 主枝自动压到冠底缘起叉(戟身裸挺可读); preset forked_halberd"
     },
     "limbs": {
       "type": "int",
@@ -194,9 +208,15 @@
     "细梢 fence、粗枝 2 宽 log 梁、大盘辐根 2 宽是体素化惯例;整树已过 flood-fill 连通剪枝, 别删单格",
     "叶全带 persistent=true(实测教训:裸叶放下即消失);别批量替换成默认叶",
     "spiral/curved 干绕轴偏移, footprint 按 canopy_radius×2+弯幅 6 圈地",
+    "主枝/次主干 2→1 收细处铺 bottom 半砖台阶(0.5 格过渡, 别当赘块删);curved/spiral 干基偏移方向反向根加长(抓地锚, 与 leaning 同权)",
     "块数参考: 22 高约 1-2 千 / 40 高约 3-6 千(blob 更实) / 100+ 地标 3-4 万;生成秒级",
     "幻想系体量: 40 高 fantasy ~2 万 / 70 高 ~5 万 — footprint 按 canopy×2+10 圈地, 选址给足;decor 的灯笼/垂藤会伸出冠缘 2-8 格",
-    "banyan(多干)/willow(垂枝)是近似卡: 真垂柳走 weeping_tree.py, 多干未实现",
+    "banyan(多干)/willow(垂枝)是近似卡: 真垂柳走 weeping_tree.py, 真榕树(气生根成柱多柱林)走 banyan_tree.py",
+    "decor 是壳感知的: 灯嵌外壳面(≥1 空气面, 扇区均布+冠底下缘配额), 灯笼垂链挂到冠底壳下(5 面露气), 垂藤从逐列最低叶起垂 — 实心冠时代的'埋灯'逻辑已废, 别回退",
+    "fantasy 膨胀(大叶团/稀簇距)只配 crown=blob 花椰菜;fantasy+umbrella 会变西兰花(实机翻车)——要幻想伞用标准簇径, 别手拼 fantasy=1+umbrella",
+    "aesthetic=1 的扇区补簇对 umbrella/mist 只补上层: 伞下/雾下空旷是设计(下层空扇区不补, 补了是悬空小盘)",
+    "roots=gate 门洞露根: 3-4 主根抛物线拱起(净高≥3 可穿行), 幻想地标基座用(如 fantasy_oak 配 roots=gate); 非门洞根走低爬款让出走廊",
+    "stubby/fork 两张新干形卡(v12): stubby_oak=矮胖墩(冠底 ~0.3h 压近地面是形态不是翻车); forked_halberd=分叉戟(裂口→冠底的叉身裸挺是戟身剪影, 也不是裸枝 bug)",
     "发光脉络/垂藤/灯笼等精灵装饰是 special 钩子欠债, 生成器不自动加"
   ],
   "validators": [
