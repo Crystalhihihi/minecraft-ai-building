@@ -81,19 +81,19 @@ def build(p):
                         if cc not in t.wood:
                             t.leaves.add(cc)
                 # 脊源沿 vline 面连通格逐格布(对角步进不断管 → prune 安全;
-                # 脊源不吃 carve, 透缝只由侧源/噪声扛)
+                # 脊源不吃 carve, 透缝只由侧源/噪声扛); gid=羽条分组(R1)
                 cur_sp = (fx, fy, fz)
                 for cc in (vline(prev_sp, cur_sp)[1:] if prev_sp else [cur_sp]):
-                    fld.add(cc[0], cc[1], cc[2], 0.85, 0.7)
+                    fld.add(cc[0], cc[1], cc[2], 0.85, 0.7, k)
                 prev_sp = cur_sp
                 # 中缝交错侧叶(羽状)
                 side = 1 if s % 2 == 0 else -1
                 sx = fx + rhu(math.cos(faz + math.pi / 2) * side)
                 sz = fz + rhu(math.sin(faz + math.pi / 2) * side)
                 if h3(sx, fy, sz, p["seed"] ^ 7) >= p["carve"]:
-                    fld.add(sx, fy, sz, 0.6, 0.7)
+                    fld.add(sx, fy, sz, 0.6, 0.7, k)
         t.leaves |= fld.rasterize(t.wood, T=0.55, amp=0.3 + p["carve"],
-                                  noise_L=max(2.5, r / 2.0), shell=2)
+                                  noise_L=max(2.5, r / 2.0), shell=2, bite=0.08)
         # ---- 椰团
         for _ in range(rng.randint(2, 3)):
             cx = top[0] + rng.randint(-1, 1)
@@ -151,7 +151,7 @@ def build(p):
                     fld.add(ccx + gx, cy + 1, ccz + gz, 1.0, 0.5)
         fld.add(ccx, cy + 1, ccz, max(1.5, r * 0.3), 0.6)
         t.leaves |= fld.rasterize(t.wood, T=0.55, amp=0.3 + p["carve"],
-                                  noise_L=max(2.5, r / 2.0), shell=2)
+                                  noise_L=max(2.5, r / 2.0), shell=2, bite=0.08)
 
     t.prune(1)
     return t.emit()

@@ -10,10 +10,12 @@
     "trunk": {"type": "int", "values": [2, 3], "default": 2, "notes": "2x2 | 3x3(老柳)"},
     "species": {"type": "enum", "values": ["oak", "dark_oak", "birch", "spruce", "jungle", "acacia", "cherry", "mangrove", "pale_oak"], "default": "oak", "notes": "birch 白干垂柳很出效果"},
     "seed": {"type": "int", "default": 0, "notes": "枝形/帘长/透缝全由此定"},
-    "carve": {"type": "float", "range": "0-0.4", "default": 0.15, "notes": "帘透缝率;0.2 更飘逸, 0.05 更浓密"}
+    "carve": {"type": "float", "range": "0-0.4", "default": 0.15, "notes": "帘透缝率;0.2 更飘逸, 0.05 更浓密"},
+    "decor": {"type": "string", "default": "(空)", "notes": "装饰钩子, 逗号组合: lights=外壳面光点(shroomlight, 8 扇区均布+1/3 给冠底/帘缘下侧) / berries=发光浆果垂链(cave_vines_plant+cave_vines[berries=true], 长 1-4 渐断, 间隔≥2) / all=全上"}
   },
   "pitfalls": [
     "垂帘透缝是特征(风透帘), carve=0 是一堵绿墙不是柳",
+    "decor=berries 的发光浆果是 cave_vines 族方块(glow_berries 是物品放不上);挂点正上方必是叶, 别徒手摆",
     "帘链贴地止(y>1), 水边造会把尖端悬在水面 — 正确读法",
     "冠顶团必须有: 没它垂帘读成一团挂面;别删",
     "叶全带 persistent=true"

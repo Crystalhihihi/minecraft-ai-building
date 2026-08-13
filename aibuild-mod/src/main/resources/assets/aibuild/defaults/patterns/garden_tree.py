@@ -33,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from roof_common import die, write_out
-from tree_common import Field
+from tree_common import Field, LEAF_ALT
 
 DEFAULTS = {
     "origin": [0, 64, 0],          # [x,y,z] trunk base cell (min corner of the trunk) at ground y
@@ -99,9 +99,11 @@ class Tree:
                                max(0.6, rx * 0.42), flat)
 
     def rasterize_field(self):
-        """全部场源一次成面(小树尺度: 短波长噪声, 壳 2 层)。"""
+        """全部场源一次成面(小树尺度: 短波长噪声, 壳 2 层; R3 咬缺 0.1,
+        R4 垂叶 0.3 — 阶段6 质感)。"""
         self.leaves |= self.field.rasterize(
-            self.logs, T=0.55, amp=0.42, noise_L=2.5, shell=2)
+            self.logs, T=0.55, amp=0.42, noise_L=2.5, shell=2,
+            bite=0.1, drape=0.3)
 
     def branch(self, bx, by, bz, d, reach, tip_r, level=1):
         """Face-connected ascending staircase outward; blob at the tip.
@@ -194,8 +196,15 @@ class Tree:
     def emit(self):
         out = [{"x": self.ox + x, "y": self.oy + y, "z": self.oz + z, "block": b}
                for (x, y, z), b in sorted(self.logs.items())]
-        out += [{"x": self.ox + x, "y": self.oy + y, "z": self.oz + z, "block": self.leaf + "[persistent=true]"}
-                for (x, y, z) in sorted(self.leaves) if (x, y, z) not in self.logs]
+        alt = LEAF_ALT.get(self.leaf)               # 双色混叶(R4, 0.2 换次叶)
+        for (x, y, z) in sorted(self.leaves):
+            if (x, y, z) in self.logs:
+                continue
+            b = self.leaf
+            if alt and h3(self.ox + x, self.oy + y, self.oz + z) < 0.2:
+                b = alt
+            out.append({"x": self.ox + x, "y": self.oy + y, "z": self.oz + z,
+                        "block": b + "[persistent=true]"})
         # persistent=true: bare leaf blocks use natural-generation semantics and
         # decay away from logs (实机实测:装饰叶团放下即消失) — always pin them.
         return out

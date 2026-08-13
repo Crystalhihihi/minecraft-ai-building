@@ -9,7 +9,7 @@
     "base_radius": {"type": "int", "range": "2-12", "default": 4, "notes": "叶锥底半径(裙边最宽);高宽比 3-5:1 读塔形, 别给 20 高 8 宽的粽子"},
     "form": {"type": "enum", "values": ["spire", "cedar", "pine"], "default": "spire", "notes": "spire 云杉锥 / cedar 分层塔 / pine 伞松"},
     "species": {"type": "enum", "values": ["oak", "dark_oak", "birch", "spruce", "jungle", "acacia", "cherry", "mangrove", "pale_oak"], "default": "spruce", "notes": "材质四件套;针叶默认 spruce"},
-    "trunk": {"type": "int", "values": [1, 2], "default": 1, "notes": "1x1 | 2x2(巨杉, 0.5h 以上收 1x1)"},
+    "trunk": {"type": "int", "range": "0-6", "default": 0, "notes": "0=自动按高度 2-6(H/8 量级, 沿程均匀收细到 1; 治'云杉一条细'); 显式 1|2=旧行为(2x2 时 0.5h 以上收 1x1)"},
     "seed": {"type": "int", "default": 0, "notes": "层半径抖动/撕裂/镂空全由此定"},
     "carve": {"type": "float", "range": "0-0.4", "default": 0.15, "notes": "叶层镂空率;雪松给 0.2 更透气"}
   },

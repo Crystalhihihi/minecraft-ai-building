@@ -110,7 +110,7 @@ def build(p):
     # 单层盘源成面是平板, 榕冠要有厚度), 冠心+顶穹团; flat 0.65 横展,
     # 冠幅>柱距(柱在 0.4-0.9r, 冠到 1.1r)
     base_r = max(1.8, r * 0.2)
-    for chain in limb_chains:
+    for gi, chain in enumerate(limb_chains):
         L = len(chain)
         gap = max(1.6, base_r * 1.4)
         n = max(2, int(L * 0.7 / gap))
@@ -119,16 +119,17 @@ def build(p):
             frac = min(1.0, max(0.3, frac))
             x, y, z = chain[min(L - 1, int(frac * (L - 1)))]
             tr = base_r * rng.uniform(0.8, 1.2)
-            fld.add(x, y, z, tr, 0.65)
-            fld.add(x, y + 2, z, tr * 0.8, 0.7)      # 上层源(冠体厚度)
+            fld.add(x, y, z, tr, 0.65, gi)
+            fld.add(x, y + 2, z, tr * 0.8, 0.7, gi)  # 上层源(冠体厚度)
         x, y, z = chain[-1]                          # 梢端团
-        fld.add(x, y, z, base_r * rng.uniform(1.1, 1.4), 0.65)
-    # 冠心团 + 顶穹团(治平顶/漏干)
-    fld.add(rhu(c), top_y + int(r * 0.35), rhu(c), min(r * 0.4, 7.0), 0.7)
-    fld.add(rhu(c), h - 1, rhu(c), max(2.0, base_r * 1.2), 0.8)
+        fld.add(x, y, z, base_r * rng.uniform(1.1, 1.4), 0.65, gi)
+    # 冠心团 + 顶穹团(治平顶/漏干) — 独立 gid(R1)
+    n_limbs = len(limb_chains)
+    fld.add(rhu(c), top_y + int(r * 0.35), rhu(c), min(r * 0.4, 7.0), 0.7, n_limbs)
+    fld.add(rhu(c), h - 1, rhu(c), max(2.0, base_r * 1.2), 0.8, n_limbs + 1)
     t.leaves |= fld.rasterize(t.wood, T=0.5, amp=0.4,
                               noise_L=max(3, rhu(r / 3.0)),
-                              shell=2 if r <= 10 else 3)
+                              shell=2 if r <= 10 else 3, bite=0.1, drape=0.3)
     t.prune(ts)
     return t.emit()
 

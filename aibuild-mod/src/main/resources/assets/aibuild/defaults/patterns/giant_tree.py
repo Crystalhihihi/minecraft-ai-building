@@ -103,7 +103,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from roof_common import die, write_out
-from tree_common import Field
+from tree_common import Field, shell_surface, pick_even as _pick_even, LEAF_ALT
 
 DEFAULTS = {
     "origin": [0, 64, 0],       # [x,y,z] trunk base min corner, y = ground layer
@@ -133,6 +133,14 @@ DEFAULTS = {
     "limbs": 0,                 # 主枝数 3-6; 0 = seed 自动
     "canopy_layers": 2,         # 冠层盘数档 1-4 (1=旧椭球感, 2-4=云片分层)
     "taper": True,              # 干柱渐进收分(到 1x1 顶梢, 缩径层半砖过渡)
+    "topology": "",             # 空=单轴(旧路径, 全回归) | spreading=合轴(WP 克隆
+                                #   分裂共干+管模型宽度, 阶段7 试点=ancient_oak)
+    "spread": "standard",       # spreading 分叉档: standard=0.3-0.5H 裂 2-3 |
+                                #   wild=0.2-0.35H 裂 3-4(夸张低裂)
+    "bend_mode": "continue",      # 仅 form=bend: continue=续弯(香蕉干) |
+                                #   foldback=折返回勾(U 形, 干梢重新朝上)
+    "fantasy_limbs": 1,           # 仅 fantasy=1: 1=克制(现状) | 2=夸张(主枝粗 4-6、
+                                #   长 0.8-1.0r、末端贴天弧线探出冠面再扎回)
 }
 SPECIES = {"oak": ("minecraft:oak_log", "minecraft:oak_leaves", "minecraft:oak_fence",
                    "minecraft:oak_slab", "minecraft:stripped_oak_log"),
@@ -151,37 +159,53 @@ SPECIES = {"oak": ("minecraft:oak_log", "minecraft:oak_leaves", "minecraft:oak_f
            "mangrove": ("minecraft:mangrove_log", "minecraft:mangrove_leaves",
                         "minecraft:mangrove_fence", "minecraft:mangrove_slab", "minecraft:stripped_mangrove_log"),
            "pale_oak": ("minecraft:pale_oak_log", "minecraft:pale_oak_leaves",
-                        "minecraft:pale_oak_fence", "minecraft:pale_oak_slab", "minecraft:stripped_pale_oak_log")}
-FORMS = ("straight", "curved", "leaning", "spiral", "stubby")
+                        "minecraft:pale_oak_fence", "minecraft:pale_oak_slab", "minecraft:stripped_pale_oak_log"),
+           # 幻想材质试点(阶段6): 冰叶(通透)+白木干 — MegRae 截图蒸馏
+           # "大树不全是叶子"; ice 无 persistent 属性, emit 按块名后缀判定
+           "frost": ("minecraft:birch_log", "minecraft:ice",
+                     "minecraft:birch_fence", "minecraft:birch_slab", "minecraft:stripped_birch_log")}
+FORMS = ("straight", "curved", "leaning", "spiral", "stubby", "bend", "tilt", "scurve")
 # 形态卡预设(scratch/giant_tree/tree_forms.json 调研固化, docs/research/tree-forms.md
 # 有每卡的形态依据与来源 URL)。preset 只填形态参数; height/canopy_radius/seed
 # 由调用方按体量档给, 显式参数永远覆盖预设。
 PRESETS = {
     "ancient_oak":       {"form": "straight", "limbs": 5, "canopy_layers": 2, "leaf_density": 0.75,
-                          "crown": "blob"},
-    "sky_pillar":        {"form": "straight", "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5},
-    "gnarled_twist":     {"form": "curved",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.35},
-    "leaning_river":     {"form": "leaning",  "limbs": 5, "canopy_layers": 1, "leaf_density": 0.6},
+                          "crown": "blob", "topology": "spreading", "trunk": 3},
+    "sky_pillar":        {"form": "straight", "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5,
+                          "trunk": 4},
+    "gnarled_twist":     {"form": "curved",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.35,
+                          "trunk": 3},
+    "leaning_river":     {"form": "leaning",  "limbs": 5, "canopy_layers": 1, "leaf_density": 0.6,
+                          "trunk": 3},
     "banyan_court":      {"form": "straight", "limbs": 6, "canopy_layers": 2, "leaf_density": 0.8,
-                          "crown": "blob"},
+                          "crown": "blob", "trunk": 5},
     "umbrella_acacia":   {"form": "straight", "limbs": 5, "canopy_layers": 2, "leaf_density": 0.5,
-                          "crown": "umbrella"},
+                          "crown": "umbrella", "trunk": 7},
     "mist_crown":        {"form": "curved",   "limbs": 5, "canopy_layers": 3, "leaf_density": 0.7,
-                          "crown": "mist"},
+                          "crown": "mist", "trunk": 4},
     "weeping_willow":    {"form": "straight", "limbs": 5, "canopy_layers": 1, "leaf_density": 0.4},
-    "cloud_disc":        {"form": "curved",   "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5},
-    "spirit_candelabra": {"form": "spiral",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.45},
+    "cloud_disc":        {"form": "curved",   "limbs": 5, "canopy_layers": 4, "leaf_density": 0.5,
+                          "trunk": 3},
+    "spirit_candelabra": {"form": "spiral",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.45,
+                          "trunk": 4},
+    # 夸张干形卡(阶段8, MegRae 手建幻想树姿态): 大弯/整斜/S 大弯
+    "bent_giant":        {"form": "bend",     "limbs": 5, "canopy_layers": 2, "leaf_density": 0.7,
+                          "crown": "blob", "trunk": 4},
+    "tilted_giant":      {"form": "tilt",     "limbs": 5, "canopy_layers": 2, "leaf_density": 0.65,
+                          "crown": "blob", "trunk": 4},
+    "scurve_giant":      {"form": "scurve",   "limbs": 5, "canopy_layers": 2, "leaf_density": 0.7,
+                          "crown": "blob", "trunk": 4},
     "world_tree":        {"form": "straight", "limbs": 6, "canopy_layers": 3, "leaf_density": 0.6,
-                          "trunk": 5},
+                          "trunk": 8},
     "dead_snag":         {"form": "curved",   "limbs": 5, "canopy_layers": 1, "leaf_density": 0.1,
                           "no_foliage": True},
     # 材质系新卡(同骨架换树皮树叶, 零成本扩多样性 — 2026-08-07 species 扩充)
     "cherry_blossom":    {"form": "curved",   "limbs": 4, "canopy_layers": 2, "leaf_density": 0.7,
-                          "species": "cherry", "crown": "blob"},
+                          "species": "cherry", "crown": "blob", "trunk": 3},
     "birch_grove":       {"form": "straight", "limbs": 4, "canopy_layers": 2, "leaf_density": 0.55,
                           "species": "birch"},
     "mangrove_swamp":    {"form": "straight", "limbs": 5, "canopy_layers": 2, "leaf_density": 0.6,
-                          "species": "mangrove", "crown": "blob"},
+                          "species": "mangrove", "crown": "blob", "trunk": 3},
     "pale_oak_garden":   {"form": "straight", "limbs": 5, "canopy_layers": 3, "leaf_density": 0.5,
                           "species": "pale_oak"},
     "fluffy_crown":      {"form": "straight", "limbs": 5, "canopy_layers": 3, "leaf_density": 0.8,
@@ -192,17 +216,22 @@ PRESETS = {
                           "crown": "blob", "trunk": 6},
     "forked_halberd":    {"form": "straight", "fork": 3, "limbs": 4, "canopy_layers": 2,
                           "leaf_density": 0.65, "crown": "blob", "trunk": 4},
+    # 幻想材质试点(阶段6): 冰叶白木(叶=ice/packed/blue_ice 混比, 干=birch 系)
+    "fantasy_frost":     {"form": "curved",   "limbs": 5, "canopy_layers": 3, "leaf_density": 0.75,
+                          "species": "frost", "crown": "blob", "fantasy": 1, "roots": "flare",
+                          "trunk": 5},
     # 幻想地标系(2026-08-12 用户参考图 bilibili 展示树蒸馏): 矮胖撑伞比例
     # (ASPECT 0.7-1.3, 冠幅可大于身高)+大叶团+弯幅x2+冠底下压+基座巨化+
     # 粗干双材质纵纹。真实系卡一行不动。decor 另传。
     "fantasy_sakura":    {"form": "curved",   "limbs": 5, "canopy_layers": 3, "leaf_density": 0.8,
-                          "species": "cherry", "crown": "blob", "fantasy": 1, "tuft_scale": 1.15},
+                          "species": "cherry", "crown": "blob", "fantasy": 1, "tuft_scale": 1.15,
+                          "trunk": 4},
     "fantasy_world":     {"form": "straight", "limbs": 6, "canopy_layers": 3, "leaf_density": 0.85,
                           "crown": "blob", "fantasy": 1, "trunk": 10, "roots": "flare"},
     "fantasy_oak":       {"form": "curved",   "limbs": 5, "canopy_layers": 3, "leaf_density": 0.75,
-                          "crown": "blob", "fantasy": 1, "roots": "flare"},
+                          "crown": "blob", "fantasy": 1, "roots": "flare", "trunk": 5},
     "fantasy_spirit":    {"form": "spiral",   "limbs": 4, "canopy_layers": 3, "leaf_density": 0.6,
-                          "species": "pale_oak", "crown": "layers", "fantasy": 1},
+                          "species": "pale_oak", "crown": "layers", "fantasy": 1, "trunk": 4},
 }
 DIRS8 = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
 STEP = 1.0                                # 骨架步进(格)
@@ -274,6 +303,11 @@ class Tree:
         self.lean_az = self.rng.uniform(0, 2 * math.pi)
         self.curve_freq = self.rng.uniform(0.10, 0.18)   # 低频慢扭(高频=碎锯齿)
         self.curve_phase = self.rng.uniform(0, 2 * math.pi)
+        # 夸张干形(阶段8)参数: 只在对应 form 抽(rng 流隔离, 旧卡零影响)
+        self.bend_theta = math.radians(self.rng.uniform(60, 70)) \
+            if p["form"] == "bend" else 0.0              # bend 总转角
+        self.tilt_ang = math.radians(self.rng.uniform(30, 45)) \
+            if p["form"] == "tilt" else 0.0              # tilt 结构倾角
 
     # ------------------------------------------------------- trunk forms --
     def _trunk_offset(self, y):
@@ -298,6 +332,43 @@ class Tree:
                 A = min(10.0, max(4.0, self.p["height"] * 0.1))   # 幻想档弯幅x2
             return (ramp * A * math.sin(yy * self.curve_freq + self.curve_phase),
                     ramp * A * math.sin(yy * self.curve_freq * 0.7 + self.curve_phase * 1.3))
+        if f == "scurve":
+            # S 大弯(夸张档): curved 同式, 振幅 2-3 倍放大(蛇形真正读得出)
+            A = min(14.0, max(6.0, self.p["height"] * 0.15))
+            return (ramp * A * math.sin(yy * self.curve_freq + self.curve_phase),
+                    ramp * A * math.sin(yy * self.curve_freq * 0.7 + self.curve_phase * 1.3))
+        if f == "bend":
+            # 单向大弯(解析曲线, 非积分漂移): 从 0.2H 起匀曲率弯到 bend_theta
+            # (60-70°); continue=续弯到底(香蕉干, 干梢趋平), foldback=极值后
+            # 同曲率折返, 干梢重新朝上(U 形回勾)
+            h = self.p["height"]
+            y0 = 0.2 * h
+            if y <= y0:
+                return 0.0, 0.0
+            th = self.bend_theta
+            kap = th / (0.5 * h)
+            y1 = y0 + 0.5 * h                       # 弯段结束
+            caz, saz = math.cos(self.lean_az), math.sin(self.lean_az)
+            if y <= y1:
+                ox = (1.0 - math.cos(kap * (y - y0))) / kap
+            elif self.p.get("bend_mode") == "foldback":
+                t = y - y1
+                if t <= th / kap:                   # 折返段: 转角 Θ→0
+                    ox = (1.0 - math.cos(th)) / kap + \
+                         (math.cos(th - kap * t) - math.cos(th)) / kap
+                else:                               # 回直段(干梢朝上)
+                    ox = (1.0 - math.cos(th)) / kap + \
+                         (1.0 - math.cos(th)) / kap
+            else:                                   # continue: 续弯, 方向趋平
+                ox = (1.0 - math.cos(th)) / kap + math.sin(th) * (y - y1)
+            return ox * caz, ox * saz
+        if f == "tilt":
+            # 整树结构性倾斜(比萨式): 恒定倾角 30-45°, 0.7H 以上坡度减半回正
+            s = math.tan(self.tilt_ang)
+            hh = self.p["height"]
+            yy2 = y if y <= 0.7 * hh else 0.7 * hh + (y - 0.7 * hh) * 0.5
+            ox = s * yy2
+            return ox * math.cos(self.lean_az), ox * math.sin(self.lean_az)
         return 0.0, 0.0
 
     def _trunk_bias(self, x, y, z):
@@ -314,7 +385,7 @@ class Tree:
             strength = 0.05 + 0.40 * (y / h)             # 基部近直, 梢部大弯
             bx, bz = dx / dist * strength, dz / dist * strength
             return bx + self.rng.uniform(-0.04, 0.04), bz + self.rng.uniform(-0.04, 0.04)
-        if f in ("curved", "spiral"):
+        if f in ("curved", "spiral", "bend", "scurve", "tilt"):
             ox1, oz1 = self._trunk_offset(y + 1.0)
             ox0, oz0 = self._trunk_offset(y)
             return (ox1 - ox0 + self.rng.uniform(-0.05, 0.05),
@@ -323,6 +394,9 @@ class Tree:
 
     def grow(self):
         h = self.p["height"]
+        if self.p.get("topology") == "spreading":
+            self._stems()               # 合轴骨架(阶段7 试点), 旧四相全跳过
+            return
         # ---- phase 1: 顶梢干(leader 一路到树梢, 穿进顶盘) — 干即树脊,
         # 治 v2 "主干止于冠底, 顶盘锁死不长"的断头
         leader_top = h - max(1, rhu(self.hl * 0.5))
@@ -365,6 +439,39 @@ class Tree:
                     self.costem_ids.add(cur)
                     caz += self.rng.uniform(-0.04, 0.04)
                 self.costem_chains.append(chain)
+        # ---- phase 1.55: scurve 次级共干辅助(用户点名): S 弯每个弯段 1 条
+        # 共干, 从弯外侧伸出并跟随弯度(偏移差分引导), 分担叶团 — 不然大弯
+        # 只是一根弯杆挂球
+        if self.p["form"] == "scurve":
+            n_co = 2 + (1 if h >= 40 else 0)
+            for k in range(n_co):
+                y_at = h * (0.30 + 0.22 * k + self.rng.uniform(-0.02, 0.02))
+                sid = min(self.trunk_ids,
+                          key=lambda nid: abs(self.nodes[nid][1] - y_at))
+                ox0, oz0 = self._trunk_offset(y_at)
+                if math.hypot(ox0, oz0) > 0.5:
+                    caz = math.atan2(oz0, ox0)      # 弯外侧
+                else:
+                    caz = self.rng.uniform(0, 2 * math.pi)
+                el = self.rng.uniform(0.5, 0.8)     # 中长共干(陡中带张)
+                top = min(h * 0.9, y_at + h * self.rng.uniform(0.22, 0.30))
+                cur, pos = sid, self.nodes[sid]
+                chain = []
+                while pos[1] < top and len(self.nodes) < MAX_NODES:
+                    o1 = self._trunk_offset(pos[1] + 1.0)
+                    o0 = self._trunk_offset(pos[1])
+                    dx = math.cos(caz) * math.cos(el) + (o1[0] - o0[0]) * 2.0
+                    dz = math.sin(caz) * math.cos(el) + (o1[1] - o0[1]) * 2.0
+                    dy = math.sin(el) * 1.2
+                    ln = math.sqrt(dx * dx + dy * dy + dz * dz)
+                    pos = (pos[0] + dx / ln * STEP, pos[1] + dy / ln * STEP,
+                           pos[2] + dz / ln * STEP)
+                    self._add(cur, pos)
+                    cur = len(self.nodes) - 1
+                    chain.append(cur)
+                    self.costem_ids.add(cur)
+                    caz += self.rng.uniform(-0.03, 0.03)
+                self.costem_chains.append(chain)
         # ---- phase 1.6: 分叉戟(fork 参数, 与 form 正交; forked straight 典型):
         # leader 在 0.25-0.45h 分裂, 侧叉先微张(spread 0.35)再近平行上冲
         # (0.05, 锐、直), 叉梢贯入冠底壳带(戟可读, 不停在冠下变裸枝);
@@ -403,6 +510,10 @@ class Tree:
         # 共点射出, 雾团=侧枝加密; 一套主枝撒所有叶形=全塌成小团)
         n_limbs = int(self.p["limbs"]) or self.rng.randint(3, 5)
         n_limbs = max(3, min(6, n_limbs))
+        fx2 = self.p["fantasy"] and int(self.p.get("fantasy_limbs", 1)) == 2
+        if fx2:
+            n_limbs = min(6, n_limbs + 1)       # 夸张档多一根粗枝
+        self.arc_tips = set()                   # fx2 弧梢(小簇露枝形)
         crown_mode = self.p["crown"]
         tiers = int(self.p["canopy_layers"]) if crown_mode == "layers" else 1
         r = self.p["canopy_radius"]
@@ -424,9 +535,11 @@ class Tree:
                 # 伞形: 全部主枝从 0.7-0.8h 同一节点共点射出
                 h_start = h * (0.75 + self.rng.uniform(-0.02, 0.02))
             elif crown_mode == "layers" and tiers >= 2:
-                # 云片: 起叉高度聚成 tiers 个离散层档(0.5h→0.8h), 层间留缝
+                # 云片: 起叉高度聚成 tiers 个离散层档, 层间留缝;
+                # 层档下探到 0.42H(实机投诉"通直树只有近顶才有叶子" —
+                # 冠覆盖段拉长, 剪影仍通直)
                 tier_i = i % tiers
-                h_start = h * (0.5 + 0.3 * (tier_i / max(1, tiers - 1)) +
+                h_start = h * (0.42 + 0.38 * (tier_i / max(1, tiers - 1)) +
                                self.rng.uniform(-0.02, 0.02))
             else:
                 h_start = h * (0.35 + 0.2 * (i / max(1, n_limbs - 1)) + self.rng.uniform(-0.03, 0.03))
@@ -437,8 +550,8 @@ class Tree:
             else:
                 start_id = min(self.trunk_ids,
                                key=lambda nid: abs(self.nodes[nid][1] - h_start))
-            if self.p["form"] == "leaning":
-                # 偏锋主枝 = 顺风扇(lean_az ±1.2 rad 内展开), 背风面无枝 —
+            if self.p["form"] in ("leaning", "tilt"):
+                # 偏锋/倾斜主枝 = 顺风扇(lean_az ±1.2 rad 内展开), 背风面无枝 —
                 # 探头剪影(F04: 倾斜侧枝长背侧裸);整环分布+冠心偏移=逆风裸枝翻车
                 az = self.lean_az + ((i + self.rng.uniform(-0.3, 0.3)) /
                                      max(1, n_limbs - 1) - 0.5) * 2.4
@@ -464,10 +577,15 @@ class Tree:
             elif self.p["form"] == "stubby":
                 lo, hi2 = (0.5, 0.75)               # 矮胖墩: 枝不戳出冠沿
             elif self.p["fantasy"]:
-                lo, hi2 = (0.7, 0.9)
+                # 幻想夸张档(fantasy_limbs=2): 主枝更长 0.8-1.0r(克制 0.7-0.9)
+                lo, hi2 = (0.8, 1.0) if fx2 else (0.7, 0.9)
             else:
                 lo, hi2 = (0.5, 0.7)
             steps = max(3, int(r * self.rng.uniform(lo, hi2)))
+            if self.p["form"] == "bend":
+                # 弯外侧枝长、内侧枝短(张力感, 夸张干形)
+                dot = math.cos(az - self.lean_az)
+                steps = max(3, int(steps * (1.0 + 0.35 * dot)))
             flat = int(steps * self.rng.uniform(0.25, 0.4))       # 短平展段
             pos = self.nodes[start_id]
             cur = start_id
@@ -481,6 +599,21 @@ class Tree:
                 if s >= flat:                           # 平展段保持低仰角
                     el = min(el_cap, el + tilt)
                 az += self.rng.uniform(-0.05, 0.05)
+            if fx2:
+                # 夸张档: 末端上扬探出冠面 — 正弦仰角剖面弧线(解析式, 非积分
+                # 漂移): 先扬后回一段贴天弧再扎回冠面; 出冠段场源沿枝脊布置
+                # (梢簇骑在枝上露出枝形), 叶壳不另糊
+                arc = 3 + (1 if steps > 14 else 0) + self.rng.randint(0, 1)
+                ddx, ddz = math.cos(az), math.sin(az)
+                for s2 in range(arc):
+                    elv = 0.85 * math.sin(2 * math.pi * (s2 + 1) / (arc + 1))
+                    ln = math.sqrt(ddx * ddx + 1.0 + ddz * ddz + 1e-9)
+                    pos = (pos[0] + ddx / ln * STEP,
+                           pos[1] + (math.sin(elv) + 0.3) / ln * STEP,
+                           pos[2] + ddz / ln * STEP)
+                    self._add(cur, pos)
+                    cur = len(self.nodes) - 1
+                self.arc_tips.add(cur)      # 弧梢: 只给小簇, 枝形探出可读
             # 层盘中心推到枝端外侧: 主枝平展段要留白可读, 叶盘长在枝端之外
             self.limb_ends.append((cur, (dx, dy, dz), steps))
         # ---- phase 2.5: 二级/三级分枝(全树通用 — 实测"树没有分枝, 全是一条")
@@ -495,6 +628,149 @@ class Tree:
             self._blob_spokes()
         # layers/umbrella/mist/幻想宽幅: 无盘无辐条 — 真分枝骨架扛全部叶形
 
+    def _stems(self):
+        """合轴(spreading)骨架(阶段7 试点=ancient_oak;
+        docs/research/2026-08-13-branching-models.md §④ 定稿):
+        - WP 克隆分裂算子: 干/共干走到失势点裂 K 条同级共干, 递归 LEVELS=4;
+          槽位方位(K 等分槽 + ±半槽抖动 + 槽位置换 + 每裂整体转 φ0)
+        - Honda 不对称: 各叉倾角区间内独立抽
+        - 回弯补偿: 叉梢初向偏离母轴, 沿程线性收拢回母轴(防冠炸, WP 关键增量)
+        - 冠包络: 水平越 canopy_radius 向轴心收; 清干: 分叉点 ≥0.25H
+        - 整数管模型宽度在 calibre/rasterize 落实(梢 p=1, 父=Σ子,
+          w=max(1,round(pk·√p)), pk=ts/√desc[0] 标定 → 分叉口 d²≈Σdᵢ²)
+        产出与旧路径同构: nodes/parent/children + trunk_ids(0 级干链) +
+        limb_ends(1 级共干) + terminals/term_gid + sub_chains/sub_gid。
+        rng 全部在本函数 BFS 固定序消费, 下游(栅格化/叶/decor)零抽数。
+        spread: standard=干 0.30-0.50H 裂 2-3 | wild=0.20-0.35H 裂 3-4。"""
+        rng = self.rng
+        h = self.p["height"]
+        r = self.p["canopy_radius"]
+        wild = str(self.p.get("spread", "standard")) == "wild"
+        # level -> (k 区间, 失势点区间(占剩余高), 倾角区间°)
+        FT = {0: ((3, 4) if wild else (2, 3),
+                  (0.25, 0.35) if wild else (0.28, 0.42),   # 低裂也不破清干线
+                  (30, 45) if wild else (28, 42)),
+              1: ((2, 3) if wild else (2, 2), (0.50, 0.70), (20, 35)),
+              2: ((2, 2), (0.60, 0.80), (15, 30))}
+        LEVELS = 4
+        env_r = max(3.5, float(r))                  # 冠包络(水平向)
+        clear_y = 0.25 * h                          # 清干线(20% 规则推广)
+        self.costem_chains, self.costem_ids = [], set()
+        self.fork_chains, self.fork_ids = [], set()
+        self.spoke_chains, self.spoke_thick, self.discs = [], set(), []
+        self.limb_ends, self.terminals = [], []
+        self.sub_chains, self.sub_gid, self.term_gid = [], [], []
+        self.sym_forks = []                         # 校验用: (分叉 y, 共干数)
+
+        def norm(d):
+            n = math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) or 1.0
+            return (d[0] / n, d[1] / n, d[2] / n)
+
+        def rot(v, ang):
+            """向量 v 绕随机垂直轴转 ang 弧度(rng 消费集中在此)。"""
+            ux, uy, uz = rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1)
+            un = math.sqrt(ux * ux + uy * uy + uz * uz) or 1.0
+            ux, uy, uz = ux / un, uy / un, uz / un
+            px, py, pz = v[1] * uz - v[2] * uy, v[2] * ux - v[0] * uz, v[0] * uy - v[1] * ux
+            pn = math.sqrt(px * px + py * py + pz * pz)
+            if pn < 1e-6:
+                return v
+            px, py, pz = px / pn, py / pn, pz / pn
+            c, s = math.cos(ang), math.sin(ang)
+            return (v[0] * c + px * s, v[1] * c + py * s, v[2] * c + pz * s)
+
+        def az_bend(d, azc, ang):
+            """d 在含方位 azc 的立面内偏 ang 弧度(向水平方位 azc 倾)。"""
+            ux, uz = math.cos(azc), math.sin(azc)
+            c, s = math.cos(ang), math.sin(ang)
+            return norm((d[0] * c + ux * s, d[1] * c, d[2] * c + uz * s))
+
+        # 队列项: (parent_nid, pos, dir0, level, length, 回弯基准母轴, 共干组 gi)
+        first_len = h * rng.uniform(*FT[0][1])      # 0 级干长(失势点 0.30-0.50H)
+        queue = [(0, self.nodes[0], (0.0, 1.0, 0.0), 0, first_len, None, -1)]
+        while queue:
+            parent, pos, d0, level, length, reco, gi = queue.pop(0)
+            steps = max(3, int(length))
+            if level == 0:
+                steps = max(steps, int(clear_y) + 1)   # 干必过清干线才许失势
+            chain = []
+            cur = parent
+            d_init = d0
+            for s in range(steps):
+                if reco is not None:
+                    t = (s + 1.0) / steps
+                    # 先张后扬: 前 35% 保持外张(分叉可读), 后段收向母轴 85%
+                    bend_t = max(0.0, (t - 0.35) / 0.65) * 0.85
+                    d = (d_init[0] * (1 - bend_t) + reco[0] * bend_t,
+                         d_init[1] * (1 - bend_t) + reco[1] * bend_t,
+                         d_init[2] * (1 - bend_t) + reco[2] * bend_t)
+                else:
+                    d = d_init
+                d = norm(rot(d, rng.uniform(0, 0.03 + 0.03 * level)))  # 弯折
+                d = norm((d[0], d[1] + 0.03, d[2]))                    # 趋光回正
+                if level == 0 and self.p["form"] in (
+                        "curved", "spiral", "bend", "scurve", "tilt"):
+                    # 0 级干跟随干形偏移曲线(合轴×干形兼容: S 弯/大弯/倾斜
+                    # 作为 0 级干路径输入, 共干在其上裂)
+                    o1 = self._trunk_offset(pos[1] + 1.0)
+                    o0 = self._trunk_offset(pos[1])
+                    d = norm((d[0] + (o1[0] - o0[0]), d[1],
+                              d[2] + (o1[1] - o0[1])))
+                ex, ez = pos[0] - self.c, pos[2] - self.c
+                if ex * ex + ez * ez > env_r * env_r:                  # 包络约束
+                    en = math.sqrt(ex * ex + ez * ez) or 1.0
+                    d = norm((d[0] - ex / en * 0.3, d[1], d[2] - ez / en * 0.3))
+                if pos[1] >= h - 1:
+                    break                               # 到顶即收(包络上界)
+                pos = (pos[0] + d[0] * STEP, pos[1] + d[1] * STEP,
+                       pos[2] + d[2] * STEP)
+                self._add(cur, pos)
+                cur = len(self.nodes) - 1
+                chain.append(cur)
+            if level == 0:
+                self.trunk_ids.extend(chain)            # 0 级干 = 主干链
+            elif level == 1:
+                gi = len(self.limb_ends)                # 1 级共干 = limb(独立场组)
+                self.limb_ends.append((cur, d, steps))
+            if level < LEVELS - 1 and len(chain) >= 3 and pos[1] >= clear_y:
+                krange, _, arange = FT[level]
+                K = rng.randint(*krange)
+                self.sym_forks.append((rhu(pos[1]), K))
+                phi0 = rng.uniform(0, 2 * math.pi)      # 整体转
+                slots = list(range(K))
+                for i in range(K):                      # 槽位置换(Fisher-Yates)
+                    j = rng.randrange(i, K)
+                    slots[i], slots[j] = slots[j], slots[i]
+                for i in range(K):
+                    azc = phi0 + 2 * math.pi * (slots[i] + rng.uniform(-0.5, 0.5)) / K
+                    ang = math.radians(rng.uniform(*arange))
+                    cd = az_bend(d, azc, ang)
+                    # 共干要"伸出去"(横向到达冠缘量级)再上行, 不是贴轴上冲
+                    clen = max(3.0, (h - pos[1]) * rng.uniform(0.7, 0.9))
+                    queue.append((cur, pos, cd, level + 1, clen, d, gi))
+            elif level >= 1:
+                self.terminals.append(cur)              # 末级共干梢 = 叶锚点
+                self.term_gid.append(gi)
+            # 从属侧枝(1-2 级共干途中捎带, 3-6 格小枝, 梢入 terminals)
+            if 1 <= level <= 2 and len(chain) >= 3:
+                for _ in range(rng.randint(1, 3)):
+                    anchor = chain[int(len(chain) * rng.uniform(0.4, 0.9))]
+                    td = norm(rot(d, math.radians(rng.uniform(35, 60))))
+                    tcur, tpos = anchor, self.nodes[anchor]
+                    twig = [tcur]
+                    for _s in range(rng.randint(3, 6)):
+                        tpos = (tpos[0] + td[0] * STEP, tpos[1] + td[1] * STEP,
+                                tpos[2] + td[2] * STEP)
+                        self._add(tcur, tpos)
+                        tcur = len(self.nodes) - 1
+                        twig.append(tcur)
+                        td = norm(rot(td, rng.uniform(-0.08, 0.08)))
+                    self.sub_chains.append(twig)
+                    self.sub_gid.append(gi)
+                    self.terminals.append(tcur)
+                    self.term_gid.append(gi)
+        self.pre_fan = len(self.nodes)
+
     def _sub_branches(self):
         """二级/三级分枝(phase 2.5, 全树通用): 每根主枝外侧 40-90% 段长 2-4
         根侧枝(与母枝走向夹角 0.3-0.6 rad, 长 0.35-0.55×母枝), 每根侧枝梢
@@ -505,6 +781,8 @@ class Tree:
         trunk_set = set(self.trunk_ids)
         self.terminals = []
         self.sub_chains = []                            # 侧枝链(mist 雾团用)
+        self.sub_gid = []                               # 侧枝链所属主枝 gid(阶段6 R1)
+        self.term_gid = []                              # 梢节点所属主枝 gid(与 terminals 对齐)
 
         def rot(v, ang):
             """向量 v 绕随机垂直轴转 ang 弧度(确定性 rng)。"""
@@ -522,7 +800,7 @@ class Tree:
             c, s = math.cos(ang), math.sin(ang)
             return (v[0] * c + px * s, v[1] * c + py * s, v[2] * c + pz * s)
 
-        for li, ldir, steps in list(self.limb_ends):
+        for gi, (li, ldir, steps) in enumerate(list(self.limb_ends)):
             chain = []
             cur = li
             while cur not in trunk_set and cur > 0:
@@ -531,6 +809,7 @@ class Tree:
             chain.reverse()
             if len(chain) < 4:
                 self.terminals.append(li)
+                self.term_gid.append(gi)
                 continue
             n_sub = rng.randint(2, 3 if steps < 14 else 4)
             if self.p["crown"] == "mist":
@@ -565,7 +844,9 @@ class Tree:
                     d = rot(d, rng.uniform(-0.06, 0.10))
                     d = (d[0], max(d[1], -0.15), d[2])
                 self.terminals.append(cur)
+                self.term_gid.append(gi)
                 self.sub_chains.append(sub_chain)
+                self.sub_gid.append(gi)
                 for _ in range(rng.randint(1, 2)):
                     td = rot(d, rng.uniform(0.3, 0.7))
                     L2 = rng.randint(3, 6)
@@ -577,7 +858,9 @@ class Tree:
                         tcur = len(self.nodes) - 1
                         td = rot(td, rng.uniform(-0.08, 0.08))
                     self.terminals.append(tcur)
+                    self.term_gid.append(gi)
             self.terminals.append(li)               # 主枝梢也是簇点
+            self.term_gid.append(gi)
 
     def _blob_spokes(self):
         """crown=blob 的骨架: 球面辐条(球形是枝条长出来的, 不是叶壳)。
@@ -764,6 +1047,10 @@ class Tree:
         for i in reversed(range(len(self.nodes))):
             desc[i] = sum(desc[c] for c in self.children[i]) or 1
         self.thick_tips = max(8, desc[0] // 150)
+        if self.p.get("topology") == "spreading":
+            # 整数管模型(阶段7): 梢 p=1 父=Σ子, pk=ts/√总梢数标定 →
+            # 基截面≈ts, 分叉口 d²≈Σdᵢ²(±1 量化容差)
+            self.pk = self.ts / math.sqrt(max(1, desc[0]))
         forks = [i for i, c in enumerate(self.children) if len(c) >= 2]
         clear_h = min((rhu(self.nodes[i][1]) for i in forks), default=self.p["height"] - 2)
         clear_h = max(3, min(self.p["height"] - 2, clear_h))
@@ -820,7 +1107,12 @@ class Tree:
             x, y, z = self.nodes[nid]
             yy = rhu(y)
             frac = idx / span
-            size = self._trunk_size(frac)
+            if self.p.get("topology") == "spreading":
+                # 管模型宽度(合轴): 沿干随 Σ梢数收分, 缩径层半砖沿用
+                size = max(1, min(self.ts,
+                                  int(round(self.pk * math.sqrt(max(1, desc[nid]))))))
+            else:
+                size = self._trunk_size(frac)
             if self.p["roots"] == "flare" and self.p["buttress"]:
                 # 钟形基座: 干基 ts+2 层内线性膨大到 ~1.7ts(温带老树立干感),
                 # 削角成圆由 _bole_section 负责
@@ -846,21 +1138,24 @@ class Tree:
                     self.put_wood(lx, yy, lz, "%s[type=bottom]" % self.slab)
             prev_cells, prev_size = cells, size
             prev_pos, prev_yy = (x, y, z), yy
-        # 主枝粗细分档(实测"主枝干只有一根, 其他全是细枝条"):
-        # 主枝=叉口 max(2,ts//2) 宽起步, 沿程 0.35/0.7 两档收细到 1 —
-        # 大树的粗枝也是"干"(参考图全是多干合抱感), 1 宽梁撑不起巨冠
+        # 主枝粗细分档(实机投诉"主枝干太细, 收成铁丝"): 基宽跟枝长走
+        # (≈steps/6, 保底 2, 上限 ts-1 封顶 4), 沿程渐变收细(0.75 线性衰减
+        # +缩径半砖), 不再 0.35/0.7 两档跳水
         limb_w = {}
-        w0 = max(1, min(4, self.ts // 2)) if self.ts >= 4 else 1
-        for li, _d, _s in self.limb_ends:
+        w_cap = max(1, min(4, self.ts - 1)) if self.ts >= 3 else 1
+        if self.p["fantasy"] and int(self.p.get("fantasy_limbs", 1)) == 2:
+            w_cap = max(2, min(6, self.ts))     # 幻想夸张档: 主枝粗 4-6
+        for li, _d, steps in self.limb_ends:
             chain = []
             cur = li
             while cur not in trunk_set and cur > 0:
                 chain.append(cur)
                 cur = self.parent[cur]
             chain.reverse()
+            w0 = min(w_cap, max(2, int(round(steps / 6.0)))) if w_cap >= 2 else 1
             for ci, nid in enumerate(chain):
                 f = ci / max(1, len(chain) - 1)
-                w = w0 if f < 0.35 else (max(1, w0 - 2) if f < 0.7 else 1)
+                w = max(1, int(round(w0 * (1.0 - 0.75 * f))))
                 limb_w[nid] = max(w, limb_w.get(nid, 1))
         # 次主干: 0.55ts 截面沿程收分到 1(削角成圆同主干), 通用循环跳过;
         # 缩径层同主干做法铺 bottom 半砖台阶(债①: 0.5 格台阶取代突变)
@@ -921,8 +1216,12 @@ class Tree:
             in_trunk_zone = rhu(self.nodes[i][1]) <= clear_h and rhu(self.nodes[pa][1]) <= clear_h \
                 and pa in trunk_set
             w = limb_w.get(i, 1)
-            if w < 2 and ((i < self.pre_fan and desc[i] >= self.thick_tips) or
-                          i in self.spoke_thick):
+            if self.p.get("topology") == "spreading":
+                # 共干/侧枝按管模型宽度(Σ梢数开方), 封顶 4(2x2 梁)
+                w = max(1, min(4, int(round(self.pk * math.sqrt(max(1, desc[i]))))))
+            if not self.p.get("topology") and w < 2 and \
+                    ((i < self.pre_fan and desc[i] >= self.thick_tips) or
+                     i in self.spoke_thick):
                 w = 2
             # 债①: 主枝 2→1 收细突变 → 对齐主干缩径, 在收窄处的旧加宽格
             # 铺 bottom 半砖台阶(装饰性附加, 侧邻承重; 不压已有木/占位);
@@ -963,6 +1262,10 @@ class Tree:
                         offs.append((1, 0) if axis == "x" else (0, 1))
                     if w >= 4:
                         offs.append((1, 1))
+                    if w >= 5:                          # 幻想夸张档: 5=3x2 缺角
+                        offs.append((2, 0) if axis == "x" else (0, 2))
+                    if w >= 6:                          # 6=3x2 全
+                        offs.append((2, 1) if axis == "x" else (1, 2))
                     for ox, oz in offs:
                         self.put_wood(cell[0] + ox, cell[1], cell[2] + oz,
                                       "%s[axis=%s]" % (self.log, axis))
@@ -1023,6 +1326,10 @@ class Tree:
             # 根部抓地补偿(风骨): 倾斜反方向的根加长锚定, 顺风向缩短
             dot = dx * math.cos(self.lean_az) + dz * math.sin(self.lean_az)
             L = max(2, int(round(L * (1.0 - 0.5 * dot))))
+        elif self.p["form"] == "tilt":
+            # 结构性大斜(30-45°): 高岸侧抓地根更长(权重更激进 ×0.8)
+            dot = dx * math.cos(self.lean_az) + dz * math.sin(self.lean_az)
+            L = max(2, int(round(L * (1.0 - 0.8 * dot))))
         elif self.p["form"] in ("curved", "spiral"):
             # 债②: 板根方向与干形解耦 — 干基往哪偏(_trunk_offset 初段方向),
             # 反向爬根加长抓地(与 leaning 同权变); 偏移微小(直干段)不加权
@@ -1139,6 +1446,10 @@ class Tree:
                 # 根部抓地补偿(风骨): 倾斜反方向的板根加长锚定, 顺风向缩短
                 dot = ddx * math.cos(self.lean_az) + ddz * math.sin(self.lean_az)
                 fin_len = max(1, int(round(length * (1.0 - 0.75 * dot))))
+            elif self.p["form"] == "tilt":
+                # 结构性大斜: 高岸侧板根加长锚定(权重 ×1.0, 激进)
+                dot = ddx * math.cos(self.lean_az) + ddz * math.sin(self.lean_az)
+                fin_len = max(1, int(round(length * (1.0 - 1.0 * dot))))
             elif self.p["form"] in ("curved", "spiral"):
                 # 债②: 板根方向与干形解耦 — 干基初段偏移方向的反向鳍加长
                 # (与 leaning 同权变), 偏移微小(直干段)不加权
@@ -1159,13 +1470,15 @@ class Tree:
                             self.log, axis if y == hgt - 1 else "y"))
 
     # ----------------------------------------------------------- foliage --
-    def _field_tuft(self, cx, cy, cz, r, carve, flat=0.8):
+    def _field_tuft(self, cx, cy, cz, r, carve, flat=0.8, gid=0):
         """密度场版叶簇(v11): 不再逐簇栅格化, 只把簇心+半径收进 Field 场源表,
         成面由 _rasterize_field 统一做; carve 形参保留兼容(逐簇镂空已由
-        场阈值噪声+剥壳取代)。簇心照记 tuft_centers(扇区覆盖统计用)。"""
+        场阈值噪声+剥壳取代)。簇心照记 tuft_centers(扇区覆盖统计用)。
+        gid=枝级分组(阶段6 R1): 主枝链+其侧枝链+其梢簇同组, 组间并集
+        成面 — 枝间沟壑不再被场填平。"""
         if hasattr(self, "tuft_centers"):
             self.tuft_centers.append((cx, cy, cz))
-        self.field.add(cx, cy, cz, r, flat)
+        self.field.add(cx, cy, cz, r, flat, gid)
 
     def _rasterize_field(self):
         """metaball 密度场等值面(治"树叶全是一个个球"): 全部簇心(含顶穹团)
@@ -1185,8 +1498,11 @@ class Tree:
         amp = 0.4 if flat_min >= 0.45 else 0.25
         Ln = max(3, rhu(r / 3.0))
         layers = 2 if r <= 10 else 3
+        # 阶段6: R3 咬缺率随镂空卡折算(0.10±0.10·(ld-0.6)); R4 垂叶绦 0.3
         self.leaves |= field.rasterize(self.wood, T=T, amp=amp,
-                                       noise_L=Ln, shell=layers)
+                                       noise_L=Ln, shell=layers,
+                                       bite=0.10 + 0.10 * (ld - 0.6),
+                                       drape=0.3)
 
     def foliage(self):
         """叶形四式(crown 参数, 骨架拓扑已在 grow 分形):
@@ -1239,7 +1555,7 @@ class Tree:
             ecap = tcap + 0.5
             gap *= 1.6                      # 簇距(幻想主靠枝梢簇, 沿链簇是配角)
 
-        def tufts_along(chain, start_frac):
+        def tufts_along(chain, start_frac, gid=0):
             L = len(chain)
             if L < 2:
                 return
@@ -1250,10 +1566,10 @@ class Tree:
                 nid = chain[int(frac * (L - 1))]
                 x, y, z = self.nodes[nid]
                 tr = min(base_r * rng.uniform(0.7, 1.3), tcap)   # 大冠封顶防块数爆炸
-                self._field_tuft(round(x), round(y), round(z), tr, carve, flat)
+                self._field_tuft(round(x), round(y), round(z), tr, carve, flat, gid)
             x, y, z = self.nodes[chain[-1]]      # 梢端大团(云片焦点, 半径封顶)
             self._field_tuft(round(x), round(y), round(z),
-                             min(base_r * rng.uniform(1.0, 1.3), ecap), carve, flat)
+                             min(base_r * rng.uniform(1.0, 1.3), ecap), carve, flat, gid)
 
         limb_chains = []
         for li, _ldir, _steps in self.limb_ends:
@@ -1265,37 +1581,65 @@ class Tree:
             chain.reverse()
             limb_chains.append(chain)
 
+        # ---- 枝级分组(阶段6 R1): 主枝链 gi=索引; 侧枝链/梢簇随主枝
+        # (phase 2.5 已记 sub_gid/term_gid); 辐条/blob 壳环源按梢端方位归
+        # 最近主枝; 顶穹团/冠心团各自独立 gid(组间并集成面 → 枝间沟壑留住)
+        n_groups = max(1, len(limb_chains))
+        mid0 = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
+        mx0, mz0 = self.nodes[mid0][0], self.nodes[mid0][2]
+        limb_az = [math.atan2(self.nodes[ch[-1]][2] - mz0,
+                              self.nodes[ch[-1]][0] - mx0)
+                   for ch in limb_chains] or [0.0]
+
+        def gid_of(x, z):
+            a = math.atan2(z - mz0, x - mx0)
+            return min(range(len(limb_az)), key=lambda gi:
+                       abs((a - limb_az[gi] + math.pi) % (2 * math.pi) - math.pi))
+
         if crown_mode == "blob" and self.p["fantasy"]:
             # 幻想宽幅: 叶簇只坐枝梢(terminals=主枝/侧枝/小枝梢) —
             # 实测"发胖叶团是硬凑的, 不长在枝上, 还镂空": 无壳无辐条,
             # 簇径大但 carve 正常, 分层=主枝起叉高度差天然形成
-            for tid in self.terminals:
+            for tid, gi in zip(self.terminals, self.term_gid):
                 x, y, z = self.nodes[tid]
-                tr = min(base_r * rng.uniform(0.9, 1.4), tcap)
-                self._field_tuft(round(x), round(y), round(z), tr, carve, flat)
+                # fx2 弧梢只给小簇(露枝形); 普通梢端大团照旧
+                if tid in getattr(self, "arc_tips", ()):
+                    tr = min(base_r * rng.uniform(0.45, 0.6), tcap)
+                else:
+                    tr = min(base_r * rng.uniform(0.9, 1.4), tcap)
+                self._field_tuft(round(x), round(y), round(z), tr, carve, flat, gi)
             # 冠心团: 枝梢簇全在外圈, 冠中心上空会漏干(实测"心形缺口")
             mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
             mx, my, mz = self.nodes[mid]
             self._field_tuft(round(mx), round(my + self.ry * 0.7), round(mz),
-                             min(base_r * 1.3, ecap), carve, flat)
-            for chain in limb_chains:               # 主枝中段稀疏补簇(遮骨干)
-                tufts_along(chain, 0.6)
+                             min(base_r * 1.3, ecap), carve, flat, n_groups + 1)
+            for gi, chain in enumerate(limb_chains):  # 主枝中段稀疏补簇(遮骨干)
+                tufts_along(chain, 0.6, gi)
         elif crown_mode == "blob":
             for chain in self.spoke_chains:         # 球面辐条: 外侧 35% 起簇
-                tufts_along(chain, 0.35)            # (球形=枝条长成, 簇随枝走)
-            for chain in limb_chains:               # 主枝下部也别裸(球底收口)
-                tufts_along(chain, 0.45)
-            self._foliage_blob(r, carve * 1.2)      # 壳层封口(更透: 簇团已扛纹理)
+                sx, _, sz = self.nodes[chain[-1]]   # (球形=枝条长成, 簇随枝走;
+                tufts_along(chain, 0.35, gid_of(sx, sz))  #  辐条按方位归最近主枝)
+            for gi, chain in enumerate(limb_chains):  # 主枝下部也别裸(球底收口)
+                # 合轴: 共干下半段留白可读(0.55 起簇), 分叉剪影要在冠下看得见
+                tufts_along(chain, 0.55 if self.p.get("topology") else 0.45, gi)
+            if self.p.get("topology") == "spreading":
+                # 合轴试点: 无辐条, 末级共干梢扛簇(叶坐枝梢), 壳环兜底
+                for tid, gi in zip(self.terminals, self.term_gid):
+                    x, y, z = self.nodes[tid]
+                    tr = min(base_r * rng.uniform(0.7, 1.1), tcap)
+                    self._field_tuft(round(x), round(y), round(z), tr, carve, flat, gi)
+            self._foliage_blob(r, carve * 1.2, gid_of)  # 壳层封口(更透: 簇团已扛纹理)
         elif crown_mode == "umbrella":
             # 伞形平顶: 整枝盘面(近水平枝从 15% 起簇, 实机 25% 太稀不连续),
             # 梢簇下垂成伞沿, 冠心一张顶盘收口
-            for chain in limb_chains:
-                tufts_along(chain, 0.15)
-            for chain in getattr(self, "sub_chains", []):
-                tufts_along(chain, 0.3)
+            for gi, chain in enumerate(limb_chains):
+                tufts_along(chain, 0.15, gi)
+            for chain, gi in zip(getattr(self, "sub_chains", []),
+                                 getattr(self, "sub_gid", [])):
+                tufts_along(chain, 0.3, gi)
             # 冠底过渡桥接源(实机翻车"伞盘坐在裸杆上/不是从枝干上长出来"):
             # 盘下侧面 y-2 补源, 伞盖下缘融到枝身(与盘面同场融合)
-            for chain in limb_chains:
+            for gi, chain in enumerate(limb_chains):
                 L = len(chain)
                 if L < 2:
                     continue
@@ -1307,46 +1651,50 @@ class Tree:
                     x, y, z = self.nodes[nid]
                     self._field_tuft(round(x), round(y) - 2, round(z),
                                      base_r * rng.uniform(0.5, 0.8), carve,
-                                     min(0.6, flat + 0.15))
-            for tid in self.terminals:
+                                     min(0.6, flat + 0.15), gi)
+            for tid, gi in zip(self.terminals, self.term_gid):
                 x, y, z = self.nodes[tid]
                 tr = min(base_r * rng.uniform(0.8, 1.2), tcap)
                 self._field_tuft(round(x), round(y) - rng.randint(1, 2), round(z),
-                                 tr, carve, flat)
+                                 tr, carve, flat, gi)
             mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
             mx, my, mz = self.nodes[mid]
             self._field_tuft(round(mx), round(my + self.ry * 0.4), round(mz),
-                             min(base_r * 1.4, ecap), carve, flat)
+                             min(base_r * 1.4, ecap), carve, flat, n_groups + 1)
         elif crown_mode == "mist":
             # 蓬松雾团: 全部枝链(主枝+侧枝)小簇高方差叠放 — 要"雾"不要"稀"
             # (实测 0.3 起簇+标准簇距=半枯), 起簇更早簇距更密
             gap *= 0.5
-            for chain in limb_chains:
-                tufts_along(chain, 0.1)
-            for chain in getattr(self, "sub_chains", []):
-                tufts_along(chain, 0.1)
-            for tid in self.terminals:
+            for gi, chain in enumerate(limb_chains):
+                tufts_along(chain, 0.1, gi)
+            for chain, gi in zip(getattr(self, "sub_chains", []),
+                                 getattr(self, "sub_gid", [])):
+                tufts_along(chain, 0.1, gi)
+            for tid, gi in zip(self.terminals, self.term_gid):
                 x, y, z = self.nodes[tid]
                 self._field_tuft(round(x), round(y), round(z),
-                                 base_r * rng.uniform(0.7, 1.3), carve, flat)
+                                 base_r * rng.uniform(0.7, 1.3), carve, flat, gi)
         else:
             # layers 云片层盘: 簇沿主枝+侧枝外侧段成盘(flat 0.5 压扁),
             # 层档=骨架起叉高度, 层间缝=层档间距; 侧枝梢补同层小盘
             # (实测只在主枝撒簇=秃枝小树, 侧枝链必须入盘)
-            for chain in limb_chains:
-                tufts_along(chain, 0.35)
-            for chain in getattr(self, "sub_chains", []):
-                tufts_along(chain, 0.3)
-            for tid in self.terminals:
+            for gi, chain in enumerate(limb_chains):
+                tufts_along(chain, 0.35, gi)
+            for chain, gi in zip(getattr(self, "sub_chains", []),
+                                 getattr(self, "sub_gid", [])):
+                tufts_along(chain, 0.3, gi)
+            for tid, gi in zip(self.terminals, self.term_gid):
                 x, y, z = self.nodes[tid]
                 tr = min(base_r * rng.uniform(0.7, 1.1), tcap)
-                self._field_tuft(round(x), round(y), round(z), tr, carve, flat)
+                self._field_tuft(round(x), round(y), round(z), tr, carve, flat, gi)
         # 顶穹团: 树尖上方一个半球团(治平顶/秃顶 — 树冠顶部必须是穹面不是平台)
         self._field_tuft(rhu(tip[0]), int(h) - 1, rhu(tip[2]),
-                         min(max(2.0, base_r * 1.2), ecap), carve * 0.6, flat)
+                         min(max(2.0, base_r * 1.2), ecap), carve * 0.6, flat,
+                         n_groups)
         # 冠心桥接团: 填顶穹团与冠面之间的场鞍部(旧版干顶穿冠露木点, 实测)
         self._field_tuft(rhu(tip[0]), int(h) - 3, rhu(tip[2]),
-                         min(max(1.6, base_r * 0.9), tcap), carve, flat)
+                         min(max(1.6, base_r * 0.9), tcap), carve, flat,
+                         n_groups + 1)
         # 全部场源一次成面(metaball 等值面+剥壳, 治"树叶全是一个个球")
         self._rasterize_field()
         # 边界飞叶: 叶格邻空处按概率向外补 1 格(连 2 轮 → 1-2 格毛边)
@@ -1361,11 +1709,12 @@ class Tree:
             for c in edge:
                 self.leaves.add(c)
 
-    def _foliage_blob(self, r, carve):
+    def _foliage_blob(self, r, carve, gid_of=None):
         """crown=blob 圆整球形冠的壳层(v11): 不再直接栅格化薄皮, 改为在
         v≈0.9 包络面上按弧长均布 metaball 场源(与辐条链簇同场叠加) —
         壳层职责不变(填簇间缝隙让剪影读成球), 成面交给 _rasterize_field,
-        团块边界由场融合自然消除。carve 形参保留兼容(不再逐格镂空)。"""
+        团块边界由场融合自然消除。carve 形参保留兼容(不再逐格镂空)。
+        阶段6 R1: 环源按方位归最近主枝 gid(不再当全局融合剂)。"""
         mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
         mx, _, mz = self.nodes[mid]
         dr, dh = r * 0.8, max(2.0, self.ry * 0.8)
@@ -1386,8 +1735,9 @@ class Tree:
             n_az = max(3, int(2 * math.pi * ring_r / step))
             for j in range(n_az):
                 az = 2 * math.pi * j / n_az
-                self._field_tuft(rhu(mx + ring_r * math.cos(az)), rhu(y),
-                                 rhu(mz + ring_r * math.sin(az)), tr, 0, 0.9)
+                sx, sz = mx + ring_r * math.cos(az), mz + ring_r * math.sin(az)
+                self._field_tuft(rhu(sx), rhu(y), rhu(sz), tr, 0, 0.9,
+                                 gid_of(sx, sz) if gid_of else 0)
 
     # ------------------------------------------------------------ decor --
     def _decorate(self):
@@ -1406,66 +1756,14 @@ class Tree:
         rng = self.rng
         r = self.p["canopy_radius"]
         self.decor_blocks = {}
-        leaves_list = sorted(self.leaves)
-        adj6 = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
-        # ---- 外壳面与冠底: 外部空气洪泛(叶 bbox 外扩 1 格, 从边界 BFS;
-        # 不经过叶/木) — 邻接外部空气的叶格=外壳面; 逐列最低叶=冠底外壳
-        xs = [c[0] for c in leaves_list]
-        ys = [c[1] for c in leaves_list]
-        zs = [c[2] for c in leaves_list]
-        x0, x1 = min(xs) - 1, max(xs) + 1
-        y0, y1 = min(ys) - 1, max(ys) + 1
-        z0, z1 = min(zs) - 1, max(zs) + 1
-        blocked = set(self.wood)
-        outside = set()
-        stack = []
-        for x in range(x0, x1 + 1):
-            for y in (y0, y1):
-                for z in range(z0, z1 + 1):
-                    stack.append((x, y, z))
-        for x in (x0, x1):
-            for y in range(y0, y1 + 1):
-                for z in range(z0, z1 + 1):
-                    stack.append((x, y, z))
-        for x in range(x0, x1 + 1):
-            for y in range(y0, y1 + 1):
-                for z in (z0, z1):
-                    stack.append((x, y, z))
-        while stack:
-            c = stack.pop()
-            if c in outside or c in self.leaves or c in blocked:
-                continue
-            outside.add(c)
-            x, y, z = c
-            for dx, dy, dz in adj6:
-                n2 = (x + dx, y + dy, z + dz)
-                if x0 <= n2[0] <= x1 and y0 <= n2[1] <= y1 and z0 <= n2[2] <= z1:
-                    stack.append(n2)
-        outer_shell = [c for c in leaves_list if any(
-            (c[0] + dx, c[1] + dy, c[2] + dz) in outside for dx, dy, dz in adj6)]
-        col_bottom = {}
-        for c in leaves_list:
-            k = (c[0], c[2])
-            if k not in col_bottom or c[1] < col_bottom[k][1]:
-                col_bottom[k] = c
+        # 外壳面/冠底判定 = tree_common 共享实现(外部空气洪泛+扇区选点,
+        # 阶段6 下沉; 行为与原内联版逐项一致)
+        outer_shell, col_bottom = shell_surface(sorted(self.leaves), self.wood)
         mid = min(self.trunk_ids, key=lambda i: abs(self.nodes[i][1] - self.yc))
         mx, mz = self.nodes[mid][0], self.nodes[mid][2]
 
         def pick_even(cands, m):
-            """8 扇区均布选取(扇区内 shuffle, 轮转取 — 展示树光点要均匀)。"""
-            bins = {}
-            for (x, y, z) in cands:
-                sec = int((math.atan2(z - mz, x - mx) + math.pi) / (math.pi / 4)) % 8
-                bins.setdefault(sec, []).append((x, y, z))
-            pools = list(bins.values())
-            for pl in pools:
-                rng.shuffle(pl)
-            out = []
-            while len(out) < m and any(pools):
-                for pl in pools:
-                    if pl and len(out) < m:
-                        out.append(pl.pop())
-            return out
+            return _pick_even(cands, m, mx, mz, rng)
 
         if "lights" in modes:
             # 外壳面光点(嵌在冠面, MC 幻想树经典读法): 2/3 冠上/侧面 +
@@ -1600,10 +1898,21 @@ class Tree:
                for (x, y, z), b in sorted(self.wood.items())]
         deco = getattr(self, "decor_blocks", {})
         # persistent=true: bare leaves decay away from logs (实机实测) — always pin.
-        out += [{"x": self.ox + x, "y": self.oy + y, "z": self.oz + z,
-                 "block": self.leaf + "[persistent=true]"}
-                for (x, y, z) in sorted(self.leaves)
-                if (x, y, z) not in self.wood and (x, y, z) not in deco]
+        # 双色混叶(阶段6 R4): h3 门控 0.2 换次叶(按 species 近色配对)
+        alt = LEAF_ALT.get(self.leaf)
+        for (x, y, z) in sorted(self.leaves):
+            if (x, y, z) in self.wood or (x, y, z) in deco:
+                continue
+            b = self.leaf
+            if alt and h3(x, y, z, self.seed ^ 0x2C0107) < 0.2:
+                b = alt
+            if self.leaf == "minecraft:ice" and \
+                    h3(x, y, z, self.seed ^ 0x81CE) < 0.10:
+                b = "minecraft:blue_ice"            # 冰叶混比 70/20/10
+            # ice 等非叶方块无 persistent 属性 — 按块名后缀判定
+            suffix = "[persistent=true]" if b.endswith("_leaves") else ""
+            out.append({"x": self.ox + x, "y": self.oy + y, "z": self.oz + z,
+                        "block": b + suffix})
         out += [{"x": self.ox + x, "y": self.oy + y, "z": self.oz + z, "block": b}
                 for (x, y, z), b in sorted(deco.items()) if (x, y, z) not in self.wood]
         return out
@@ -1719,6 +2028,22 @@ def validate(p):
         die("leaf_density must be 0.1-1.0", {"leaf_density": 0.6})
     if not 0.1 <= p["leaf_density"] <= 1.0:
         die("leaf_density must be 0.1-1.0", {"leaf_density": 0.6})
+    if str(p.get("topology") or "") not in ("", "spreading"):
+        die("topology must be ''|spreading (合轴骨架, 试点卡=ancient_oak)",
+            {"topology": "spreading"})
+    p["topology"] = str(p.get("topology") or "")
+    if str(p.get("spread") or "standard") not in ("standard", "wild"):
+        die("spread must be standard|wild", {"spread": "standard"})
+    p["spread"] = str(p.get("spread") or "standard")
+    if str(p.get("bend_mode") or "continue") not in ("continue", "foldback"):
+        die("bend_mode must be continue|foldback", {"bend_mode": "foldback"})
+    p["bend_mode"] = str(p.get("bend_mode") or "continue")
+    try:
+        p["fantasy_limbs"] = int(p.get("fantasy_limbs", 1))
+    except (TypeError, ValueError):
+        die("fantasy_limbs must be 1|2", {"fantasy_limbs": 2})
+    if p["fantasy_limbs"] not in (1, 2):
+        die("fantasy_limbs must be 1|2 (幻想骨架夸张档)", {"fantasy_limbs": 2})
 
 
 # 高宽比护栏(height/canopy_diameter): 比例即形态语言, 越界直接拒生成 —
@@ -1730,12 +2055,14 @@ ASPECT = {
     "mist_crown": (0.9, 2.2),
     "weeping_willow": (0.9, 2.2), "cloud_disc": (1.2, 3.5),
     "spirit_candelabra": (1.6, 4.5), "world_tree": (1.6, 4.5),
+    "bent_giant": (1.2, 2.8), "tilted_giant": (1.2, 2.8), "scurve_giant": (1.2, 3.0),
     "dead_snag": (1.2, 4.0),
     "cherry_blossom": (0.8, 2.2), "birch_grove": (1.6, 4.0),
     "mangrove_swamp": (0.8, 2.0), "pale_oak_garden": (1.2, 3.0),
     "fluffy_crown": (1.05, 1.35),   # 蓬松档: 冠幅直径 ≈ 0.75-0.95 × 高度(用户点单)
     "stubby_oak": (0.4, 0.9),       # 矮胖墩: 矮壮比同伞盖档(墩=矮而宽)
     "forked_halberd": (1.6, 3.2),   # 分叉戟: 高瘦(戟), 与烛台档生态位错开
+    "fantasy_frost": (0.7, 1.2),
     # 幻想地标系: 矮胖撑伞(冠幅直径可 = 0.75-1.4 × 身高)
     "fantasy_sakura": (0.7, 1.2), "fantasy_world": (0.7, 1.3),
     "fantasy_oak": (0.7, 1.2), "fantasy_spirit": (0.9, 1.6),

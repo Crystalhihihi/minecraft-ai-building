@@ -31,6 +31,10 @@
         "mist_crown",
         "stubby_oak",
         "forked_halberd",
+        "fantasy_frost",
+        "bent_giant",
+        "tilted_giant",
+        "scurve_giant",
         "fantasy_sakura",
         "fantasy_world",
         "fantasy_oak",
@@ -65,7 +69,13 @@
         12
       ],
       "default": 2,
-      "notes": "基部干柱 ts×ts;粗高 ts≈h/15(地标 5-8), 细高 ts≈h/25(景观 2-3);全程圆台收分到 tip=round(ts*0.4)(看得见收细), size>=3 削角成圆(不再是方柱), 缩径处半砖台阶; 10-12 供刻纹路"
+      "notes": "基部干柱 ts×ts;粗高 ts≈h/10-h/8(比例化改造后卡面默认提到这档, world_tree 8/sky_pillar 4);全程圆台收分到 tip=round(ts*0.4), size>=3 削角成圆, 缩径处半砖台阶;主枝基宽≈枝长/6(保底 2, 上限 ts-1), 沿程渐变收细; 10-12 供刻纹路"
+    },
+    "fantasy_limbs": {
+      "type": "int",
+      "values": [1, 2],
+      "default": 1,
+      "notes": "仅 fantasy=1: 1=克制(现状)/2=夸张(主枝粗 4-6、长 0.8-1.0r、末端贴天弧线探出冠面再扎回, 枝干占比 40-50%);试点卡 fantasy_oak"
     },
     "species": {
       "type": "enum",
@@ -78,10 +88,11 @@
         "acacia",
         "cherry",
         "mangrove",
-        "pale_oak"
+        "pale_oak",
+        "frost"
       ],
       "default": "oak",
-      "notes": "log/leaves/fence/slab 材质四件套;cherry=樱花粉叶, birch=白干, pale_oak=苍白花园, mangrove=沼泽(配大板根)"
+      "notes": "log/leaves/fence/slab 材质四件套;cherry=樱花粉叶, birch=白干, pale_oak=苍白花园, mangrove=沼泽(配大板根);frost=幻想试点(冰叶 ice/packed/blue_ice 混比 70/20/10 + birch 白木, 透光冠配 decor=lights)"
     },
     "seed": {
       "type": "int",
@@ -123,10 +134,22 @@
         "curved",
         "leaning",
         "spiral",
-        "stubby"
+        "stubby",
+        "bend",
+        "tilt",
+        "scurve"
       ],
       "default": "straight",
-      "notes": "干形;leaning=偏锋风骨(生长点吸引持续拉弯+根部反向锚定+冠心偏移+顺风枝扇);curved=蛇形(弯幅随树高 2.5-6);spiral=绕轴螺旋+盘旋棱脊;stubby=矮胖墩(近地起叉 0.2-0.35h+平展枝+冠压极低, ASPECT 护栏放行矮胖比);preset 优先"
+      "notes": "干形;leaning=偏锋风骨;curved=蛇形;spiral=绕轴螺旋+盘旋棱脊;stubby=矮胖墩;bend=单向大弯 60-70°(bend_mode=continue 香蕉干|foldback U 形回勾);tilt=整树结构性倾斜 30-45°(高岸侧抓地根加重);scurve=S 大弯(振幅 2-3×, 弯段配次级共干);preset 优先"
+    },
+    "bend_mode": {
+      "type": "enum",
+      "values": [
+        "continue",
+        "foldback"
+      ],
+      "default": "continue",
+      "notes": "仅 form=bend: continue=续弯到底(干梢趋平/下垂, 香蕉干);foldback=弯到极值折返向上(U 形回勾, 干梢重新朝上)"
     },
     "fork": {
       "type": "int",
@@ -154,6 +177,24 @@
       "type": "bool",
       "default": true,
       "notes": "渐进收分(前 25% 足尺, 到顶缩 1x1);关了一路等宽, 一眼假"
+    },
+    "topology": {
+      "type": "enum",
+      "values": [
+        "",
+        "spreading"
+      ],
+      "default": "(空)",
+      "notes": "骨架拓扑: 空=单轴 leader+主枝(全回归); spreading=合轴(WP 克隆分裂: 干失势裂 K 条势均力敌共干, 递归 4 级+回弯补偿+管模型宽度 d²≈Σdᵢ²+槽位方位; 试点卡=ancient_oak)"
+    },
+    "spread": {
+      "type": "enum",
+      "values": [
+        "standard",
+        "wild"
+      ],
+      "default": "standard",
+      "notes": "仅 topology=spreading 生效: standard=干 0.28-0.42H 裂 2-3; wild=0.25-0.35H 裂 3-4(夸张低裂)"
     },
     "no_foliage": {
       "type": "bool",
@@ -215,8 +256,12 @@
     "decor 是壳感知的: 灯嵌外壳面(≥1 空气面, 扇区均布+冠底下缘配额), 灯笼垂链挂到冠底壳下(5 面露气), 垂藤从逐列最低叶起垂 — 实心冠时代的'埋灯'逻辑已废, 别回退",
     "fantasy 膨胀(大叶团/稀簇距)只配 crown=blob 花椰菜;fantasy+umbrella 会变西兰花(实机翻车)——要幻想伞用标准簇径, 别手拼 fantasy=1+umbrella",
     "aesthetic=1 的扇区补簇对 umbrella/mist 只补上层: 伞下/雾下空旷是设计(下层空扇区不补, 补了是悬空小盘)",
+    "ancient_oak 是合轴试点卡(topology=spreading): 干在 0.28-0.42H 裂成 2-4 条势均力敌共干是形态本体, 不是多干 bug;spread=wild 更矮裂更多叉",
+    "叶层质感(R1-R4): 枝级分场(枝间沟壑是设计不是缺叶)+三八度噪声+壳面咬缺+垂叶绦+双色混叶(0.2 换近色次叶);壳面麻点/叶色不匀是质感不是噪点",
     "roots=gate 门洞露根: 3-4 主根抛物线拱起(净高≥3 可穿行), 幻想地标基座用(如 fantasy_oak 配 roots=gate); 非门洞根走低爬款让出走廊",
     "stubby/fork 两张新干形卡(v12): stubby_oak=矮胖墩(冠底 ~0.3h 压近地面是形态不是翻车); forked_halberd=分叉戟(裂口→冠底的叉身裸挺是戟身剪影, 也不是裸枝 bug)",
+    "夸张干形三卡(bent/tilted/scurve_giant): 大弯 60-70°/整斜 30-45°/S 大弯是姿态本体; bent 的弯外侧枝长内侧短、tilt 的高岸侧根加长都是刻意张力, 别当歪树修",
+    "fantasy_limbs=2 夸张档: 主枝弧线探出冠面+小簇梢是枝形可读设计, 不是裸枝;fantasy_frost 冰叶无 persistent 属性(emit 按块名判定), 别手动补",
     "发光脉络/垂藤/灯笼等精灵装饰是 special 钩子欠债, 生成器不自动加"
   ],
   "validators": [

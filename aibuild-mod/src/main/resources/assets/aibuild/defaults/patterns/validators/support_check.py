@@ -26,6 +26,8 @@ import mirror_build  # patterns/ : for load_blocks
 # 不需要支撑的白名单(名称子串匹配;"air"单独精确匹配,否则 stairs 全被误豁免)
 WHITELIST = (
     "_leaves", "vine", "lichen", "vein", "hanging_roots", "roots",
+    # 冰族(幻想树冰叶用, 与叶同例不需要支撑): minecraft:ice/packed_ice/blue_ice
+    "minecraft:ice", "packed_ice", "blue_ice",
     "spore_blossom", "chain", "lantern", "end_rod", "torch", "candle",
     "flower", "tulip", "orchid", "daisy", "allium", "poppy", "dandelion",
     "grass", "fern", "sapling", "bush", "fungus", "sprouts", "cobweb",

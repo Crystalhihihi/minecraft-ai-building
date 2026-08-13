@@ -131,7 +131,8 @@ Stairs/slabs/walls/fences exist for almost every full block: append
 - minecraft:oak_sapling / spruce_sapling / birch_sapling
 - minecraft:azalea / flowering_azalea
 - minecraft:moss_block / moss_carpet
-- minecraft:vine
+- minecraft:vine — 普通藤蔓是**多面附着块**(附在方块侧面, [up/down/north/south/east/west] 多面状态); 它本身**不会向下自然延伸**——"vine[up=true] 只能贴叶下 1 格"是错误认知: up=true 只是顶面附着一旗, 想下垂长链请用 cave_vines 族(下条)
+- 发光浆果(垂挂发光链): glow_berries 是**物品**不是方块, set_blocks 放不上; 可放置方块 = cave_vines_plant(挂点顶段, 长在方块底面——叶底可以) + cave_vines(向下延续段), 带 [berries=true] 才发光; 例: 叶底第 1 格 cave_vines_plant[berries=true], 往下 cave_vines[berries=true]
 - minecraft:lily_pad
 - minecraft:sugar_cane
 - minecraft:hay_block (farms)
